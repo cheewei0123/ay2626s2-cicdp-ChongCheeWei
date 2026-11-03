@@ -1,0 +1,22 @@
+# Local development database only. Production uses Amazon RDS.
+name: splitlah
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: splitlah
+      POSTGRES_PASSWORD: splitlah
+      POSTGRES_DB: splitlah
+    ports:
+      # 5433 on the laptop, because 5432 may already be used by a local Postgres install
+      - '127.0.0.1:5433:5432'
+    volumes:
+      # Postgres 18 images keep their data under /var/lib/postgresql
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U splitlah -d splitlah']
+      interval: 5s
+      retries: 10
+
+volumes:
+  db-data:
