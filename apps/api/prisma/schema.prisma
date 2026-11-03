@@ -1,0 +1,208 @@
+// Built from docs/data-model.md. Money is Int cents, rates are Int basis points.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BillStatus {
+  OPEN
+  LOCKED
+  SETTLED
+}
+
+enum SplitMode {
+  EQUAL
+  PERCENT
+  SHARES
+  EXACT
+}
+
+enum ExpenseSource {
+  BILL_SHARE
+  MANUAL
+  RECEIPT
+}
+
+enum Category {
+  FOOD_DRINKS
+  GROCERIES
+  TRANSPORT
+  SHOPPING
+  GIFTS
+  ENTERTAINMENT
+  BILLS_UTILITIES
+  HEALTH
+  TRAVEL
+  OTHERS
+}
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  emailVerifiedAt   DateTime?
+  passwordHash      String
+  displayName       String
+  phone             String?
+  phoneVerifiedAt   DateTime?
+  paynowMobile      String?
+  paynowQrPayload   String?
+  paynowQrImagePath String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  verificationTokens EmailVerificationToken[]
+  bills              Bill[]
+  participants       Participant[]
+  expenses           Expense[]
+  merchantCategories MerchantCategory[]
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Bill {
+  id         String     @id @default(cuid())
+  ownerId    String
+  title      String
+  merchant   String
+  date       DateTime   @db.Date
+  serviceBp  Int        @default(1000)
+  gstBp      Int        @default(900)
+  shareToken String     @unique
+  status     BillStatus @default(OPEN)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  owner         User           @relation(fields: [ownerId], references: [id])
+  items         Item[]
+  participants  Participant[]
+  payments      Payment[]
+  receiptImages ReceiptImage[]
+  expenses      Expense[]
+
+  @@index([ownerId])
+}
+
+model Item {
+  id             String    @id @default(cuid())
+  billId         String
+  name           String
+  unitPriceCents Int
+  quantity       Int       @default(1)
+  splitMode      SplitMode @default(EQUAL)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  bill   Bill    @relation(fields: [billId], references: [id], onDelete: Cascade)
+  claims Claim[]
+
+  @@index([billId])
+}
+
+model Participant {
+  id          String   @id @default(cuid())
+  billId      String
+  displayName String
+  userId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  bill    Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  claims  Claim[]
+  payment Payment?
+}
+
+model Claim {
+  id            String   @id @default(cuid())
+  itemId        String
+  participantId String
+  shares        Int      @default(1)
+  percentBp     Int?
+  exactCents    Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  item        Item        @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, participantId])
+  @@index([itemId])
+}
+
+model Payment {
+  id            String    @id @default(cuid())
+  billId        String
+  participantId String    @unique
+  amountCents   Int
+  paidAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  bill        Bill        @relation(fields: [billId], references: [id], onDelete: Cascade)
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([billId, participantId])
+}
+
+model ReceiptImage {
+  id          String   @id @default(cuid())
+  billId      String?
+  expenseId   String?
+  storagePath String
+  ocrProvider String
+  rawJson     Json
+  createdAt   DateTime @default(now())
+
+  bill    Bill?    @relation(fields: [billId], references: [id], onDelete: Cascade)
+  expense Expense? @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+}
+
+model Expense {
+  id          String        @id @default(cuid())
+  userId      String
+  amountCents Int
+  category    Category
+  merchant    String?
+  note        String?
+  spentAt     DateTime
+  source      ExpenseSource
+  billId      String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id])
+  bill          Bill?          @relation(fields: [billId], references: [id], onDelete: Cascade)
+  receiptImages ReceiptImage[]
+
+  @@unique([userId, billId])
+  @@index([userId, spentAt])
+}
+
+model MerchantCategory {
+  id          String   @id @default(cuid())
+  userId      String
+  merchantKey String
+  category    Category
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, merchantKey])
+}
