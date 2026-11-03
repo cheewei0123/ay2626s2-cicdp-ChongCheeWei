@@ -7,7 +7,7 @@ export interface BillTotals {
   total: number;
 }
 
-function assertWholeNonNegative(value: number, name: string): void {
+export function assertWholeNonNegative(value: number, name: string): void {
   if (!Number.isInteger(value) || value < 0) {
     throw new RangeError(`${name} must be a whole number >= 0, got ${value}`);
   }
