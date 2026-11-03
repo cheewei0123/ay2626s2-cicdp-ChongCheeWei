@@ -2,7 +2,7 @@
 
 > Snap a receipt, share a link, and everyone pays exactly their share via PayNow — with service charge and GST split fairly to the cent.
 
-![CI](https://img.shields.io/badge/CI-coming%20soon-lightgrey)
+[![CI](https://github.com/cheewei0123/ay2626s2-cicdp-ChongCheeWei/actions/workflows/ci.yml/badge.svg)](https://github.com/cheewei0123/ay2626s2-cicdp-ChongCheeWei/actions/workflows/ci.yml)
 ![Deploy](https://img.shields.io/badge/deploy-coming%20soon-lightgrey)
 
 **Live app:** _coming soon_ · **Jira board:** _link_ · **Module:** ST0529 CI/CD (CA1)
