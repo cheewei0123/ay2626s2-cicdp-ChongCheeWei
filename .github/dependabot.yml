@@ -9,7 +9,14 @@ updates:
     commit-message:
       prefix: 'KAN-22 chore(deps)'
     groups:
-      # One PR for all minor and patch updates; major updates get their own PR
+      # A package goes into the FIRST group it matches, so these come first.
+      # Packages that must stay on the same version are always updated together,
+      # including major updates (vitest 4 + coverage-v8 5 broke test-api).
+      vitest:
+        patterns: ['vitest', '@vitest/*']
+      prisma:
+        patterns: ['prisma', '@prisma/*']
+      # One PR for all other minor and patch updates; major updates get their own PR
       minor-and-patch:
         update-types: [minor, patch]
 
