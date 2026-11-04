@@ -1,0 +1,21 @@
+# Dependabot opens PRs to update dependencies; each PR goes through CI like any other.
+version: 2
+updates:
+  # npm workspaces share one lockfile at the root, so Dependabot scans from there
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: 'KAN-22 chore(deps)'
+    groups:
+      # One PR for all minor and patch updates; major updates get their own PR
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: 'KAN-22 chore(ci)'
