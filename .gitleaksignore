@@ -1,0 +1,5 @@
+# Findings checked by hand and confirmed as NOT real secrets.
+# Each line is a Gitleaks fingerprint: commit:file:rule:line
+
+# Nest CLI's generated README badge uses a made-up example token (abc123def456)
+9a98feb6b12141b433e003c5d21518747f0730f2:apps/api/README.md:generic-api-key:5
