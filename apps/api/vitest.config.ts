@@ -9,5 +9,14 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.spec.ts'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.ts'],
+      exclude: ['src/generated/**', 'src/**/*.spec.ts', 'src/main.ts'],
+      // Coverage gate: `npm run test:cov` (run in CI) fails below these numbers
+      thresholds: {
+        'src/split/**': { lines: 90, branches: 90 },
+      },
+    },
   },
 });

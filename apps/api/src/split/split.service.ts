@@ -34,11 +34,13 @@ export interface SplitResult {
   unclaimedCents: number;
 }
 
-function gcd(a: number, b: number): number {
-  return b === 0 ? a : gcd(b, a % b);
+// BigInt (whole numbers with no size limit) is used for the weights, because
+// the LCM scale can make them bigger than normal numbers hold exactly.
+function gcd(a: bigint, b: bigint): bigint {
+  return b === 0n ? a : gcd(b, a % b);
 }
 
-function lcm(a: number, b: number): number {
+function lcm(a: bigint, b: bigint): bigint {
   return (a / gcd(a, b)) * b;
 }
 
@@ -49,37 +51,44 @@ function lcm(a: number, b: number): number {
 //    (ties go to the smaller id, so the result is always the same).
 export function allocate(
   amountCents: number,
-  weights: Map<string, number>,
+  weights: Map<string, number | bigint>,
 ): Map<string, number> {
-  const totalWeight = [...weights.values()].reduce((a, b) => a + b, 0);
+  // BigInt() throws a RangeError on decimals, so bad input cannot slip through
+  const amount = BigInt(amountCents);
+  const bigWeights = [...weights].map(([id, w]) => ({ id, w: BigInt(w) }));
+  const totalWeight = bigWeights.reduce((a, { w }) => a + w, 0n);
   const result = new Map<string, number>();
 
-  if (totalWeight === 0) {
-    if (amountCents !== 0) {
+  if (totalWeight === 0n) {
+    if (amount !== 0n) {
       throw new RangeError('Cannot allocate cents when every weight is 0');
     }
-    for (const id of weights.keys()) result.set(id, 0);
+    for (const { id } of bigWeights) result.set(id, 0);
     return result;
   }
 
-  const remainders: { id: string; remainder: number }[] = [];
-  let given = 0;
-  for (const [id, weight] of weights) {
-    const scaled = amountCents * weight;
-    if (!Number.isSafeInteger(scaled)) {
-      throw new RangeError('Amount too large to split exactly');
-    }
-    const share = Math.floor(scaled / totalWeight);
-    result.set(id, share);
+  const remainders: { id: string; remainder: bigint }[] = [];
+  let given = 0n;
+  for (const { id, w } of bigWeights) {
+    const scaled = amount * w;
+    // BigInt division already rounds down for whole numbers >= 0
+    const share = scaled / totalWeight;
+    // share is never more than amountCents, so it fits back into a number
+    result.set(id, Number(share));
     given += share;
     // Integer remainder, so fractions are compared without floats
     remainders.push({ id, remainder: scaled % totalWeight });
   }
 
-  remainders.sort(
-    (a, b) => b.remainder - a.remainder || a.id.localeCompare(b.id),
+  remainders.sort((a, b) =>
+    a.remainder === b.remainder
+      ? a.id.localeCompare(b.id)
+      : a.remainder > b.remainder
+        ? -1
+        : 1,
   );
-  for (let i = 0; i < amountCents - given; i++) {
+  const leftover = Number(amount - given);
+  for (let i = 0; i < leftover; i++) {
     const id = remainders[i].id;
     result.set(id, result.get(id)! + 1);
   }
@@ -110,14 +119,14 @@ export class SplitService {
 
     // Common multiple of every item's total shares, so each person's exact
     // subtotal can be stored as a whole number (scaled up by this factor)
-    let scale = 1;
+    let scale = 1n;
     for (const itemClaims of claimsByItem.values()) {
       const totalShares = itemClaims.reduce((a, c) => a + c.shares, 0);
-      if (totalShares > 0) scale = lcm(scale, totalShares);
+      if (totalShares > 0) scale = lcm(scale, BigInt(totalShares));
     }
 
     // Each person's weight = their exact items subtotal x scale
-    const weights = new Map<string, number>([[ownerParticipantId, 0]]);
+    const weights = new Map<string, bigint>([[ownerParticipantId, 0n]]);
     let subtotal = 0;
     let unclaimedCents = 0;
     for (const item of items) {
@@ -130,17 +139,20 @@ export class SplitService {
         unclaimedCents += lineCents;
         weights.set(
           ownerParticipantId,
-          weights.get(ownerParticipantId)! + lineCents * scale,
+          weights.get(ownerParticipantId)! + BigInt(lineCents) * scale,
         );
         continue;
       }
 
       const totalShares = itemClaims.reduce((a, c) => a + c.shares, 0);
       for (const claim of itemClaims) {
-        const weight = (lineCents * claim.shares * scale) / totalShares;
+        // Exact: scale is a multiple of totalShares, so this divides evenly
+        const weight =
+          (BigInt(lineCents) * BigInt(claim.shares) * scale) /
+          BigInt(totalShares);
         weights.set(
           claim.participantId,
-          (weights.get(claim.participantId) ?? 0) + weight,
+          (weights.get(claim.participantId) ?? 0n) + weight,
         );
       }
     }
