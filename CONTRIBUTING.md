@@ -65,7 +65,9 @@ From the repo root:
 npm ci
 npm run lint
 npm run format:check
+npm run typecheck
 npm test
+npm run build
 ```
 
 Run `npm ci` (not just `npm install`) after changing dependencies, so the result matches CI's clean install.
