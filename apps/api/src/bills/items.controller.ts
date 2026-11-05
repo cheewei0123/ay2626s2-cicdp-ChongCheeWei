@@ -8,45 +8,40 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import type { AuthUser } from '../auth/auth-user.js';
-import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { BillsService } from './bills.service.js';
 import { CreateItemDto, UpdateItemDto } from './dto/item.dto.js';
+import {
+  BillOwnerGuard,
+  type OwnedBill as OwnedBillType,
+} from './guards/bill-owner.guard.js';
+import { OwnedBill } from './guards/owned-bill.decorator.js';
 
-// Items always belong to a bill, so their routes sit under /api/bills/:billId/items
-@UseGuards(JwtAuthGuard)
+// Items always belong to a bill, so their routes sit under /api/bills/:billId/items.
+// Guards run in order: first "are you logged in?", then "is this your bill?"
+@UseGuards(JwtAuthGuard, BillOwnerGuard)
 @Controller('bills/:billId/items')
 export class ItemsController {
   constructor(private readonly bills: BillsService) {}
 
   @Post()
-  add(
-    @CurrentUser() user: AuthUser,
-    @Param('billId') billId: string,
-    @Body() dto: CreateItemDto,
-  ) {
-    return this.bills.addItem(user.id, billId, dto);
+  add(@OwnedBill() bill: OwnedBillType, @Body() dto: CreateItemDto) {
+    return this.bills.addItem(bill, dto);
   }
 
   @Patch(':itemId')
   update(
-    @CurrentUser() user: AuthUser,
-    @Param('billId') billId: string,
+    @OwnedBill() bill: OwnedBillType,
     @Param('itemId') itemId: string,
     @Body() dto: UpdateItemDto,
   ) {
-    return this.bills.updateItem(user.id, billId, itemId, dto);
+    return this.bills.updateItem(bill, itemId, dto);
   }
 
   // 204 No Content: deleted, nothing to send back
   @Delete(':itemId')
   @HttpCode(204)
-  remove(
-    @CurrentUser() user: AuthUser,
-    @Param('billId') billId: string,
-    @Param('itemId') itemId: string,
-  ) {
-    return this.bills.deleteItem(user.id, billId, itemId);
+  remove(@OwnedBill() bill: OwnedBillType, @Param('itemId') itemId: string) {
+    return this.bills.deleteItem(bill, itemId);
   }
 }

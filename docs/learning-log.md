@@ -2,6 +2,15 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-26: BillOwnerGuard
+
+- **What it does:** `@UseGuards(JwtAuthGuard, BillOwnerGuard)` on every route with a bill ID. Guards run in that order: first "is there a valid login?" (`401`), then "is this bill yours?". The owner guard loads the bill (`404` if missing), compares `ownerId` with `req.user.id` (`403` if different), then puts the bill on `req.bill`.
+- **`@OwnedBill()`** reads `req.bill` in the controller, so the route gets the checked bill without loading it again, and the service no longer needs its own "is it mine?" query.
+- **Why a guard instead of checking in the service:** the rule lives in one place and runs before the pipe and the controller. Lock, summary and payments (KAN-28, 29) just add the same decorator.
+- **Changed my mind from KAN-25:** I had returned `404` for someone else's bill to hide that it exists. The ticket asks for `403`, and bill IDs are random 25-character strings, so there is nothing to probe. Now: missing → `404`, not yours → `403`.
+- **The build caught a bug the tests missed:** Express 5 types a route param as `string | string[]`. Vitest does not type-check, so all tests passed, but `nest build` failed. CI does not run the build yet, so this would have reached `main`.
+- **Supertest gotcha:** I created 5 requests in an array before sending them. Supertest starts and stops a temporary server for each request, so the later ones failed with `Cannot read properties of null (reading 'address')`. Creating each request inside a function, only when it is sent, fixed it.
+
 ## KAN-25: Bills and items
 
 - **Routes:** `POST/GET /api/bills`, `GET/PATCH /api/bills/:id`, and `POST/PATCH/DELETE /api/bills/:billId/items[/:itemId]`, all behind `JwtAuthGuard`.

@@ -95,7 +95,7 @@ Every endpoint can also return `500` for unexpected errors (same format).
 - `serviceBp` defaults to `1000` (10%) and `gstBp` to `900` (9%). A hawker bill sends `serviceBp: 0`.
 - Items can only change while the bill is `OPEN`; otherwise `409`.
 - Every bill response includes `totals`: `{ subtotalCents, serviceCents, gstCents, totalCents, total }`, e.g. `total: "$35.37"`.
-- Someone else's bill answers `404`, the same as a bill that does not exist, so bill IDs cannot be probed.
+- `owner` routes go through `BillOwnerGuard`: a bill that does not exist answers `404`; someone else's bill answers `403 Only the owner of this bill can do this`. Bill IDs are long random strings, so a `403` does not help anyone guess other bills.
 - Built so far (KAN-25): create, list, get and update bills; add, edit and delete items. These need a login (`JWT`) for now; the `verified` check comes with email verification, and `joinCode` with the share link (KAN-27).
 - **Scanned or pasted items are never saved straight away.** `POST /receipt` and `POST /receipt-text` return a draft for the owner to check and edit, then each item is saved with `POST /items`.
 - **Lock** freezes the split and creates an `Expense` (source `BILL_SHARE`) for every participant who has a user account. **Unlock** removes those expenses.

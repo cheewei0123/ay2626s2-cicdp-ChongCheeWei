@@ -140,28 +140,74 @@ describe('Bills and items (e2e, real database)', () => {
     },
   );
 
-  it("hides one user's bill from another (404, not 403, so ids can't be probed)", async () => {
+  it("answers 403 when user B tries to see or change user A's bill", async () => {
     const server = app.getHttpServer();
     const bill = await request(server)
       .post('/api/bills')
       .set('Authorization', owner)
       .send({ title: 'Private' })
       .expect(201);
-
-    await request(server)
-      .get(`/api/bills/${bill.body.id}`)
-      .set('Authorization', other)
-      .expect(404);
-    await request(server)
+    const item = await request(server)
       .post(`/api/bills/${bill.body.id}/items`)
-      .set('Authorization', other)
-      .send({ name: 'Sneaky', unitPriceCents: 100 })
-      .expect(404);
+      .set('Authorization', owner)
+      .send({ name: 'Kopi', unitPriceCents: 150 })
+      .expect(201);
+
+    // Every route behind BillOwnerGuard refuses user B
+    // Functions, so each request is only created when it is sent
+    const asOther = (req: request.Test) => req.set('Authorization', other);
+    const tries = [
+      () => asOther(request(server).get(`/api/bills/${bill.body.id}`)),
+      () =>
+        asOther(request(server).patch(`/api/bills/${bill.body.id}`)).send({
+          title: 'Mine now',
+        }),
+      () =>
+        asOther(request(server).post(`/api/bills/${bill.body.id}/items`)).send({
+          name: 'Sneaky',
+          unitPriceCents: 100,
+        }),
+      () =>
+        asOther(
+          request(server).patch(
+            `/api/bills/${bill.body.id}/items/${item.body.id}`,
+          ),
+        ).send({ unitPriceCents: 1 }),
+      () =>
+        asOther(
+          request(server).delete(
+            `/api/bills/${bill.body.id}/items/${item.body.id}`,
+          ),
+        ),
+    ];
+    for (const attempt of tries) {
+      const res = await attempt().expect(403);
+      expect(res.body.message).toBe('Only the owner of this bill can do this');
+    }
+
+    // Nothing changed, and user B's own list stays empty
+    const after = await request(server)
+      .get(`/api/bills/${bill.body.id}`)
+      .set('Authorization', owner)
+      .expect(200);
+    expect(after.body.title).toBe('Private');
+    expect(after.body.items).toHaveLength(1);
     const theirs = await request(server)
       .get('/api/bills')
       .set('Authorization', other)
       .expect(200);
     expect(theirs.body).toEqual([]);
+  });
+
+  it('answers 404 for a bill that does not exist', async () => {
+    await request(app.getHttpServer())
+      .get('/api/bills/does-not-exist')
+      .set('Authorization', owner)
+      .expect(404);
+  });
+
+  it('checks the login before the owner (no token → 401, not 403)', async () => {
+    await request(app.getHttpServer()).get('/api/bills/any-id').expect(401);
   });
 
   it('answers 404 for an item from a different bill', async () => {
