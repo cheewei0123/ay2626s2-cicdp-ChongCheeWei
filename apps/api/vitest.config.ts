@@ -12,11 +12,18 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
-      exclude: ['src/generated/**', 'src/**/*.spec.ts', 'src/main.ts'],
+      // Modules only wire classes together; the e2e tests prove the wiring works
+      exclude: [
+        'src/generated/**',
+        'src/**/*.spec.ts',
+        'src/main.ts',
+        'src/**/*.module.ts',
+      ],
       // Coverage gate: `npm run test:cov` (run in CI) fails below these numbers
       thresholds: {
         'src/split/**': { lines: 90, branches: 90 },
         'src/common/**': { lines: 90, branches: 90 },
+        'src/auth/**': { lines: 90, branches: 90 },
       },
     },
   },

@@ -40,13 +40,13 @@ Stage E is partly built: Gitleaks runs today; CodeQL and `npm audit` come later.
 
 All jobs start at the same time, on every PR and every push to `main`. A new push to the same branch cancels the run still in progress.
 
-| Job        | What it does                                         | Fails when                                              |
-| ---------- | ---------------------------------------------------- | ------------------------------------------------------- |
-| `gitleaks` | Scans the full git history for secrets               | A key, token or password is found                       |
-| `lint api` | `npm ci`, oxlint (`--deny-warnings`), Prettier check | Any lint warning or unformatted file                    |
-| `lint web` | Same, for `apps/web`                                 | Same                                                    |
-| `test-api` | Vitest with coverage, uploads the coverage report    | A test fails or `src/split` / `src/common` is below 90% |
-| `test-web` | Vitest                                               | A test fails                                            |
+| Job        | What it does                                         | Fails when                                                           |
+| ---------- | ---------------------------------------------------- | -------------------------------------------------------------------- |
+| `gitleaks` | Scans the full git history for secrets               | A key, token or password is found                                    |
+| `lint api` | `npm ci`, oxlint (`--deny-warnings`), Prettier check | Any lint warning or unformatted file                                 |
+| `lint web` | Same, for `apps/web`                                 | Same                                                                 |
+| `test-api` | Vitest with coverage, uploads the coverage report    | A test fails or `src/split` / `src/common` / `src/auth` is below 90% |
+| `test-web` | Vitest                                               | A test fails                                                         |
 
 All 5 are required checks on `main`. A typical run takes under 1 minute.
 
