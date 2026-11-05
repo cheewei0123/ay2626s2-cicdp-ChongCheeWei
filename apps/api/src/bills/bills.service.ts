@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { billTotals, formatCents } from '../split/money.js';
 import type { CreateBillDto, UpdateBillDto } from './dto/bill.dto.js';
 import type { CreateItemDto, UpdateItemDto } from './dto/item.dto.js';
+import type { OwnedBill } from './guards/bill-owner.guard.js';
 
 type PricedItem = { unitPriceCents: number; quantity: number };
 type BillWithItems = { serviceBp: number; gstBp: number; items: PricedItem[] };
@@ -35,6 +36,13 @@ function withTotals<T extends BillWithItems>(bill: T) {
       total: formatCents(t.total),
     },
   };
+}
+
+// A bill can only change while it is OPEN; after locking, the split is final
+function assertOpen(bill: OwnedBill) {
+  if (bill.status !== 'OPEN') {
+    throw new ConflictException('Bill is locked; unlock it to make changes');
+  }
 }
 
 @Injectable()
@@ -66,10 +74,10 @@ export class BillsService {
     return bills.map(withTotals);
   }
 
-  async getMine(ownerId: string, id: string) {
-    // Looking up by id AND owner: someone else's bill looks the same as no bill (404)
-    const bill = await this.prisma.bill.findFirst({
-      where: { id, ownerId },
+  // BillOwnerGuard has already checked that the bill exists and belongs to this user
+  async getDetails(id: string) {
+    const bill = await this.prisma.bill.findUnique({
+      where: { id },
       include: {
         items: { orderBy: { createdAt: 'asc' }, include: { claims: true } },
         participants: { orderBy: { createdAt: 'asc' } },
@@ -79,21 +87,21 @@ export class BillsService {
     return withTotals(bill);
   }
 
-  async update(ownerId: string, id: string, dto: UpdateBillDto) {
-    await this.findOpenBill(ownerId, id);
-    const bill = await this.prisma.bill.update({
-      where: { id },
+  async update(bill: OwnedBill, dto: UpdateBillDto) {
+    assertOpen(bill);
+    const updated = await this.prisma.bill.update({
+      where: { id: bill.id },
       data: { ...dto, date: toDate(dto.date) },
       include: { items: true },
     });
-    return withTotals(bill);
+    return withTotals(updated);
   }
 
-  async addItem(ownerId: string, billId: string, dto: CreateItemDto) {
-    await this.findOpenBill(ownerId, billId);
+  async addItem(bill: OwnedBill, dto: CreateItemDto) {
+    assertOpen(bill);
     return this.prisma.item.create({
       data: {
-        billId,
+        billId: bill.id,
         name: dto.name,
         unitPriceCents: dto.unitPriceCents,
         quantity: dto.quantity,
@@ -102,33 +110,16 @@ export class BillsService {
   }
 
   // `billId` in the where means an item from another bill is "not found" (P2025 → 404)
-  async updateItem(
-    ownerId: string,
-    billId: string,
-    itemId: string,
-    dto: UpdateItemDto,
-  ) {
-    await this.findOpenBill(ownerId, billId);
+  async updateItem(bill: OwnedBill, itemId: string, dto: UpdateItemDto) {
+    assertOpen(bill);
     return this.prisma.item.update({
-      where: { id: itemId, billId },
+      where: { id: itemId, billId: bill.id },
       data: dto,
     });
   }
 
-  async deleteItem(ownerId: string, billId: string, itemId: string) {
-    await this.findOpenBill(ownerId, billId);
-    await this.prisma.item.delete({ where: { id: itemId, billId } });
-  }
-
-  // A bill can only change while it is OPEN; after locking, the split is final
-  private async findOpenBill(ownerId: string, id: string) {
-    const bill = await this.prisma.bill.findFirst({
-      where: { id, ownerId },
-      select: { status: true },
-    });
-    if (!bill) throw new NotFoundException('Bill not found');
-    if (bill.status !== 'OPEN') {
-      throw new ConflictException('Bill is locked; unlock it to make changes');
-    }
+  async deleteItem(bill: OwnedBill, itemId: string) {
+    assertOpen(bill);
+    await this.prisma.item.delete({ where: { id: itemId, billId: bill.id } });
   }
 }

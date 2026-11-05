@@ -2,6 +2,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { BillsService } from './bills.service.js';
+import type { OwnedBill } from './guards/bill-owner.guard.js';
 
 // The brief's bill: Chicken Rice 600, Laksa 750, Tiger 800 x 2
 const items = [
@@ -18,6 +19,8 @@ const bill = {
   status: 'OPEN',
   items,
 };
+// What BillOwnerGuard hands to the service after checking the owner
+const open: OwnedBill = { id: 'b1', ownerId: 'u1', status: 'OPEN' };
 
 describe('BillsService (with a mocked database)', () => {
   let service: BillsService;
@@ -26,7 +29,7 @@ describe('BillsService (with a mocked database)', () => {
     bill: {
       create: vi.fn(),
       findMany: vi.fn(),
-      findFirst: vi.fn(),
+      findUnique: vi.fn(),
       update: vi.fn(),
     },
     item: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
@@ -79,8 +82,8 @@ describe('BillsService (with a mocked database)', () => {
 
   describe('totals', () => {
     it('adds the brief totals in cents and as text', async () => {
-      prisma.bill.findFirst.mockResolvedValue(bill);
-      const result = await service.getMine('u1', 'b1');
+      prisma.bill.findUnique.mockResolvedValue(bill);
+      const result = await service.getDetails('b1');
       expect(result.totals).toEqual({
         subtotalCents: 2950,
         serviceCents: 295,
@@ -103,28 +106,15 @@ describe('BillsService (with a mocked database)', () => {
     });
   });
 
-  it('answers 404 for a bill that is not mine (or does not exist)', async () => {
-    prisma.bill.findFirst.mockResolvedValue(null);
-    await expect(service.getMine('u2', 'b1')).rejects.toThrow(
-      NotFoundException,
-    );
-    expect(prisma.bill.findFirst.mock.calls[0][0].where).toEqual({
-      id: 'b1',
-      ownerId: 'u2',
-    });
+  it('answers 404 if the bill was deleted after the guard checked it', async () => {
+    prisma.bill.findUnique.mockResolvedValue(null);
+    await expect(service.getDetails('b1')).rejects.toThrow(NotFoundException);
   });
 
   describe('changes while the bill is OPEN', () => {
-    beforeEach(() =>
-      prisma.bill.findFirst.mockResolvedValueOnce({ status: 'OPEN' }),
-    );
-
     it('updates the bill', async () => {
       prisma.bill.update.mockResolvedValue(bill);
-      await service.update('u1', 'b1', {
-        title: 'New title',
-        date: '2026-11-06',
-      });
+      await service.update(open, { title: 'New title', date: '2026-11-06' });
       expect(prisma.bill.update.mock.calls[0][0]).toMatchObject({
         where: { id: 'b1' },
         data: { title: 'New title', date: new Date('2026-11-06') },
@@ -133,7 +123,7 @@ describe('BillsService (with a mocked database)', () => {
 
     it('adds an item to the bill', async () => {
       prisma.item.create.mockResolvedValue(items[0]);
-      await service.addItem('u1', 'b1', {
+      await service.addItem(open, {
         name: 'Chicken Rice',
         unitPriceCents: 600,
         quantity: 1,
@@ -148,7 +138,7 @@ describe('BillsService (with a mocked database)', () => {
 
     it('only edits an item that belongs to this bill', async () => {
       prisma.item.update.mockResolvedValue(items[0]);
-      await service.updateItem('u1', 'b1', 'i1', { unitPriceCents: 650 });
+      await service.updateItem(open, 'i1', { unitPriceCents: 650 });
       expect(prisma.item.update.mock.calls[0][0]).toEqual({
         where: { id: 'i1', billId: 'b1' },
         data: { unitPriceCents: 650 },
@@ -157,37 +147,34 @@ describe('BillsService (with a mocked database)', () => {
 
     it('only deletes an item that belongs to this bill', async () => {
       prisma.item.delete.mockResolvedValue(items[0]);
-      await service.deleteItem('u1', 'b1', 'i1');
+      await service.deleteItem(open, 'i1');
       expect(prisma.item.delete.mock.calls[0][0]).toEqual({
         where: { id: 'i1', billId: 'b1' },
       });
     });
   });
 
-  it.each(['LOCKED', 'SETTLED'])(
-    'answers 409 when the bill is %s',
+  it.each(['LOCKED', 'SETTLED'] as const)(
+    'answers 409 for every change when the bill is %s',
     async (status) => {
-      prisma.bill.findFirst.mockResolvedValue({ status });
-      await expect(
-        service.addItem('u1', 'b1', {
-          name: 'x',
-          unitPriceCents: 1,
-          quantity: 1,
-        }),
-      ).rejects.toThrow(ConflictException);
-      await expect(service.update('u1', 'b1', { title: 'x' })).rejects.toThrow(
+      const closed: OwnedBill = { ...open, status };
+      const item = { name: 'x', unitPriceCents: 1, quantity: 1 };
+      await expect(service.update(closed, { title: 'x' })).rejects.toThrow(
         ConflictException,
       );
-      expect(prisma.item.create).not.toHaveBeenCalled();
+      await expect(service.addItem(closed, item)).rejects.toThrow(
+        ConflictException,
+      );
+      await expect(
+        service.updateItem(closed, 'i1', { quantity: 2 }),
+      ).rejects.toThrow(ConflictException);
+      await expect(service.deleteItem(closed, 'i1')).rejects.toThrow(
+        ConflictException,
+      );
       expect(prisma.bill.update).not.toHaveBeenCalled();
+      expect(prisma.item.create).not.toHaveBeenCalled();
+      expect(prisma.item.update).not.toHaveBeenCalled();
+      expect(prisma.item.delete).not.toHaveBeenCalled();
     },
   );
-
-  it('answers 404 before changing a bill that is not mine', async () => {
-    prisma.bill.findFirst.mockResolvedValue(null);
-    await expect(service.deleteItem('u2', 'b1', 'i1')).rejects.toThrow(
-      NotFoundException,
-    );
-    expect(prisma.item.delete).not.toHaveBeenCalled();
-  });
 });

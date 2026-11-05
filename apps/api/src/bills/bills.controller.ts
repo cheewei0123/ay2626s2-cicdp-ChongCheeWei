@@ -1,19 +1,17 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
 import type { AuthUser } from '../auth/auth-user.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { BillsService } from './bills.service.js';
 import { CreateBillDto, UpdateBillDto } from './dto/bill.dto.js';
+import {
+  BillOwnerGuard,
+  type OwnedBill as OwnedBillType,
+} from './guards/bill-owner.guard.js';
+import { OwnedBill } from './guards/owned-bill.decorator.js';
 
-// Every route here needs a login token; each user only ever sees their own bills
+// Every route needs a login token (JwtAuthGuard on the class).
+// Routes with :id also need BillOwnerGuard: 404 if the bill doesn't exist, 403 if it isn't yours.
 @UseGuards(JwtAuthGuard)
 @Controller('bills')
 export class BillsController {
@@ -30,16 +28,14 @@ export class BillsController {
   }
 
   @Get(':id')
-  getMine(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.bills.getMine(user.id, id);
+  @UseGuards(BillOwnerGuard)
+  getDetails(@OwnedBill() bill: OwnedBillType) {
+    return this.bills.getDetails(bill.id);
   }
 
   @Patch(':id')
-  update(
-    @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-    @Body() dto: UpdateBillDto,
-  ) {
-    return this.bills.update(user.id, id, dto);
+  @UseGuards(BillOwnerGuard)
+  update(@OwnedBill() bill: OwnedBillType, @Body() dto: UpdateBillDto) {
+    return this.bills.update(bill, dto);
   }
 }
