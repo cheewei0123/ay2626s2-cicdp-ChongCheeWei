@@ -44,7 +44,7 @@ Every error uses one format, from a global exception filter:
 | `404` | Bill, item, share token or expense does not exist                                 |
 | `409` | Conflict: email already registered, bill is locked, claim already exists          |
 | `413` | Uploaded image too large                                                          |
-| `429` | Too many requests (rate limit, e.g. login and email resend)                       |
+| `429` | Too many requests (rate limit, e.g. login, email resend, join codes)              |
 
 Every endpoint can also return `500` for unexpected errors (same format).
 
@@ -72,37 +72,44 @@ Every endpoint can also return `500` for unexpected errors (same format).
 
 ## Bills (owner)
 
-| Method | Path                                 | Who        | Request body                                       | Response                                              | Errors                  |
-| ------ | ------------------------------------ | ---------- | -------------------------------------------------- | ----------------------------------------------------- | ----------------------- |
-| POST   | `/bills`                             | `verified` | `{ title, merchant?, date?, serviceBp?, gstBp? }`  | `201 bill` (with `shareToken`)                        | 400, 401, 403           |
-| GET    | `/bills`                             | `verified` | none                                               | `200 bill[]` (mine, newest first)                     | 401, 403                |
-| GET    | `/bills/:id`                         | `owner`    | none                                               | `200 bill` with items, participants, claims           | 401, 403, 404           |
-| PATCH  | `/bills/:id`                         | `owner`    | `{ title?, merchant?, date?, serviceBp?, gstBp? }` | `200 bill`                                            | 400, 401, 403, 404, 409 |
-| POST   | `/bills/:id/items`                   | `owner`    | `{ name, unitPriceCents, quantity }`               | `201 item`                                            | 400, 401, 403, 404, 409 |
-| PATCH  | `/bills/:id/items/:itemId`           | `owner`    | `{ name?, unitPriceCents?, quantity? }`            | `200 item`                                            | 400, 401, 403, 404, 409 |
-| DELETE | `/bills/:id/items/:itemId`           | `owner`    | none                                               | `204`                                                 | 401, 403, 404, 409      |
-| POST   | `/bills/:id/receipt`                 | `owner`    | `multipart` receipt photo                          | `201 { items[], serviceBp, gstBp }` (draft, editable) | 400, 401, 403, 404, 413 |
-| POST   | `/bills/:id/lock`                    | `owner`    | none                                               | `200 bill` (status `LOCKED`)                          | 401, 403, 404, 409      |
-| POST   | `/bills/:id/unlock`                  | `owner`    | none                                               | `200 bill` (status `OPEN`)                            | 401, 403, 404, 409      |
-| GET    | `/bills/:id/summary`                 | `owner`    | none                                               | `200 summary` (see below)                             | 401, 403, 404           |
-| PATCH  | `/bills/:id/payments/:participantId` | `owner`    | `{ paid: true \| false }`                          | `200 payment`                                         | 400, 401, 403, 404, 409 |
+| Method | Path                                 | Who        | Request body                                                                 | Response                                              | Errors                  |
+| ------ | ------------------------------------ | ---------- | ---------------------------------------------------------------------------- | ----------------------------------------------------- | ----------------------- |
+| POST   | `/bills`                             | `verified` | `{ title, merchant?, date?, serviceBp?, gstBp? }`                            | `201 bill` (with `shareToken` and `joinCode`)         | 400, 401, 403           |
+| GET    | `/bills`                             | `verified` | none                                                                         | `200 bill[]` (mine, newest first)                     | 401, 403                |
+| GET    | `/bills/:id`                         | `owner`    | none                                                                         | `200 bill` with items, participants, claims           | 401, 403, 404           |
+| PATCH  | `/bills/:id`                         | `owner`    | `{ title?, merchant?, date?, serviceBp?, gstBp? }`                           | `200 bill`                                            | 400, 401, 403, 404, 409 |
+| POST   | `/bills/:id/items`                   | `owner`    | `{ name, unitPriceCents, quantity }`                                         | `201 item`                                            | 400, 401, 403, 404, 409 |
+| PATCH  | `/bills/:id/items/:itemId`           | `owner`    | `{ name?, unitPriceCents?, quantity? }`                                      | `200 item`                                            | 400, 401, 403, 404, 409 |
+| DELETE | `/bills/:id/items/:itemId`           | `owner`    | none                                                                         | `204`                                                 | 401, 403, 404, 409      |
+| POST   | `/bills/:id/receipt`                 | `owner`    | `multipart` receipt photo                                                    | `201 { items[], serviceBp, gstBp }` (draft, editable) | 400, 401, 403, 404, 413 |
+| POST   | `/bills/:id/receipt-text`            | `owner`    | `{ text }` (receipt text pasted from a chat or email, max 10,000 characters) | `201 { items[], serviceBp, gstBp }` (draft, editable) | 400, 401, 403, 404      |
+| POST   | `/bills/:id/lock`                    | `owner`    | none                                                                         | `200 bill` (status `LOCKED`)                          | 401, 403, 404, 409      |
+| POST   | `/bills/:id/unlock`                  | `owner`    | none                                                                         | `200 bill` (status `OPEN`)                            | 401, 403, 404, 409      |
+| GET    | `/bills/:id/summary`                 | `owner`    | none                                                                         | `200 summary` (see below)                             | 401, 403, 404           |
+| PATCH  | `/bills/:id/payments/:participantId` | `owner`    | `{ paid: true \| false }`                                                    | `200 payment`                                         | 400, 401, 403, 404, 409 |
 
 - `serviceBp` defaults to `1000` (10%) and `gstBp` to `900` (9%). A hawker bill sends `serviceBp: 0`.
 - Items can only change while the bill is `OPEN`; otherwise `409`.
-- **Scanned items are never saved straight away.** `POST /receipt` returns a draft for the owner to check and edit, then each item is saved with `POST /items`.
+- **Scanned or pasted items are never saved straight away.** `POST /receipt` and `POST /receipt-text` return a draft for the owner to check and edit, then each item is saved with `POST /items`.
 - **Lock** freezes the split and creates an `Expense` (source `BILL_SHARE`) for every participant who has a user account. **Unlock** removes those expenses.
 - Payments can only be marked while the bill is `LOCKED`. The app never moves money; this only records that someone says they paid.
 
 ## Share link (guests)
 
-| Method | Path                           | Who      | Request body                                                | Response                                   | Errors             |
-| ------ | ------------------------------ | -------- | ----------------------------------------------------------- | ------------------------------------------ | ------------------ |
-| GET    | `/share/:token`                | `public` | none                                                        | `200` bill, items, participants, claims    | 404                |
-| POST   | `/share/:token/participants`   | `public` | `{ displayName }`                                           | `201 { participant, guestToken }`          | 400, 404, 409, 429 |
-| POST   | `/share/:token/claims`         | `guest`  | `{ itemId }` (joins with 1 share, mode stays as the item's) | `201 claim`                                | 400, 403, 404, 409 |
-| PATCH  | `/share/:token/claims/:itemId` | `guest`  | `{ splitMode?, shares?, percentBp?, exactCents? }`          | `200` all claims on that item              | 400, 403, 404, 409 |
-| DELETE | `/share/:token/claims/:itemId` | `guest`  | none                                                        | `204`                                      | 403, 404, 409      |
-| GET    | `/share/:token/summary`        | `public` | none                                                        | `200 summary` + the owner's PayNow details | 404                |
+A guest reaches a bill in one of two ways: open the share link (contains `shareToken`), or type the bill's short **join code** (e.g. `K7P2Q`) on the home page. The code is easier to read out loud at the table.
+
+- Join codes are 5 characters from `23456789ABCDEFGHJKLMNPQRSTUVWXYZ` (no `0`/`O` or `1`/`I`, which look alike), and unique across bills.
+- `GET /join/:code` is rate limited, so codes cannot be guessed by trying many in a row. A code stops working once the bill is `SETTLED`.
+
+| Method | Path                           | Who      | Request body                                                | Response                                                  | Errors             |
+| ------ | ------------------------------ | -------- | ----------------------------------------------------------- | --------------------------------------------------------- | ------------------ |
+| GET    | `/join/:code`                  | `public` | none                                                        | `200 { shareToken }` (the app then opens `/share/:token`) | 404, 429           |
+| GET    | `/share/:token`                | `public` | none                                                        | `200` bill, items, participants, claims                   | 404                |
+| POST   | `/share/:token/participants`   | `public` | `{ displayName }`                                           | `201 { participant, guestToken }`                         | 400, 404, 409, 429 |
+| POST   | `/share/:token/claims`         | `guest`  | `{ itemId }` (joins with 1 share, mode stays as the item's) | `201 claim`                                               | 400, 403, 404, 409 |
+| PATCH  | `/share/:token/claims/:itemId` | `guest`  | `{ splitMode?, shares?, percentBp?, exactCents? }`          | `200` all claims on that item                             | 400, 403, 404, 409 |
+| DELETE | `/share/:token/claims/:itemId` | `guest`  | none                                                        | `204`                                                     | 403, 404, 409      |
+| GET    | `/share/:token/summary`        | `public` | none                                                        | `200 summary` + the owner's PayNow details                | 404                |
 
 **Split mode rules** (checked by a custom validator, `400` if broken):
 
@@ -171,20 +178,20 @@ The deploy pipeline calls this after each release; anything other than `200` tri
 
 ## MVP features → endpoints
 
-| Feature                           | Endpoints                                                          |
-| --------------------------------- | ------------------------------------------------------------------ |
-| Sign up, log in, verify email     | `/auth/*`                                                          |
-| Set PayNow number or upload QR    | `PATCH /me`, `POST /me/paynow-qr`                                  |
-| Create a bill                     | `POST /bills`                                                      |
-| Scan a receipt with AI, then edit | `POST /bills/:id/receipt`, `POST/PATCH/DELETE /bills/:id/items`    |
-| Service charge and GST            | `PATCH /bills/:id` (`serviceBp`, `gstBp`)                          |
-| Share link / QR                   | `shareToken` from `POST /bills`, `GET /share/:token`               |
-| Friends join without sign-up      | `POST /share/:token/participants`                                  |
-| Tap items, adjust split           | `POST/PATCH/DELETE /share/:token/claims`                           |
-| See what each person owes         | `GET /bills/:id/summary`, `GET /share/:token/summary`              |
-| Pay back by PayNow                | `paynow` in `GET /share/:token/summary`                            |
-| Lock bill, track payments         | `POST /bills/:id/lock`, `PATCH /bills/:id/payments/:participantId` |
-| Share auto-logged to my expenses  | `POST /bills/:id/lock` creates `BILL_SHARE` expenses               |
-| Monthly expenses and chart        | `GET /expenses`, `GET /expenses/summary`                           |
-| Add expense manually or by scan   | `POST /expenses`, `POST /expenses/receipt`                         |
-| Deploy health check               | `GET /health`                                                      |
+| Feature                            | Endpoints                                                                                       |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Sign up, log in, verify email      | `/auth/*`                                                                                       |
+| Set PayNow number or upload QR     | `PATCH /me`, `POST /me/paynow-qr`                                                               |
+| Create a bill                      | `POST /bills`                                                                                   |
+| Scan or paste a receipt, then edit | `POST /bills/:id/receipt`, `POST /bills/:id/receipt-text`, `POST/PATCH/DELETE /bills/:id/items` |
+| Service charge and GST             | `PATCH /bills/:id` (`serviceBp`, `gstBp`)                                                       |
+| Share link / QR / join code        | `shareToken` and `joinCode` from `POST /bills`, `GET /join/:code`, `GET /share/:token`          |
+| Friends join without sign-up       | `POST /share/:token/participants`                                                               |
+| Tap items, adjust split            | `POST/PATCH/DELETE /share/:token/claims`                                                        |
+| See what each person owes          | `GET /bills/:id/summary`, `GET /share/:token/summary`                                           |
+| Pay back by PayNow                 | `paynow` in `GET /share/:token/summary`                                                         |
+| Lock bill, track payments          | `POST /bills/:id/lock`, `PATCH /bills/:id/payments/:participantId`                              |
+| Share auto-logged to my expenses   | `POST /bills/:id/lock` creates `BILL_SHARE` expenses                                            |
+| Monthly expenses and chart         | `GET /expenses`, `GET /expenses/summary`                                                        |
+| Add expense manually or by scan    | `POST /expenses`, `POST /expenses/receipt`                                                      |
+| Deploy health check                | `GET /health`                                                                                   |
