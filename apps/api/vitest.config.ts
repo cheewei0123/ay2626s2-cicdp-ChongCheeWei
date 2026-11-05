@@ -16,6 +16,7 @@ export default defineConfig({
       // Coverage gate: `npm run test:cov` (run in CI) fails below these numbers
       thresholds: {
         'src/split/**': { lines: 90, branches: 90 },
+        'src/common/**': { lines: 90, branches: 90 },
       },
     },
   },
