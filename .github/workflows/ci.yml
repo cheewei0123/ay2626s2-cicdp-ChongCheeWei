@@ -40,6 +40,10 @@ jobs:
       - run: npm ci
       - run: npm run lint -w apps/${{ matrix.app }}
       - run: npx prettier --check apps/${{ matrix.app }}
+      # Tests run without type-checking, so a type error can pass every test.
+      # These two steps catch it (job keeps its name: the ruleset requires "lint api" / "lint web").
+      - run: npm run typecheck -w apps/${{ matrix.app }}
+      - run: npm run build -w apps/${{ matrix.app }}
 
   test-api:
     runs-on: ubuntu-latest

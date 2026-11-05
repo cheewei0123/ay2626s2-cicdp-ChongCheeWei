@@ -2,6 +2,13 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-16 follow-up: type-check and build in CI
+
+- **The gap:** CI ran lint and tests but never compiled the code. In KAN-26 a type error passed every test and was only caught because I ran `nest build` by hand.
+- **Why tests don't catch it:** Vitest strips the types and runs the JavaScript, so a wrong type never stops a test.
+- **Why the build alone isn't enough:** `nest build` uses `tsconfig.build.json`, which skips test files. I proved it by putting `const broken: number = 'not a number'` in a test file: tests passed, build passed, only `tsc --noEmit` failed (`TS2322`).
+- **Fix:** the `lint api` and `lint web` jobs now also run `npm run typecheck` (every file, tests included) and `npm run build`. The job names stay the same because the `protect-main` ruleset requires those exact names.
+
 ## KAN-26: BillOwnerGuard
 
 - **What it does:** `@UseGuards(JwtAuthGuard, BillOwnerGuard)` on every route with a bill ID. Guards run in that order: first "is there a valid login?" (`401`), then "is this bill yours?". The owner guard loads the bill (`404` if missing), compares `ownerId` with `req.user.id` (`403` if different), then puts the bill on `req.bill`.
