@@ -2,6 +2,18 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-24: Register and login with JWT
+
+- **Flow:** register or log in → the API returns a **JWT** (a signed token that says "this is user u1" and expires in 1 hour). The app sends it back as `Authorization: Bearer <token>`. `JwtAuthGuard` checks the signature and expiry, then puts `{ id, email }` on the request; `@CurrentUser()` reads it in the controller.
+- **Passwords:** stored as a salted **scrypt** hash (`scrypt$<salt>$<hash>`), never as text. scrypt is built into Node, so no `bcrypt` package with native builds on Windows and in Docker. Checking uses `timingSafeEqual`, so the time taken does not hint how close a guess was.
+- **Not leaking who has an account:** a wrong password and an unknown email get the same `401`, and an unknown email still runs a hash check so both take about the same time.
+- **DTO + ValidationPipe:** `RegisterDto` says what a valid body is (`@IsEmail`, `@MinLength(8)`, `+65` mobile). The global `ValidationPipe` rejects bad bodies with `400` and a list of messages before the controller runs, and `forbidNonWhitelisted` rejects extra fields (e.g. `isAdmin: true`).
+- **DI in tests:** the `AuthService` test gives Nest a fake `PrismaService` (`{ provide: PrismaService, useValue: fake }`), so it tests the logic without a database. The e2e test then uses the real database: register → login → `GET /api/me` = 200 with the token, 401 without.
+- **Why not Passport:** the ticket suggested `@nestjs/passport` + `passport-jwt`. A 20-line guard with `@nestjs/jwt` does the same and I can explain every line.
+- **Mistake:** the e2e tests failed with 500 because Docker Desktop was closed, so there was no database. The error came from Prisma, not my code.
+- The app refuses to start without `JWT_SECRET` (`requireEnv`). The real value is only in the gitignored `.env`; `.env.example` has it empty.
+- Email verification (`/auth/verify-email`) is a separate ticket.
+
 ## KAN-30: Cross-cutting pieces (middleware, interceptor, filter, throttler)
 
 - **Every request now goes through 4 NestJS pieces**, all in `apps/api/src/common/`:

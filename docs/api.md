@@ -50,14 +50,18 @@ Every endpoint can also return `500` for unexpected errors (same format).
 
 ## Auth
 
-| Method | Path                        | Who      | Request body                       | Response                    | Errors        |
-| ------ | --------------------------- | -------- | ---------------------------------- | --------------------------- | ------------- |
-| POST   | `/auth/register`            | `public` | `{ email, password, displayName }` | `201 { user, accessToken }` | 400, 409, 429 |
-| POST   | `/auth/login`               | `public` | `{ email, password }`              | `200 { user, accessToken }` | 400, 401, 429 |
-| POST   | `/auth/verify-email`        | `public` | `{ token }` (from the email link)  | `200 { emailVerifiedAt }`   | 400, 404, 409 |
-| POST   | `/auth/resend-verification` | `JWT`    | none                               | `204`                       | 401, 409, 429 |
+| Method | Path                        | Who      | Request body                                      | Response                    | Errors        |
+| ------ | --------------------------- | -------- | ------------------------------------------------- | --------------------------- | ------------- |
+| POST   | `/auth/register`            | `public` | `{ email, password, displayName, paynowMobile? }` | `201 { user, accessToken }` | 400, 409, 429 |
+| POST   | `/auth/login`               | `public` | `{ email, password }`                             | `200 { user, accessToken }` | 400, 401, 429 |
+| POST   | `/auth/verify-email`        | `public` | `{ token }` (from the email link)                 | `200 { emailVerifiedAt }`   | 400, 404, 409 |
+| POST   | `/auth/resend-verification` | `JWT`    | none                                              | `204`                       | 401, 409, 429 |
 
-- Passwords: at least 8 characters. Only a hash is stored.
+- Emails are trimmed and lower-cased, so `Chee@Example.com` and `chee@example.com` are one account.
+- Passwords: 8 to 128 characters. Only a salted scrypt hash is stored.
+- A wrong password and an unknown email get the same `401 Invalid email or password`, so nobody can find out which emails have accounts.
+- The `accessToken` is a JWT that lasts 1 hour. Send it as `Authorization: Bearer <token>`.
+- Auth routes are limited to 10 requests per minute per IP.
 - Verification token: only its hash is stored; it expires after 24 hours and works once.
 
 ## Profile

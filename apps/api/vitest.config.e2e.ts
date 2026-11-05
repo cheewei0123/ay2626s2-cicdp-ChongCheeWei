@@ -7,5 +7,7 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.e2e-spec.ts'],
+    // Loads apps/api/.env (DATABASE_URL, JWT_SECRET) like main.ts does
+    setupFiles: ['dotenv/config'],
   },
 });
