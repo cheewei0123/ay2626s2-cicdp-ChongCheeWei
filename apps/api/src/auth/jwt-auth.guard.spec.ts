@@ -45,6 +45,19 @@ describe('JwtAuthGuard', () => {
     ).rejects.toThrow(UnauthorizedException);
   });
 
+  it('rejects a guest token, even though it has a valid signature', async () => {
+    const guest = await jwt.signAsync({
+      sub: 'p1',
+      billId: 'b1',
+      typ: 'guest',
+    });
+    const { req, context } = contextWith(`Bearer ${guest}`);
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      'A guest token cannot be used to log in',
+    );
+    expect(req.user).toBeUndefined();
+  });
+
   it('rejects an expired token', async () => {
     const expired = await jwt.signAsync(
       { sub: 'u1', email: 'x' },

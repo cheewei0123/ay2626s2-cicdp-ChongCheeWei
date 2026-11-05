@@ -2,6 +2,17 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-27: Share link, join code and guest join
+
+- **Two ways in, no sign-up:** the share link (`/api/share/:token`, a 22-character random token) or the 5-character join code (`GET /api/join/:code` → share token). `ShareTokenGuard` finds the bill from the token (`404` if wrong) and puts it on `req.bill`, just like `BillOwnerGuard` does for owners.
+- **Security trade-off (report section d):** anyone with the link can see the bill. That is the point (friends join without accounts), so the token must be unguessable: 16 random bytes is about 3.4 × 10³⁸ possibilities. Join codes are much shorter (32⁵ ≈ 33 million), so `GET /join/:code` is limited to 20 requests a minute, and a code stops working once the bill is settled.
+- **Guest view hides private data:** `ShareService.view` uses a `select` that lists every allowed field. Nothing else (owner email, owner ID, participants' user IDs) can come out, even if columns are added later. The e2e test checks the response text never contains the owner's email.
+- **Guest token:** joining returns a JWT `{ sub: participantId, billId, typ: "guest" }` that lasts 24 hours. It uses the same secret as login tokens, so `JwtAuthGuard` now rejects anything with `typ: "guest"`; otherwise a guest token would pass as a login. A test proves `/api/me` answers `401`.
+- **Repeated names:** `Ben` then `Ben` becomes `Ben (2)` (case-insensitive), so the summary can tell them apart.
+- **Migration:** added `Bill.joinCode` as **nullable** so it only adds a column (additive, safe to roll back). `prisma migrate dev` refused to run in a non-interactive shell, so I generated the SQL with `prisma migrate diff` and applied it with `prisma migrate deploy`, the same command production will use.
+- **Join code clashes:** 33 million codes means two bills can rarely get the same one. The unique index rejects it (`P2002`), and `create` tries again with a new code, up to 5 times.
+- **My own maths slip:** I expected 720 cents for a bill with only Chicken Rice. 720 is Chee's _share_ of the full bill; Chicken Rice alone is 600 + 60 + 59 = 719. The test caught my wrong number.
+
 ## KAN-16 follow-up: type-check and build in CI
 
 - **The gap:** CI ran lint and tests but never compiled the code. In KAN-26 a type error passed every test and was only caught because I ran `nest build` by hand.

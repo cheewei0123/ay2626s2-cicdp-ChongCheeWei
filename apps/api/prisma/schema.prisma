@@ -84,6 +84,9 @@ model Bill {
   serviceBp  Int        @default(1000)
   gstBp      Int        @default(900)
   shareToken String     @unique
+  // Short code friends can type instead of opening the link, e.g. K7P2Q.
+  // Optional so the migration only adds a column (bills made before it have none).
+  joinCode   String?    @unique
   status     BillStatus @default(OPEN)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt

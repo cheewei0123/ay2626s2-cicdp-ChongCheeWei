@@ -22,6 +22,9 @@ Every endpoint the PWA calls, agreed before building, so the backend (Sprint 2) 
 
 A guest gets the guest token when they join (`POST /share/:token/participants`). It identifies which participant they are, so they can only change their own claims. No sign-up needed.
 
+- The guest token is a JWT `{ sub: participantId, billId, typ: "guest" }` that lasts 24 hours. The app keeps it in the browser.
+- It is signed with the same secret as login tokens, so login routes check `typ` and refuse it (`401 A guest token cannot be used to log in`).
+
 ## Errors
 
 Every error uses one format, from a global exception filter:
@@ -96,7 +99,8 @@ Every endpoint can also return `500` for unexpected errors (same format).
 - Items can only change while the bill is `OPEN`; otherwise `409`.
 - Every bill response includes `totals`: `{ subtotalCents, serviceCents, gstCents, totalCents, total }`, e.g. `total: "$35.37"`.
 - `owner` routes go through `BillOwnerGuard`: a bill that does not exist answers `404`; someone else's bill answers `403 Only the owner of this bill can do this`. Bill IDs are long random strings, so a `403` does not help anyone guess other bills.
-- Built so far (KAN-25): create, list, get and update bills; add, edit and delete items. These need a login (`JWT`) for now; the `verified` check comes with email verification, and `joinCode` with the share link (KAN-27).
+- Built so far (KAN-25): create, list, get and update bills; add, edit and delete items. These need a login (`JWT`) for now; the `verified` check comes with email verification.
+- Built in KAN-27: `GET /share/:token`, `POST /share/:token/participants` and `GET /join/:code`. Join and join-code lookups are limited to 20 per minute per IP. A repeated name gets a suffix: `Ben`, `Ben (2)`.
 - **Scanned or pasted items are never saved straight away.** `POST /receipt` and `POST /receipt-text` return a draft for the owner to check and edit, then each item is saved with `POST /items`.
 - **Lock** freezes the split and creates an `Expense` (source `BILL_SHARE`) for every participant who has a user account. **Unlock** removes those expenses.
 - Payments can only be marked while the bill is `LOCKED`. The app never moves money; this only records that someone says they paid.
