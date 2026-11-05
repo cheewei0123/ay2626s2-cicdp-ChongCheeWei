@@ -7,6 +7,7 @@ Bullet points collected as the project goes, grouped by the report rubric. Scree
 - **Problem:** splitting a Singapore restaurant bill is awkward. People order different things, and bills add 10% service charge, then 9% GST on top. People pay back with PayNow.
 - **SplitLah:** scan a receipt, share a link, friends tap their items, everyone pays exactly their share by PayNow QR, and each share is logged in their monthly expenses.
 - **The SG-specific rule:** GST is charged on subtotal + service, not on the subtotal alone. On the brief's bill (2950¢) that gives 295 + 292 = 3537¢; GST on the subtotal alone would give 266¢ and the wrong total.
+- **Related work:** [splitlah.sg](https://splitlah.sg) ("Split Lah") already splits SG receipts by item with service and GST, with no sign-up. I took two feature ideas from it: pasting receipt text, and a short join code. SplitLah adds what it does not have: monthly expense tracking, shares auto-logged from locked bills, and a PayNow QR to the person who paid. The visual design is my own.
 - **Scope of CA1:** NestJS backend, React PWA, and a full CI/CD pipeline from PR checks to deploy.
 
 ## b) Architecture and design (30%)
