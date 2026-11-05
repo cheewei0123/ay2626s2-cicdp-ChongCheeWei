@@ -7,6 +7,7 @@ export class AppController {
 
   @Get()
   getHello(): string {
+    debugger; // deliberate lint error to show CI blocking the merge
     return this.appService.getHello();
   }
 }
