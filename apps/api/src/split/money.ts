@@ -49,3 +49,11 @@ export function billTotals(
     total: subtotalCents + service + tax,
   };
 }
+
+// 1250 → "$12.50", using integers only (no 12.5 floating point in between)
+export function formatCents(cents: number): string {
+  assertWholeNonNegative(cents, 'cents');
+  const dollars = Math.floor(cents / 100);
+  const rest = String(cents % 100).padStart(2, '0');
+  return `$${dollars}.${rest}`;
+}

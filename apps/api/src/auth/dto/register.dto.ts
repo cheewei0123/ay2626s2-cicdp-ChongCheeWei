@@ -8,13 +8,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-
-// Trims spaces and lower-cases, so "Chee@Example.com " and "chee@example.com" are one account
-export const normaliseEmail = ({ value }: { value: unknown }) =>
-  typeof value === 'string' ? value.trim().toLowerCase() : value;
-
-const trim = ({ value }: { value: unknown }) =>
-  typeof value === 'string' ? value.trim() : value;
+import { normaliseEmail, trim } from '../../common/transforms.js';
 
 // The shape and rules for POST /api/auth/register; ValidationPipe checks them before the controller runs
 export class RegisterDto {

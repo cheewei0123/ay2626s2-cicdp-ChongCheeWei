@@ -2,6 +2,18 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-25: Bills and items
+
+- **Routes:** `POST/GET /api/bills`, `GET/PATCH /api/bills/:id`, and `POST/PATCH/DELETE /api/bills/:billId/items[/:itemId]`, all behind `JwtAuthGuard`.
+- **DTOs do the checking:** `CreateItemDto` says the price is a whole number of cents from 1 to 10,000,000. `ValidationPipe` turns `0`, `-100` and `1.5` into a `400` before the controller runs, so the service never sees a bad price.
+- **Owner only, without a guard yet:** every query includes `ownerId`, so another user's bill is simply "not found" (`404`). Answering `404` instead of `403` also hides whether that bill ID exists. A proper `BillOwnerGuard` comes in KAN-26.
+- **Item belongs to the bill:** item updates use `where: { id: itemId, billId }`. An item from another bill makes Prisma throw `P2025`, which the exception filter from KAN-30 already turns into `404`, so no extra code was needed.
+- **Locked bills:** items and bill details can only change while the bill is `OPEN`; otherwise `409`.
+- **Totals on every bill:** `billTotals()` from KAN-19 adds `{ subtotalCents, serviceCents, gstCents, totalCents, total: "$35.37" }`. `formatCents()` builds the text with integers only (`3537` → `$35.37`), never `35.37` as a float.
+- **Share token:** 16 random bytes as base64url (22 characters), made when the bill is created.
+- **Refactor:** the `trim` helper had been copied into 3 DTO files, and its "not text" branch was untested in each copy, so coverage fell below 90%. Moving it to `src/common/transforms.ts` with one test fixed both.
+- Docker Desktop was closed again, so the first e2e run failed with `500`. Start Docker before `npm run test:e2e`.
+
 ## KAN-24: Register and login with JWT
 
 - **Flow:** register or log in → the API returns a **JWT** (a signed token that says "this is user u1" and expires in 1 hour). The app sends it back as `Authorization: Bearer <token>`. `JwtAuthGuard` checks the signature and expiry, then puts `{ id, email }` on the request; `@CurrentUser()` reads it in the controller.

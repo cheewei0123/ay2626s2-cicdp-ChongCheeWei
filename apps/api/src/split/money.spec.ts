@@ -1,4 +1,4 @@
-import { billTotals, gst, serviceCharge } from './money.js';
+import { billTotals, formatCents, gst, serviceCharge } from './money.js';
 
 describe('serviceCharge', () => {
   it('charges 10% of the subtotal', () => {
@@ -62,5 +62,22 @@ describe('billTotals', () => {
   it('throws on a negative or decimal rate', () => {
     expect(() => billTotals(2950, -1000, 900)).toThrow(RangeError);
     expect(() => billTotals(2950, 1000, 9.5)).toThrow(RangeError);
+  });
+});
+
+describe('formatCents', () => {
+  it.each([
+    [0, '$0.00'],
+    [5, '$0.05'],
+    [1250, '$12.50'],
+    [3537, '$35.37'],
+    [234567, '$2345.67'],
+  ])('shows %i cents as %s', (cents, text) => {
+    expect(formatCents(cents)).toBe(text);
+  });
+
+  it('throws on a negative or decimal amount', () => {
+    expect(() => formatCents(-1)).toThrow(RangeError);
+    expect(() => formatCents(1.5)).toThrow(RangeError);
   });
 });

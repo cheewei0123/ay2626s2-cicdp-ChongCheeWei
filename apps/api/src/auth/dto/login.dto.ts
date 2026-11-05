@@ -1,6 +1,6 @@
 import { Transform } from 'class-transformer';
 import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
-import { normaliseEmail } from './register.dto.js';
+import { normaliseEmail } from '../../common/transforms.js';
 
 export class LoginDto {
   @Transform(normaliseEmail)
