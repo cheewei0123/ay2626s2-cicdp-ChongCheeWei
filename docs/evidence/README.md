@@ -24,3 +24,6 @@ Screenshots used in the report, named `kan-<ticket>-<what>.png`.
 | `kan-22-dependabot-group-one-update.png` | KAN-22 | Dependabot vitest group PR bumping only `vitest`, not `@vitest/coverage-v8`       |
 | `kan-22-push-protection-blocked.png`     | KAN-22 | GitHub push protection rejecting a push with a fake AWS key (GH013)               |
 | `kan-22-gitleaks-blocks-pr.png`          | KAN-22 | Required gitleaks check failing on a fake API key, merge button disabled          |
+| `kan-69-container-diagram.png`           | KAN-69 | Container diagram rendered on GitHub                                              |
+| `kan-23-board.png`                       | KAN-23 | Sprint 1 board at the end: 17 Done, only KAN-23 left                              |
+| `kan-23-burndown.png`                    | KAN-23 | Sprint 1 burndown: 37 points done, 1 to go, well ahead of the guideline           |
