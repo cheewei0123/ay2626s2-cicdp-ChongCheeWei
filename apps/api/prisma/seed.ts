@@ -32,6 +32,7 @@ async function main() {
       serviceBp: 1000,
       gstBp: 900,
       shareToken: 'seed-demo-bill',
+      joinCode: 'SEED2',
       items: {
         create: [
           { name: 'Chicken Rice', unitPriceCents: 600 },

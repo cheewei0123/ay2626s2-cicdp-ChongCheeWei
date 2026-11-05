@@ -58,7 +58,7 @@ erDiagram
         int serviceBp "1000 = 10%"
         int gstBp "900 = 9%"
         string shareToken UK
-        string joinCode UK "planned, 5 chars"
+        string joinCode UK "nullable, 5 chars"
         BillStatus status "OPEN | LOCKED | SETTLED"
     }
     ITEM {
@@ -130,23 +130,23 @@ Every table also gets `createdAt` and `updatedAt`. They are left out of the diag
 
 ## Decisions
 
-| Decision                                                                                                       | Why                                                                                                 |
-| -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Money is `Int` cents (`600` = $6.00)                                                                           | Floats cannot store 0.1 exactly, so totals drift by a cent; integers never do.                      |
-| Rates and percents are `Int` basis points (`1000` = 10%, `900` = 9%, `10000` = 100%)                           | Same reason as money, and it keeps 2 decimal places of a percent without fractions.                 |
-| IDs are `String` with `cuid()`                                                                                 | IDs appear in URLs; random IDs do not reveal how many bills exist.                                  |
-| `Bill.shareToken` is unique                                                                                    | The share link finds the bill by this token, so two bills can never share one.                      |
-| `Bill.joinCode` is unique (planned)                                                                            | A short code friends can type instead of opening the link. Added with the Bills module in Sprint 2. |
-| `Participant.userId` is nullable                                                                               | Friends join by link with only a name (no sign-up).                                                 |
-| `Claim` holds `shares`, `percentBp?`, `exactCents?`                                                            | One table covers all four split modes; the item's `splitMode` says which field is used.             |
-| Unique `Claim (itemId, participantId)`                                                                         | A person claims an item once; changing the split edits that row.                                    |
-| Unique `Payment (billId, participantId)`                                                                       | Each person has one amount to pay back per bill.                                                    |
-| Unique `Expense (userId, billId)`                                                                              | Locking a bill twice must not log the same share twice.                                             |
-| Unique `MerchantCategory (userId, merchantKey)`                                                                | One remembered category per merchant per user; a correction overwrites it.                          |
-| `EmailVerificationToken.tokenHash` stores a hash, not the token                                                | If the database leaks, the tokens in it cannot be used.                                             |
-| Deleting a `Bill` cascades to its Items, Participants, Claims, Payments, ReceiptImages and BILL_SHARE Expenses | No orphan rows point at a bill that no longer exists.                                               |
-| Indexes on `Bill.ownerId`, `Item.billId`, `Claim.itemId`, `Expense (userId, spentAt)`                          | These are the common lookups: "my bills", "items in a bill", "claims on an item", "my month".       |
-| Stretch tables (`Friendship`, `Budget`, `Group`, `GroupMember`) are not in the first migration                 | Keep the MVP small; add them later as additive migrations.                                          |
+| Decision                                                                                                       | Why                                                                                                                                                        |
+| -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Money is `Int` cents (`600` = $6.00)                                                                           | Floats cannot store 0.1 exactly, so totals drift by a cent; integers never do.                                                                             |
+| Rates and percents are `Int` basis points (`1000` = 10%, `900` = 9%, `10000` = 100%)                           | Same reason as money, and it keeps 2 decimal places of a percent without fractions.                                                                        |
+| IDs are `String` with `cuid()`                                                                                 | IDs appear in URLs; random IDs do not reveal how many bills exist.                                                                                         |
+| `Bill.shareToken` is unique                                                                                    | The share link finds the bill by this token, so two bills can never share one.                                                                             |
+| `Bill.joinCode` is unique and nullable                                                                         | A short code friends can type instead of opening the link. Added in KAN-27 as an additive migration, so it is nullable: bills made before it have no code. |
+| `Participant.userId` is nullable                                                                               | Friends join by link with only a name (no sign-up).                                                                                                        |
+| `Claim` holds `shares`, `percentBp?`, `exactCents?`                                                            | One table covers all four split modes; the item's `splitMode` says which field is used.                                                                    |
+| Unique `Claim (itemId, participantId)`                                                                         | A person claims an item once; changing the split edits that row.                                                                                           |
+| Unique `Payment (billId, participantId)`                                                                       | Each person has one amount to pay back per bill.                                                                                                           |
+| Unique `Expense (userId, billId)`                                                                              | Locking a bill twice must not log the same share twice.                                                                                                    |
+| Unique `MerchantCategory (userId, merchantKey)`                                                                | One remembered category per merchant per user; a correction overwrites it.                                                                                 |
+| `EmailVerificationToken.tokenHash` stores a hash, not the token                                                | If the database leaks, the tokens in it cannot be used.                                                                                                    |
+| Deleting a `Bill` cascades to its Items, Participants, Claims, Payments, ReceiptImages and BILL_SHARE Expenses | No orphan rows point at a bill that no longer exists.                                                                                                      |
+| Indexes on `Bill.ownerId`, `Item.billId`, `Claim.itemId`, `Expense (userId, spentAt)`                          | These are the common lookups: "my bills", "items in a bill", "claims on an item", "my month".                                                              |
+| Stretch tables (`Friendship`, `Budget`, `Group`, `GroupMember`) are not in the first migration                 | Keep the MVP small; add them later as additive migrations.                                                                                                 |
 
 ## Example: the brief's test bill
 

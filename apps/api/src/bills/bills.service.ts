@@ -4,14 +4,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
+import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { billTotals, formatCents } from '../split/money.js';
 import type { CreateBillDto, UpdateBillDto } from './dto/bill.dto.js';
 import type { CreateItemDto, UpdateItemDto } from './dto/item.dto.js';
 import type { OwnedBill } from './guards/bill-owner.guard.js';
-
-type PricedItem = { unitPriceCents: number; quantity: number };
-type BillWithItems = { serviceBp: number; gstBp: number; items: PricedItem[] };
+import { newJoinCode } from './join-code.js';
+import { withTotals } from './totals.js';
 
 // 16 random bytes → 22 URL-safe characters: impossible to guess, safe in a link
 const newShareToken = () => randomBytes(16).toString('base64url');
@@ -19,24 +18,9 @@ const newShareToken = () => randomBytes(16).toString('base64url');
 // "2026-11-05" → Date; undefined stays undefined so Prisma leaves the field alone
 const toDate = (date?: string) => (date ? new Date(date) : undefined);
 
-// Adds the receipt totals (service then GST) in cents and as display text
-function withTotals<T extends BillWithItems>(bill: T) {
-  const subtotal = bill.items.reduce(
-    (sum, item) => sum + item.unitPriceCents * item.quantity,
-    0,
-  );
-  const t = billTotals(subtotal, bill.serviceBp, bill.gstBp);
-  return {
-    ...bill,
-    totals: {
-      subtotalCents: t.subtotal,
-      serviceCents: t.service,
-      gstCents: t.gst,
-      totalCents: t.total,
-      total: formatCents(t.total),
-    },
-  };
-}
+// Join codes are short, so two bills can (rarely) get the same one. The database's
+// unique index rejects it (P2002), and we simply try again with a new code.
+const MAX_CODE_TRIES = 5;
 
 // A bill can only change while it is OPEN; after locking, the split is final
 function assertOpen(bill: OwnedBill) {
@@ -50,19 +34,29 @@ export class BillsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(ownerId: string, dto: CreateBillDto) {
-    const bill = await this.prisma.bill.create({
-      data: {
-        ownerId,
-        title: dto.title,
-        merchant: dto.merchant ?? '',
-        date: toDate(dto.date) ?? new Date(),
-        serviceBp: dto.serviceBp,
-        gstBp: dto.gstBp,
-        shareToken: newShareToken(),
-      },
-      include: { items: true },
-    });
-    return withTotals(bill);
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const bill = await this.prisma.bill.create({
+          data: {
+            ownerId,
+            title: dto.title,
+            merchant: dto.merchant ?? '',
+            date: toDate(dto.date) ?? new Date(),
+            serviceBp: dto.serviceBp,
+            gstBp: dto.gstBp,
+            shareToken: newShareToken(),
+            joinCode: newJoinCode(),
+          },
+          include: { items: true },
+        });
+        return withTotals(bill);
+      } catch (error) {
+        const clash =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002';
+        if (!clash || attempt >= MAX_CODE_TRIES) throw error;
+      }
+    }
   }
 
   async listMine(ownerId: string) {

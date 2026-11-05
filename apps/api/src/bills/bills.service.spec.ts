@@ -1,5 +1,6 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { BillsService } from './bills.service.js';
 import type { OwnedBill } from './guards/bill-owner.guard.js';
@@ -60,6 +61,48 @@ describe('BillsService (with a mocked database)', () => {
       expect(first.shareToken).toMatch(/^[A-Za-z0-9_-]{22}$/);
       expect(first.shareToken).not.toBe(second.shareToken);
       expect(first.date).toBeInstanceOf(Date);
+    });
+
+    describe('join code', () => {
+      const clash = () =>
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: 'test',
+        });
+
+      it('gives every new bill a 5-character join code', async () => {
+        prisma.bill.create.mockResolvedValue({ ...bill, items: [] });
+        await service.create('u1', { title: 'Dinner' });
+        expect(prisma.bill.create.mock.calls[0][0].data.joinCode).toMatch(
+          /^[2-9A-HJ-NP-Z]{5}$/,
+        );
+      });
+
+      it('tries again with a new code if the code is already taken', async () => {
+        prisma.bill.create
+          .mockRejectedValueOnce(clash())
+          .mockResolvedValueOnce({ ...bill, items: [] });
+
+        await service.create('u1', { title: 'Dinner' });
+
+        expect(prisma.bill.create).toHaveBeenCalledTimes(2);
+      });
+
+      it('gives up after 5 clashes', async () => {
+        prisma.bill.create.mockRejectedValue(clash());
+        await expect(service.create('u1', { title: 'Dinner' })).rejects.toThrow(
+          'Unique constraint failed',
+        );
+        expect(prisma.bill.create).toHaveBeenCalledTimes(5);
+      });
+
+      it('does not retry other errors', async () => {
+        prisma.bill.create.mockRejectedValue(new Error('db down'));
+        await expect(service.create('u1', { title: 'Dinner' })).rejects.toThrow(
+          'db down',
+        );
+        expect(prisma.bill.create).toHaveBeenCalledTimes(1);
+      });
     });
 
     it('uses the merchant, date and rates when given', async () => {
