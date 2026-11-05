@@ -8,6 +8,9 @@ Short notes on what I learned and what went wrong, newest first. Used as evidenc
 - **Why tests don't catch it:** Vitest strips the types and runs the JavaScript, so a wrong type never stops a test.
 - **Why the build alone isn't enough:** `nest build` uses `tsconfig.build.json`, which skips test files. I proved it by putting `const broken: number = 'not a number'` in a test file: tests passed, build passed, only `tsc --noEmit` failed (`TS2322`).
 - **Fix:** the `lint api` and `lint web` jobs now also run `npm run typecheck` (every file, tests included) and `npm run build`. The job names stay the same because the `protect-main` ruleset requires those exact names.
+- **Proved the block:** a throwaway PR with a `debugger;` line turned `lint api` red and greyed out **Squash and merge**. Closed, not merged, branch deleted.
+- **Don't trust the badge alone:** on an all-green PR, GitHub only showed the **Required** badge next to `gitleaks`, so I thought the other four were no longer required. The ruleset listed all 5, and on the red PR all 5 showed **Required**. A failing PR is the real test.
+- **`fail-fast`:** when `lint api` failed, GitHub **cancelled** `lint web`, because jobs in a matrix stop together by default. It saves minutes, but hides whether web would also have failed.
 
 ## KAN-26: BillOwnerGuard
 
