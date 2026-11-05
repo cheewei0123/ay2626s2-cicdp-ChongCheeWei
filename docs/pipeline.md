@@ -10,22 +10,22 @@ Solid boxes are built. Dashed boxes are planned for later sprints.
 flowchart LR
   subgraph PR["On every pull request"]
     direction LR
-    A[Install<br/>npm ci + cache] --> B[Lint + format<br/>oxlint, Prettier]
-    B --> C[Unit tests + coverage<br/>gate 90% on src/split]
-    C --> D[API e2e<br/>Supertest + Postgres]
-    D --> E[Security<br/>Gitleaks, CodeQL, npm audit]
-    E --> F[Docker build]
-    F --> G[Trivy image scan]
-    G --> H[Playwright<br/>iPhone preset]
+    A[Install<br/>+ cache] --> B[Lint<br/>+ format]
+    B --> C[Unit tests<br/>+ coverage]
+    C --> D[API e2e<br/>tests]
+    D --> E[Security<br/>scans]
+    E --> F[Docker<br/>build]
+    F --> G[Trivy<br/>scan]
+    G --> H[Playwright<br/>iPhone]
   end
 
-  subgraph MAIN["On merge to main only"]
+  subgraph MAIN["On merge to main"]
     direction LR
-    I[Push images to GHCR<br/>tags: SHA + latest] --> J[SSH deploy to EC2]
-    J --> K[prisma migrate deploy<br/>on RDS]
-    K --> L{Health check}
+    I[Push to<br/>GHCR] --> J[Deploy<br/>to EC2]
+    J --> K[Migrate<br/>database]
+    K --> L{Health<br/>check}
     L -->|pass| M[Live]
-    L -->|fail| N[Roll back to<br/>previous image]
+    L -->|fail| N[Roll<br/>back]
   end
 
   H -.->|merge| I
@@ -34,7 +34,22 @@ flowchart LR
   class D,F,G,H,I,J,K,L,M,N planned
 ```
 
-Stage E is partly built: Gitleaks runs today; CodeQL and `npm audit` come later.
+| Stage                    | Details                                               |
+| ------------------------ | ----------------------------------------------------- |
+| Install + cache          | `npm ci`, npm cache keyed on the lockfile             |
+| Lint + format            | oxlint (`--deny-warnings`), Prettier check            |
+| Unit tests + coverage    | Vitest; fails below 90% on `src/split`                |
+| API e2e tests            | Supertest against a Postgres service container        |
+| Security scans           | Gitleaks (built), CodeQL, `npm audit`                 |
+| Docker build             | Multi-stage images for api and web                    |
+| Trivy scan               | Scans the images for known vulnerabilities            |
+| Playwright iPhone        | Browser tests with the iPhone preset                  |
+| Push to GHCR             | Images tagged with the commit SHA and `latest`        |
+| Deploy to EC2            | SSH in, pull the new images, restart                  |
+| Migrate database         | `prisma migrate deploy` on RDS                        |
+| Health check / roll back | `GET /health`; on failure, restart the previous image |
+
+Security scans are partly built: Gitleaks runs today; CodeQL and `npm audit` come later.
 
 ## What runs today
 
