@@ -4,6 +4,10 @@
 
 # ---- 1. build: all packages (incl. dev tools), generate the Prisma client, compile ----
 FROM node:24-slim AS build
+# Prisma's CLI (prisma generate here, prisma migrate deploy in the migrate image) needs
+# OpenSSL, which the slim image leaves out. Without it Prisma warns it "may not work".
+RUN apt-get update && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 # Package files first: Docker reuses this layer (and the slow npm ci) until they change
 COPY package.json package-lock.json ./

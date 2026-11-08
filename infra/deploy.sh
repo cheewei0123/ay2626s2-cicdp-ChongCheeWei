@@ -13,7 +13,8 @@ PREVIOUS_TAG="$(cat "$STATE_FILE" 2>/dev/null || true)"
 # Waits up to 60 s for GET /api/health to answer 200 (the API needs a few seconds to start)
 healthy() {
   for _ in $(seq 1 12); do
-    if curl -fsS --max-time 3 http://localhost/api/health >/dev/null; then return 0; fi
+    # -s: no error output while the API is still starting; only the final result matters
+    if curl -fs --max-time 3 http://localhost/api/health >/dev/null; then return 0; fi
     sleep 5
   done
   return 1
