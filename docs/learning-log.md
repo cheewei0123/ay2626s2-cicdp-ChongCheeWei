@@ -2,6 +2,17 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-37: Continuous deployment to EC2
+
+- **What happens on every merge to `main`:** build and push both images → the `deploy` job logs in to AWS with **OIDC** → opens port 22 for its own IP only → SSHes in as `deploy` → `deploy.sh` pulls the new images, runs the migrations, starts the API and waits for `/api/health` → closes port 22 again (always) → checks `/api/health` from the internet.
+- **OIDC instead of AWS keys:** GitHub gives the job a signed token; AWS checks it against the role's trust policy, which accepts only this repo's `production` environment. No AWS access key exists anywhere. My first trust-policy edit kept the wizard's `repo:…:*` next to the new value, which would have let any workflow in the repo use the role; it now matches only `…:environment:production`.
+- **Least privilege:** the role can only add or remove inbound rules on the one security group, nothing else in the account.
+- **Pinned server fingerprint:** `EC2_KNOWN_HOSTS` holds the server's SSH fingerprint, so the job refuses to talk to an impostor server.
+- **A separate `migrate` image:** the slim runtime image has no Prisma CLI (KAN-36), so a second image (`--target migrate`) runs `prisma migrate deploy` once per release. Running it twice says `No pending migrations`, so a re-run is safe.
+- **Rollback proven before the first real deploy:** I ran `deploy.sh` locally with a good release, then a broken one whose API never answers. It failed the health check, rolled back to the good release by itself and exited with an error. Re-running the same release was also safe (idempotent).
+- **Secrets made on the server:** `.env` was generated with `openssl rand` directly on the server (`umask 077`, readable only by `deploy`), so the database password and `JWT_SECRET` never passed through my laptop, GitHub or chat.
+- **Temporary choices:** Postgres runs in Docker on the same server until RDS (KAN-75), and the API is on plain HTTP port 80 until Caddy and HTTPS (KAN-39).
+
 ## KAN-35: EC2 server with Docker
 
 - **Account safety first:** MFA on the root account, and a monthly budget alert (US$10, because the public IPv4 alone is about US$3.60/month, so US$1 would fire every month).

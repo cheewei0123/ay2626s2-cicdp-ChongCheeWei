@@ -85,6 +85,14 @@ jobs:
           # Reuse layers from earlier runs (stored in GitHub's cache), e.g. npm ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      # The migration image too, so a broken migrate stage is caught before merging
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          target: migrate
+          push: false
+          cache-from: type=gha
 
   # The real API against a real Postgres: every route, guard and query, not just the logic
   test-e2e:

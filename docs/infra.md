@@ -51,14 +51,36 @@ What the script does:
 
 ## Keys and accounts
 
-| Key / account                   | Where it lives                                       | Used for                     |
-| ------------------------------- | ---------------------------------------------------- | ---------------------------- |
-| AWS root account                | Me only, **MFA on**                                  | Billing and account settings |
-| `splitlah-chee.pem`             | My laptop only (`~/.ssh`, readable only by me)       | My SSH logins as `ubuntu`    |
-| `splitlah-actions` (private)    | My laptop now; GitHub Secret `EC2_SSH_KEY` in KAN-37 | The deploy job's SSH login   |
-| `splitlah-actions.pub` (public) | `/home/deploy/.ssh/authorized_keys` on the server    | Lets that key in as `deploy` |
+| Key / account                     | Where it lives                                           | Used for                                   |
+| --------------------------------- | -------------------------------------------------------- | ------------------------------------------ |
+| AWS root account                  | Me only, **MFA on**                                      | Billing and account settings               |
+| `splitlah-chee.pem`               | My laptop only (`~/.ssh`, readable only by me)           | My SSH logins as `ubuntu`                  |
+| `splitlah-actions` (private)      | GitHub Secret `EC2_SSH_KEY` (`production`) and my laptop | The deploy job's SSH login                 |
+| `splitlah-actions.pub` (public)   | `/home/deploy/.ssh/authorized_keys` on the server        | Lets that key in as `deploy`               |
+| IAM role `splitlah-github-deploy` | AWS; used by GitHub Actions through OIDC (no keys)       | Opening and closing port 22 for one deploy |
+| `/opt/splitlah/.env`              | The server only, readable only by `deploy`               | Database password, `JWT_SECRET`            |
 
 No key is in git. If the Actions key leaks, removing one line from `authorized_keys` cuts it off without touching my own access.
+
+## How a deploy reaches the server
+
+Port 22 normally only allows my home IP. GitHub Actions runners use thousands of changing IPs, so the deploy job opens port 22 **for its own IP only, for the few seconds of the deploy**, and always closes it afterwards. It gets permission through **OIDC**:
+
+1. IAM **identity provider** `token.actions.githubusercontent.com` (audience `sts.amazonaws.com`): AWS trusts tokens signed by GitHub Actions.
+2. IAM **policy** `splitlah-deploy-ssh-rule`: only `ec2:AuthorizeSecurityGroupIngress` and `ec2:RevokeSecurityGroupIngress`, only on this server's security group.
+3. IAM **role** `splitlah-github-deploy`: has that policy, and its trust policy only accepts a token whose `sub` is exactly `repo:cheewei0123/ay2626s2-cicdp-ChongCheeWei:environment:production`. A pull request or any other job gets a different `sub` and is refused.
+
+Options I did not choose: opening SSH to the whole internet (simplest, but bots try to log in all day), or storing an AWS access key in GitHub Secrets (works, but a long-lived cloud key is exactly what OIDC avoids).
+
+## What runs on the server
+
+`/opt/splitlah/` holds `docker-compose.yml` and `deploy.sh` (copied in by every deploy), `.env`, and `.deployed-tag` (the last release that passed its health check).
+
+| Service   | Image                                        | Reachable from                                                    |
+| --------- | -------------------------------------------- | ----------------------------------------------------------------- |
+| `api`     | `ghcr.io/cheewei0123/splitlah-api:<SHA>`     | Port 80 (until Caddy and HTTPS, KAN-39)                           |
+| `db`      | `postgres:18`, data in a Docker volume       | Only the other containers, never the internet (until RDS, KAN-75) |
+| `migrate` | `ghcr.io/cheewei0123/splitlah-migrate:<SHA>` | Runs once per deploy, then exits                                  |
 
 ## Cost
 
@@ -73,6 +95,8 @@ The ticket suggested a US$1 alert. I set US$10 because the public IPv4 alone is 
 ## Trade-offs (report section d)
 
 - **One server, no redundancy.** If the instance fails, the app is down until it is replaced. Acceptable for a student project; production would use at least two instances behind a load balancer.
-- **SSH only from my IP** stops bots from trying to log in, but my IP changes (it changed when my VPN was on, and I was locked out until I updated the rule). It also means **GitHub Actions cannot reach port 22 yet**; KAN-37 has to solve that.
+- **SSH only from my IP** stops bots from trying to log in, but my IP changes (it changed when my VPN was on, and I was locked out until I updated the rule). The deploy job gets in by opening port 22 for its own IP for a few seconds (OIDC, above), which is more moving parts than leaving SSH open, but keeps port 22 closed almost all the time.
+- **The database runs on the same server for now.** If the server dies, so does the data (only the Docker volume). KAN-75 moves it to Amazon RDS with backups.
+- **Plain HTTP on port 80 for now.** Logins and tokens travel unencrypted until Caddy adds HTTPS in KAN-39.
 - **The `docker` group is close to root.** Anyone who can run Docker can mount the host's files into a container. So the `deploy` key is powerful even without sudo, and must stay only in GitHub Secrets.
 - **Free-tier limits:** 1 GB of RAM (hence the swap), and burstable CPU that slows down under long heavy load.
