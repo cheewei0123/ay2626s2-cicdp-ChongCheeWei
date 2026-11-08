@@ -1,16 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { assertWholeNonNegative, billTotals } from './money.js';
 
+// How one item is shared between the people who claimed it
+export type SplitMode = 'EQUAL' | 'SHARES' | 'PERCENT' | 'EXACT';
+
 export interface SplitItem {
   id: string;
   unitPriceCents: number;
   quantity: number;
+  splitMode?: SplitMode;
 }
 
 export interface SplitClaim {
   itemId: string;
   participantId: string;
   shares: number;
+  percentBp?: number | null;
+  exactCents?: number | null;
 }
 
 export interface SplitInput {
@@ -93,6 +99,18 @@ export function allocate(
     result.set(id, result.get(id)! + 1);
   }
   return result;
+}
+
+// KAN-74 stub (TDD red): the tests are written first, against these empty functions
+export function checkItemSplit(_item: SplitItem, _claims: SplitClaim[]): void {
+  throw new Error('Not implemented yet');
+}
+
+export function itemPortions(
+  _item: SplitItem,
+  _claims: SplitClaim[],
+): Map<string, number> {
+  throw new Error('Not implemented yet');
 }
 
 @Injectable()
