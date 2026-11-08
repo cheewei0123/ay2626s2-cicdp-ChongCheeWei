@@ -2,6 +2,16 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-35: EC2 server with Docker
+
+- **Account safety first:** MFA on the root account, and a monthly budget alert (US$10, because the public IPv4 alone is about US$3.60/month, so US$1 would fire every month).
+- **Wrong region at first:** my first instance got an IP starting `52.87.`, which is N. Virginia, not Singapore. I terminated it and relaunched in `ap-southeast-1`: users are in Singapore, and RDS must be in the same region as the server. Key pairs and security groups are per region, so both had to be made again.
+- **`setup-server.sh` instead of clicking around:** Docker from the official repository, a `deploy` user with Docker but no sudo, only the GitHub Actions key allowed for `deploy`, SSH keys-only with no root login, automatic security updates, and 1 GB swap. It is in git, checked with ShellCheck, and can be run again on a new server.
+- **A separate key for GitHub Actions:** if it leaks, deleting one line on the server cuts it off without touching my own key. The ticket's test passed: `ssh deploy@<server> docker ps` with that key.
+- **Windows mistakes:** my instructions assumed `C:\Users\chong\.ssh` existed. It didn't, so `ssh-keygen` failed and `Move-Item` turned the `.pem` file itself into a file called `.ssh`. Fixed by renaming it back and creating the folder. Windows SSH also refuses a `.pem` that other accounts can read, so `icacls` locks it to my user.
+- **Locked out by my own firewall:** SSH is allowed only from my IP, but my VPN (Cloudflare, `104.28.x.x`) kept changing address, and "My IP" had saved an IPv6 address. `scp` timed out. Turning the VPN off, deleting the IPv6 rule and adding my home IPv4 `/32` fixed it. AWS won't change an existing rule from IPv6 to IPv4.
+- **Open problem for KAN-37:** GitHub Actions runners use thousands of changing IPs, so with SSH limited to my IP the deploy job can't reach the server yet.
+
 ## KAN-36: Docker image and GHCR
 
 - **Multi-stage Dockerfile:** `build` installs everything and compiles; `prod-deps` installs only what the running app needs; `runtime` starts from a clean `node:24-slim` and copies just `node_modules` and `dist/`. Compilers, TypeScript, tests and source code never reach the final image.
