@@ -31,7 +31,7 @@ flowchart LR
   H -.->|merge| I
 
   classDef planned stroke-dasharray: 5 5
-  class F,G,H,I,J,K,L,M,N planned
+  class G,H,J,K,L,M,N planned
 ```
 
 Stage E is partly built: Gitleaks runs today; CodeQL and `npm audit` come later.
@@ -49,7 +49,28 @@ All jobs start at the same time, on every PR and every push to `main`. A new pus
 | `test-web` | Vitest                                                                                                                               | A test fails                                                                       |
 | `test-e2e` | Starts a fresh Postgres 18 service container, `prisma migrate deploy`, then the API e2e tests (Supertest) with a random `JWT_SECRET` | A migration fails, or any e2e test fails                                           |
 
-All 6 are required checks on `main`. A typical run takes about 1 minute.
+| `docker-build` | Builds the API image with the multi-stage `apps/api/Dockerfile` (no push), reusing cached layers | The image does not build |
+
+All 7 are required checks on `main`. A typical run takes about 1 minute.
+
+## On merge to `main` (`.github/workflows/deploy.yml`)
+
+| Job           | What it does                                                                                                                                              |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `build-image` | Builds the API image and pushes it to GHCR as `ghcr.io/cheewei0123/splitlah-api:<commit SHA>` and `:latest`, logging in with the run's own `GITHUB_TOKEN` |
+
+The deploy to EC2, migrations and health check are added in KAN-37.
+
+## The API image
+
+| Image                                                  | Size   | Runs as |
+| ------------------------------------------------------ | ------ | ------- |
+| Naive single-stage (`node:24`, everything)             | 2.7 GB | `root`  |
+| Multi-stage (`node:24-slim`, production packages only) | 505 MB | `node`  |
+
+- **3 stages:** `build` (all packages, `prisma generate`, `nest build`) → `prod-deps` (`npm ci --omit=dev --omit=optional --ignore-scripts`) → `runtime` (copies only `node_modules` and `dist/`).
+- `.dockerignore` keeps `.env` files, `.git`, tests and docs out of the build, so secrets can never end up in an image. Settings like `DATABASE_URL` and `JWT_SECRET` are passed in when the container starts.
+- `HEALTHCHECK` calls `GET /api/health` every 15 seconds; Docker marks the container unhealthy if it stops answering `200`.
 
 ## Environments
 

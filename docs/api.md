@@ -203,7 +203,7 @@ Built in KAN-29:
 | ------ | --------- | -------- | -------------------------------- | ----------------------------- |
 | GET    | `/health` | `public` | `200 { status: "ok", db: "up" }` | `503` if the database is down |
 
-The deploy pipeline calls this after each release; anything other than `200` triggers a rollback.
+The deploy pipeline calls this after each release; anything other than `200` triggers a rollback. Built in KAN-36: it runs `SELECT 1` on the database, is never rate limited, and is also the Docker `HEALTHCHECK`.
 
 ## MVP features → endpoints
 

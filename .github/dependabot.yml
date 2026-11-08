@@ -26,3 +26,11 @@ updates:
       interval: weekly
     commit-message:
       prefix: 'KAN-22 chore(ci)'
+
+  # Base image in the API Dockerfile (node:24-slim), e.g. security patches
+  - package-ecosystem: docker
+    directory: /apps/api
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: 'KAN-36 chore(docker)'

@@ -71,6 +71,21 @@ jobs:
       - run: npm ci
       - run: npm test -w apps/web
 
+  # Builds the API image (no push), so a broken Dockerfile is caught before merging
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          # Reuse layers from earlier runs (stored in GitHub's cache), e.g. npm ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   # The real API against a real Postgres: every route, guard and query, not just the logic
   test-e2e:
     runs-on: ubuntu-latest
