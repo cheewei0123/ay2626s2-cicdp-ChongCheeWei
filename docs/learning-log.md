@@ -2,6 +2,15 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-31: OCR behind an interface (dependency injection)
+
+- **A token, not a class:** TypeScript interfaces disappear when compiled, so Nest can't inject `OcrService` by its type. A `Symbol('OCR_SERVICE')` token stands for "whatever reads receipts", and consumers use `@Inject(OCR_SERVICE)`.
+- **`useFactory` picks the implementation:** `OcrModule` runs `createOcrService(process.env.OCR_PROVIDER)` once at startup. Unset means `fake`, so the live server (which has no `OCR_PROVIDER`) keeps working.
+- **Fail fast:** `gemini` and `tesseract` are valid names but not built yet, and a typo like `gemnii` is invalid; both stop the app at startup with a clear message instead of failing on the first receipt.
+- **The Fake returns the brief's bill** in integer cents (items add up to the subtotal, total $35.37), and a fresh copy each time so one caller can't change the next result.
+- **Proved the swap in tests:** a pretend consumer gets the Fake through config, and `overrideProvider(OCR_SERVICE).useValue(stub)` replaces it without touching the consumer. `src/ocr` is now in the 90% coverage gate.
+- **Small trap:** `npx prettier --check .` inside `apps/api` flagged 212 generated Prisma files, because the root `.prettierignore` only applies when run from the root. CI runs `npx prettier --check apps/api` from the root, which passes.
+
 ## KAN-37: Continuous deployment to EC2
 
 - **What happens on every merge to `main`:** build and push both images → the `deploy` job logs in to AWS with **OIDC** → opens port 22 for its own IP only → SSHes in as `deploy` → `deploy.sh` pulls the new images, runs the migrations, starts the API and waits for `/api/health` → closes port 22 again (always) → checks `/api/health` from the internet.

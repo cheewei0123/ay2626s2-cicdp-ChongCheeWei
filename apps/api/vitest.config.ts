@@ -25,6 +25,7 @@ export default defineConfig({
         'src/common/**': { lines: 90, branches: 90 },
         'src/auth/**': { lines: 90, branches: 90 },
         'src/bills/**': { lines: 90, branches: 90 },
+        'src/ocr/**': { lines: 90, branches: 90 },
       },
     },
   },
