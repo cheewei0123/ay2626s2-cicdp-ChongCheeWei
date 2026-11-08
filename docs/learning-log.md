@@ -2,6 +2,18 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-36: Docker image and GHCR
+
+- **Multi-stage Dockerfile:** `build` installs everything and compiles; `prod-deps` installs only what the running app needs; `runtime` starts from a clean `node:24-slim` and copies just `node_modules` and `dist/`. Compilers, TypeScript, tests and source code never reach the final image.
+- **Image sizes (report table):** naive single-stage `node:24` with everything: **2.7 GB, runs as root**. Multi-stage: **505 MB, runs as `node`** (`docker run … whoami` → `node`). About 5× smaller and not root.
+- **`--omit=dev` was not enough:** the first multi-stage image was 829 MB because the Prisma CLI and TypeScript were still inside. The lockfile marks them `devOptional`: dev dependencies for me, but _optional peer_ dependencies of `@prisma/client`, so npm keeps them. `--omit=peer` changed nothing; `--omit=optional` removed them.
+- **A real bug the slimming exposed:** after `--omit=optional` the container crashed with `Cannot find package 'dotenv'`. The API uses dotenv **18**, but Prisma's tools use dotenv **17**, so npm put 17 in the root `node_modules` and 18 in `apps/api/node_modules`. My Dockerfile only copied the root folder, so the first image had been **running with the wrong dotenv (17)** and only worked by luck. Copying `apps/api/node_modules` too fixed it, and the crash made the bug visible.
+- **Smoke test inside the container:** health 200, register, login, create a bill, add an item, summary `$1.80` (150 + 15 + 15). Docker's `HEALTHCHECK` reported `healthy`.
+- **`GET /api/health`:** runs `SELECT 1`, answers `503` if the database is down, and has `@SkipThrottle()` because Docker calls it every 15 seconds.
+- **CI and CD:** every PR builds the image (`docker-build`, no push), so a broken Dockerfile can't merge. On merge to `main`, `deploy.yml` pushes it to GHCR tagged with the **commit SHA** (exactly which code is inside) and `latest`. It logs in with the run's own `GITHUB_TOKEN`, so no personal token is stored anywhere.
+- **No secrets in images:** `.dockerignore` excludes every `.env`; `DATABASE_URL` and `JWT_SECRET` are passed in when the container starts.
+- Dependabot now also watches the Docker base image (KAN-22 said to add this once Dockerfiles exist).
+
 ## KAN-34: API e2e tests in CI
 
 - **New CI job `test-e2e`:** GitHub starts a **Postgres 18 service container** (an empty database just for this run), waits until `pg_isready` says it accepts connections, runs `prisma migrate deploy`, then the 48 e2e tests. Before this, the e2e tests only ran on my laptop.

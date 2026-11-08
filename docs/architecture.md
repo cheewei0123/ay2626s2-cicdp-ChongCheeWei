@@ -32,7 +32,7 @@ flowchart LR
 
 ## Module map
 
-Each feature is its own NestJS module. Built so far: `PrismaModule`, `AuthModule`, `BillsModule` (bills, items, share link, claims, summary) and `SplitModule`. The rest are planned. `BillsModule` imports `SplitModule` to use `SplitService`, so the money maths has one home and is shared through dependency injection.
+Each feature is its own NestJS module. Built so far: `PrismaModule`, `AuthModule`, `BillsModule` (bills, items, share link, claims, summary), `SplitModule` and `HealthModule`. The rest are planned. `BillsModule` imports `SplitModule` to use `SplitService`, so the money maths has one home and is shared through dependency injection.
 
 | Module           | Responsibility                                     | Main providers                                                    | Depends on            |
 | ---------------- | -------------------------------------------------- | ----------------------------------------------------------------- | --------------------- |

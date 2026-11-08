@@ -48,7 +48,7 @@ The scope is the area touched, e.g. `split`, `db`, `deps`, `repo`.
 
 A PR cannot merge until all of these pass (see `docs/pipeline.md`):
 
-`gitleaks` · `lint api` · `lint web` · `test-api` · `test-web` · `test-e2e`
+`gitleaks` · `lint api` · `lint web` · `test-api` · `test-web` · `test-e2e` · `docker-build`
 
 ## Definition of Done
 
