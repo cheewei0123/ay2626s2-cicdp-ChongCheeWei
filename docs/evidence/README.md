@@ -35,3 +35,9 @@ Screenshots used in the report, named `kan-<ticket>-<what>.png`.
 | `kan-74-tdd-red-green-pr.png`            | KAN-74 | PR showing the red commit before the green commit, all 5 checks passing                                                        |
 | `kan-34-test-e2e-green.png`              | KAN-34 | First CI run of `test-e2e` (Postgres 18 service container): all 6 checks green                                                 |
 | `kan-34-broken-split-blocked.png`        | KAN-34 | Deliberately broken split engine: `test-api` and `test-e2e` fail as required checks, merge disabled; lint and build stay green |
+| `kan-36-seven-checks.png`                | KAN-36 | All 7 required checks green, including the new `docker-build`                                                                  |
+| `kan-36-deploy-run.png`                  | KAN-36 | First Deploy workflow run on `main` building and pushing the image                                                             |
+| `kan-36-ghcr-sha-tag.png`                | KAN-36 | `splitlah-api` in GHCR, tagged `latest` and with the commit SHA                                                                |
+| `kan-35-budget-alert.png`                | KAN-35 | AWS monthly budget alert (US$10), status healthy, $0.00 used                                                                   |
+| `kan-35-setup-server-done.png`           | KAN-35 | `setup-server.sh` finished on EC2: Docker, Compose and 1 GB swap                                                               |
+| `kan-35-deploy-ssh-docker-ps.png`        | KAN-35 | `ssh deploy@<server> docker ps` working with the GitHub Actions key                                                            |
