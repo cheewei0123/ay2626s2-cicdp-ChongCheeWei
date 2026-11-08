@@ -43,6 +43,8 @@ describe('ClaimsService (with a mocked database)', () => {
       updateMany: vi.fn(),
     },
     bill: { update: vi.fn() },
+    participant: { findFirst: vi.fn(), create: vi.fn() },
+    user: { findUnique: vi.fn() },
     $transaction: vi.fn(),
   };
 
@@ -242,6 +244,41 @@ describe('ClaimsService (with a mocked database)', () => {
     it('answers 409 once the bill is locked', async () => {
       await expect(service.unclaim(locked, 'p1', 'i1')).rejects.toThrow(
         ConflictException,
+      );
+    });
+  });
+
+  describe('ownerParticipantId', () => {
+    it("returns the owner's existing participant", async () => {
+      prisma.participant.findFirst.mockResolvedValue({ id: 'p-chee' });
+      expect(await service.ownerParticipantId(open)).toBe('p-chee');
+      expect(prisma.participant.findFirst.mock.calls[0][0].where).toEqual({
+        billId: 'b1',
+        userId: 'u1',
+      });
+      expect(prisma.participant.create).not.toHaveBeenCalled();
+    });
+
+    it('creates it, with the owner’s name, the first time', async () => {
+      prisma.participant.findFirst.mockResolvedValue(null);
+      prisma.user.findUnique.mockResolvedValue({ displayName: 'Chee' });
+      prisma.participant.create.mockResolvedValue({ id: 'p-new' });
+
+      expect(await service.ownerParticipantId(open)).toBe('p-new');
+      expect(prisma.participant.create.mock.calls[0][0].data).toEqual({
+        billId: 'b1',
+        displayName: 'Chee',
+        userId: 'u1',
+      });
+    });
+
+    it('falls back to "Owner" if the user is gone', async () => {
+      prisma.participant.findFirst.mockResolvedValue(null);
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.participant.create.mockResolvedValue({ id: 'p-new' });
+      await service.ownerParticipantId(open);
+      expect(prisma.participant.create.mock.calls[0][0].data.displayName).toBe(
+        'Owner',
       );
     });
   });

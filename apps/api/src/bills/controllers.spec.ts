@@ -1,6 +1,7 @@
 import { BillsController } from './bills.controller.js';
 import type { BillsService } from './bills.service.js';
 import type { ClaimsService } from './claims.service.js';
+import type { SummaryService } from './summary.service.js';
 import type { OwnedBill } from './guards/bill-owner.guard.js';
 import { ItemsController } from './items.controller.js';
 
@@ -15,24 +16,48 @@ const bills = {
   deleteItem: vi.fn(),
 };
 const service = bills as unknown as BillsService;
-const claims = { lock: vi.fn(), unlock: vi.fn() };
+const claims = {
+  lock: vi.fn(),
+  unlock: vi.fn(),
+  claim: vi.fn(),
+  unclaim: vi.fn(),
+  ownerParticipantId: vi.fn(),
+};
 const claimsService = claims as unknown as ClaimsService;
+const summary = { forBill: vi.fn() };
+const summaryService = summary as unknown as SummaryService;
 const user = { id: 'u1', email: 'chee@example.com' };
 const bill: OwnedBill = { id: 'b1', ownerId: 'u1', status: 'OPEN' };
+const newBillsController = () =>
+  new BillsController(service, claimsService, summaryService);
 
 describe('BillsController', () => {
   beforeEach(() => vi.resetAllMocks());
 
   it('passes lock and unlock to ClaimsService', async () => {
-    const controller = new BillsController(service, claimsService);
+    const controller = newBillsController();
     await controller.lock(bill);
     await controller.unlock(bill);
     expect(claims.lock).toHaveBeenCalledWith(bill);
     expect(claims.unlock).toHaveBeenCalledWith(bill);
   });
 
+  it('gives the owner the summary', async () => {
+    await newBillsController().getSummary(bill);
+    expect(summary.forBill).toHaveBeenCalledWith('b1');
+  });
+
+  it("claims and unclaims as the owner's own participant", async () => {
+    claims.ownerParticipantId.mockResolvedValue('p-chee');
+    const controller = newBillsController();
+    await controller.claim(bill, { itemId: 'i1' });
+    await controller.unclaim(bill, 'i1');
+    expect(claims.claim).toHaveBeenCalledWith(bill, 'p-chee', 'i1', undefined);
+    expect(claims.unclaim).toHaveBeenCalledWith(bill, 'p-chee', 'i1');
+  });
+
   it('passes the user or the bill on', async () => {
-    const controller = new BillsController(service, claimsService);
+    const controller = newBillsController();
     await controller.create(user, { title: 'Dinner' });
     await controller.listMine(user);
     await controller.getDetails(bill);

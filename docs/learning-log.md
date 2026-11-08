@@ -2,6 +2,14 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-29: Summary (what everyone owes)
+
+- **The brief's example works end to end:** the owner and 3 guests claim through the real API and database, and `GET /api/bills/:id/summary` answers **Chee $7.20, Ali $8.99, Ben $9.59, Dan $9.59 = $35.37**, with `unclaimedCents: 0`.
+- **Module boundaries + DI:** the split engine now lives in its own `SplitModule`, which exports `SplitService`. `BillsModule` imports it, and `SummaryService` gets `SplitService` through its constructor. The engine still knows nothing about Prisma: `SummaryService` turns database rows into plain numbers, calls the engine, and adds names, `"$7.20"` text and paid flags.
+- **A gap I found:** unclaimed items go to the owner, but the owner was never a participant on their own bill (only guests join). Now the owner's participant is created the first time it is needed, linked by `userId`, and the owner can claim items with `POST /api/bills/:id/claims`.
+- **A bug the e2e test caught:** the numbers were right but the order was not. The owner's participant was created after the guests joined, so it came last in join order, except on the very first call, where I had put it first. Now the owner is always first.
+- **Guests get one extra field:** `GET /api/share/:token/summary` adds the owner's PayNow number so guests can pay them back. The test checks the owner's email still never appears.
+
 ## KAN-74: Split modes (equal, shares, percent, exact)
 
 - **One idea for all four modes:** each mode just gives every person a **weight** on the item: EQUAL → 1, SHARES → their shares, PERCENT → their `percentBp`, EXACT → their `exactCents`. The KAN-20 largest-remainder engine already splits by weights, so the money maths did not change, and the receipt total still always matches. (It works like the strategy pattern: one `weightOf` choice per mode, same algorithm after it.)
@@ -11,6 +19,8 @@ Short notes on what I learned and what went wrong, newest first. Used as evidenc
 - **Saved all at once:** the item's mode and every person's value are written in one `prisma.$transaction`, so a half-saved split (mode changed, values not) can't happen.
 - **Rule I had to decide:** if someone joins or leaves a PERCENT or EXACT item, the old values no longer add up, so the item goes back to EQUAL. Who may change a split: the owner, or anyone who claimed that item.
 - Older items without a mode still split by shares, so nothing made before KAN-74 changed.
+- **What the red run taught me:** against the empty stub, 19 tests failed but the **2 property tests passed**. The stub still split everything by shares, and the receipt total still added up. So property tests prove the split **never loses or invents a cent**, but not that each person gets the **right** amount; the example tests (70/30 → 1120/480) prove that. I need both.
+- **Pushing red and green together hid the red in CI:** CI only tests the newest commit of a push, so GitHub showed no ❌ on the red commit. The red is shown by the local run (`kan-74-red.png`). Next time, push the red commit alone first so the PR itself shows it failing.
 
 ## KAN-28: Guests claim items, owner locks the bill
 

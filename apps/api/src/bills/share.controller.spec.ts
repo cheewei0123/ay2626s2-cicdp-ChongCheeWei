@@ -2,13 +2,16 @@ import type { ClaimsService } from './claims.service.js';
 import type { OwnedBill } from './guards/bill-owner.guard.js';
 import { JoinController, ShareController } from './share.controller.js';
 import type { ShareService } from './share.service.js';
+import type { SummaryService } from './summary.service.js';
 
 // Fake services: the controllers should only pass work on to them
 const share = { view: vi.fn(), join: vi.fn(), shareTokenFor: vi.fn() };
 const claims = { claim: vi.fn(), unclaim: vi.fn(), setSplit: vi.fn() };
+const summary = { forBill: vi.fn() };
 const controller = new ShareController(
   share as unknown as ShareService,
   claims as unknown as ClaimsService,
+  summary as unknown as SummaryService,
 );
 const bill: OwnedBill = { id: 'b1', ownerId: 'u1', status: 'OPEN' };
 const guest = { participantId: 'p1', billId: 'b1' };
@@ -19,6 +22,11 @@ describe('ShareController', () => {
   it('shows the bill found by the share token', async () => {
     await controller.view(bill);
     expect(share.view).toHaveBeenCalledWith('b1');
+  });
+
+  it("gives guests the summary with the owner's PayNow number", async () => {
+    await controller.getSummary(bill);
+    expect(summary.forBill).toHaveBeenCalledWith('b1', { withPaynow: true });
   });
 
   it('joins with the name from the body', async () => {
