@@ -11,6 +11,8 @@ Short notes on what I learned and what went wrong, newest first. Used as evidenc
 - **Why not truncate tables between tests (as the ticket suggested):** Vitest runs test files in parallel, so truncating would delete another file's data in the middle of its test. Instead every test file creates its own users with a unique email and deletes them in `afterAll`. The cleanup check found 0 test users left.
 - **Proof that e2e catches real bugs:** I stopped the largest-remainder step from handing out leftover cents. 5 e2e tests failed, e.g. `expected { Chee: 719 } to equal { Chee: 720 }` and `expected 3535 to be 3537`. Restored afterwards.
 - **Postgres 18, not 16 (ticket):** CI now matches local Docker and RDS. No Fake OCR override yet because OCR is KAN-31.
+- **Proved in CI too:** a throwaway PR (#45) with the broken engine turned `test-api` and `test-e2e` red, both marked **Required**, and greyed out **Squash and merge**. `lint`, type-check and `build` stayed green, which shows why tests are needed: a maths bug compiles and lints fine. Closed, not merged.
+- **New check = new ruleset entry:** the first `test-e2e` run had no **Required** badge until I added it to the `protect-main` ruleset. A new job does not block merges on its own.
 
 ## KAN-29: Summary (what everyone owes)
 
