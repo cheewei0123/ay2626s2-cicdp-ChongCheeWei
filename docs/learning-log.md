@@ -2,6 +2,16 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-34: API e2e tests in CI
+
+- **New CI job `test-e2e`:** GitHub starts a **Postgres 18 service container** (an empty database just for this run), waits until `pg_isready` says it accepts connections, runs `prisma migrate deploy`, then the 48 e2e tests. Before this, the e2e tests only ran on my laptop.
+- **Test pyramid (report section c):** unit tests check the logic in milliseconds with fake dependencies; e2e tests check the real routes, guards, validation and database together; browser tests (Playwright) come later.
+- **Migrations from zero:** I simulated CI locally with a brand-new Postgres 18 on another port. Both migrations applied in order on the empty database and all 48 tests passed. My normal local database could hide a broken migration because it was built up step by step.
+- **No secrets in the workflow:** `JWT_SECRET` is generated with `openssl rand` in each run and written to `$GITHUB_ENV`. The database password only exists inside the throwaway container.
+- **Why not truncate tables between tests (as the ticket suggested):** Vitest runs test files in parallel, so truncating would delete another file's data in the middle of its test. Instead every test file creates its own users with a unique email and deletes them in `afterAll`. The cleanup check found 0 test users left.
+- **Proof that e2e catches real bugs:** I stopped the largest-remainder step from handing out leftover cents. 5 e2e tests failed, e.g. `expected { Chee: 719 } to equal { Chee: 720 }` and `expected 3535 to be 3537`. Restored afterwards.
+- **Postgres 18, not 16 (ticket):** CI now matches local Docker and RDS. No Fake OCR override yet because OCR is KAN-31.
+
 ## KAN-29: Summary (what everyone owes)
 
 - **The brief's example works end to end:** the owner and 3 guests claim through the real API and database, and `GET /api/bills/:id/summary` answers **Chee $7.20, Ali $8.99, Ben $9.59, Dan $9.59 = $35.37**, with `unclaimedCents: 0`.
