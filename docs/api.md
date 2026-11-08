@@ -159,6 +159,7 @@ Returned by `GET /bills/:id/summary` and `GET /share/:token/summary`. Per-person
     {
       "participantId": "p1",
       "displayName": "Chee",
+      "isOwner": true,
       "itemsCents": 600,
       "serviceCents": 60,
       "gstCents": 60,
@@ -172,6 +173,13 @@ Returned by `GET /bills/:id/summary` and `GET /share/:token/summary`. Per-person
 ```
 
 `people` has one entry per participant (only Chee is shown here). The share summary includes `paynow` so a guest can pay the owner; the owner's summary does not need it.
+
+Built in KAN-29:
+
+- The owner is listed first, then guests in the order they joined. Someone who claimed nothing still appears, owing `0`.
+- The owner is a participant on their own bill, created the first time it is needed (linked by `userId`), so unclaimed items have someone to go to.
+- The owner claims their own items with `POST /bills/:id/claims` `{ itemId, shares? }` and `DELETE /bills/:id/claims/:itemId` (login, owner only).
+- `paynow` currently has only `mobile`; `qrPayload` comes with the PayNow QR ticket. `paid` is `false` until payments are tracked.
 
 ## Expenses
 

@@ -158,6 +158,29 @@ export class ClaimsService {
     };
   }
 
+  // The owner's own participant on the bill (made the first time it is needed),
+  // so the owner can claim items like everyone else
+  async ownerParticipantId(bill: OwnedBill): Promise<string> {
+    const found = await this.prisma.participant.findFirst({
+      where: { billId: bill.id, userId: bill.ownerId },
+      select: { id: true },
+    });
+    if (found) return found.id;
+    const owner = await this.prisma.user.findUnique({
+      where: { id: bill.ownerId },
+      select: { displayName: true },
+    });
+    const created = await this.prisma.participant.create({
+      data: {
+        billId: bill.id,
+        displayName: owner?.displayName ?? 'Owner',
+        userId: bill.ownerId,
+      },
+      select: { id: true },
+    });
+    return created.id;
+  }
+
   // Lock = everyone is done; claims and items can't change any more
   async lock(bill: OwnedBill) {
     if (bill.status !== 'OPEN') {

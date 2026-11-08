@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
+  Param,
   Patch,
   Post,
   UseGuards,
@@ -13,6 +15,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { BillsService } from './bills.service.js';
 import { ClaimsService } from './claims.service.js';
 import { CreateBillDto, UpdateBillDto } from './dto/bill.dto.js';
+import { ClaimDto } from './dto/claim.dto.js';
+import { SummaryService } from './summary.service.js';
 import {
   BillOwnerGuard,
   type OwnedBill as OwnedBillType,
@@ -27,7 +31,35 @@ export class BillsController {
   constructor(
     private readonly bills: BillsService,
     private readonly claims: ClaimsService,
+    private readonly summary: SummaryService,
   ) {}
+
+  // GET /api/bills/:id/summary → what everyone owes (owner view)
+  @Get(':id/summary')
+  @UseGuards(BillOwnerGuard)
+  getSummary(@OwnedBill() bill: OwnedBillType) {
+    return this.summary.forBill(bill.id);
+  }
+
+  // POST /api/bills/:id/claims → the owner claims an item they had
+  @Post(':id/claims')
+  @UseGuards(BillOwnerGuard)
+  async claim(@OwnedBill() bill: OwnedBillType, @Body() dto: ClaimDto) {
+    const me = await this.claims.ownerParticipantId(bill);
+    return this.claims.claim(bill, me, dto.itemId, dto.shares);
+  }
+
+  // DELETE /api/bills/:id/claims/:itemId → the owner unclaims an item
+  @Delete(':id/claims/:itemId')
+  @UseGuards(BillOwnerGuard)
+  @HttpCode(204)
+  async unclaim(
+    @OwnedBill() bill: OwnedBillType,
+    @Param('itemId') itemId: string,
+  ) {
+    const me = await this.claims.ownerParticipantId(bill);
+    return this.claims.unclaim(bill, me, itemId);
+  }
 
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateBillDto) {

@@ -30,3 +30,6 @@ Screenshots used in the report, named `kan-<ticket>-<what>.png`.
 | `kan-69-container-diagram.png`           | KAN-69 | Container diagram rendered on GitHub                                                          |
 | `kan-23-board.png`                       | KAN-23 | Sprint 1 board at the end: 17 Done, only KAN-23 left                                          |
 | `kan-23-burndown.png`                    | KAN-23 | Sprint 1 burndown: 37 points done, 1 to go, well ahead of the guideline                       |
+| `kan-74-red.png`                         | KAN-74 | TDD red: 19 split-mode tests fail against the stub; the 2 property tests still pass           |
+| `kan-74-green.png`                       | KAN-74 | TDD green: all 21 split-mode tests pass                                                       |
+| `kan-74-tdd-red-green-pr.png`            | KAN-74 | PR showing the red commit before the green commit, all 5 checks passing                       |

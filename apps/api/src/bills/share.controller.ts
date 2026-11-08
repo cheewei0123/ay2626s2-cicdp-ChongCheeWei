@@ -20,6 +20,7 @@ import { type Guest, GuestTokenGuard } from './guards/guest-token.guard.js';
 import { ShareTokenGuard } from './guards/share-token.guard.js';
 import { SharedBill } from './guards/shared-bill.decorator.js';
 import { ShareService } from './share.service.js';
+import { SummaryService } from './summary.service.js';
 
 // Guest routes: no login, the share token in the URL finds the bill (404 if wrong)
 @UseGuards(ShareTokenGuard)
@@ -28,6 +29,7 @@ export class ShareController {
   constructor(
     private readonly share: ShareService,
     private readonly claims: ClaimsService,
+    private readonly summary: SummaryService,
   ) {}
 
   // POST /api/share/:token/claims → 201 claim. Needs the guest token from joining.
@@ -70,6 +72,12 @@ export class ShareController {
   @Get()
   view(@SharedBill() bill: OwnedBill) {
     return this.share.view(bill.id);
+  }
+
+  // GET /api/share/:token/summary → what everyone owes, plus the owner's PayNow number
+  @Get('summary')
+  getSummary(@SharedBill() bill: OwnedBill) {
+    return this.summary.forBill(bill.id, { withPaynow: true });
   }
 
   // POST /api/share/:token/participants → 201 { participant, guestToken }
