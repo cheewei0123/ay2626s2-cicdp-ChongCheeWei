@@ -93,7 +93,7 @@ export function allocate(
         ? -1
         : 1,
   );
-  const leftover = Number(amount - given);
+  const leftover = 0; // DELIBERATELY BROKEN: leftover cents are never handed out
   for (let i = 0; i < leftover; i++) {
     const id = remainders[i].id;
     result.set(id, result.get(id)! + 1);
