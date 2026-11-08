@@ -4,6 +4,8 @@ name: Deploy
 on:
   push:
     branches: [main]
+  # Lets me re-run a deploy by hand from the Actions tab (deploy.sh is safe to repeat)
+  workflow_dispatch:
 
 # One deploy at a time; a newer merge waits instead of cancelling a deploy halfway
 concurrency:
@@ -11,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Build the API image and publish it to GitHub Container Registry (GHCR)
+  # Build the images and publish them to GitHub Container Registry (GHCR)
   build-image:
     runs-on: ubuntu-latest
     permissions:
@@ -26,6 +28,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # The app itself (slim, non-root)
       - uses: docker/build-push-action@v7
         with:
           context: .
@@ -39,3 +42,80 @@ jobs:
           labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      # The migration runner (has the Prisma CLI); same commit, same tag
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          target: migrate
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/splitlah-migrate:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/splitlah-migrate:latest
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Ship the new images to the EC2 server
+  deploy:
+    needs: build-image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The "production" environment holds the deploy secrets, and lets GitHub (and Jira)
+    # show each deployment
+    environment:
+      name: production
+      url: http://${{ vars.EC2_HOST }}
+    permissions:
+      id-token: write # lets this job get an OIDC token that proves "I am this repo's production deploy"
+      contents: read
+    env:
+      EC2_HOST: ${{ vars.EC2_HOST }}
+      EC2_SG_ID: ${{ vars.EC2_SG_ID }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # OIDC: AWS checks the token and gives this job short-lived credentials for the
+      # splitlah-github-deploy role. No AWS keys are stored anywhere.
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-southeast-1
+
+      # Port 22 normally only allows my home IP. Open it for this runner's IP only.
+      - name: Open SSH for this runner
+        id: ssh-rule
+        run: |
+          RUNNER_IP="$(curl -fsS https://checkip.amazonaws.com)"
+          aws ec2 authorize-security-group-ingress --group-id "$EC2_SG_ID" \
+            --protocol tcp --port 22 --cidr "$RUNNER_IP/32"
+          echo "cidr=$RUNNER_IP/32" >> "$GITHUB_OUTPUT"
+
+      # Secrets go in through env, never pasted into the script text
+      - name: Set up the deploy SSH key
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Pinned server fingerprint: SSH refuses to connect if the server is not the real one
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Copy the compose file and deploy script
+        run: scp -i ~/.ssh/deploy_key infra/docker-compose.yml infra/deploy.sh "deploy@$EC2_HOST:/opt/splitlah/"
+
+      - name: Deploy (pull, migrate, start, health check, roll back on failure)
+        run: ssh -i ~/.ssh/deploy_key "deploy@$EC2_HOST" "bash /opt/splitlah/deploy.sh ${{ github.sha }}"
+
+      # Always close port 22 again, even if a step above failed
+      - name: Close SSH again
+        if: always() && steps.ssh-rule.outputs.cidr != ''
+        run: |
+          aws ec2 revoke-security-group-ingress --group-id "$EC2_SG_ID" \
+            --protocol tcp --port 22 --cidr "${{ steps.ssh-rule.outputs.cidr }}"
+
+      # The same check a user would make: is the API answering from the internet?
+      - name: Check it is live
+        run: curl -fsS --retry 5 --retry-delay 5 "http://$EC2_HOST/api/health"

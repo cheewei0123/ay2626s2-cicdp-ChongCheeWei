@@ -31,7 +31,7 @@ flowchart LR
   H -.->|merge| I
 
   classDef planned stroke-dasharray: 5 5
-  class G,H,J,K,L,M,N planned
+  class G,H planned
 ```
 
 Stage E is partly built: Gitleaks runs today; CodeQL and `npm audit` come later.
@@ -58,8 +58,32 @@ All 7 are required checks on `main`. A typical run takes about 1 minute.
 | Job           | What it does                                                                                                                                              |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `build-image` | Builds the API image and pushes it to GHCR as `ghcr.io/cheewei0123/splitlah-api:<commit SHA>` and `:latest`, logging in with the run's own `GITHUB_TOKEN` |
+| `deploy`      | Runs in the `production` environment and ships that exact SHA to EC2 (steps below)                                                                        |
 
-The deploy to EC2, migrations and health check are added in KAN-37.
+The deploy job, step by step:
+
+1. **OIDC login to AWS:** GitHub gives the job a signed token; AWS checks it and lets the job use the `splitlah-github-deploy` role for a short time. No AWS keys are stored anywhere.
+2. **Open port 22 for this runner only:** the role may only add or remove inbound rules on the server's security group. It adds `<runner IP>/32`.
+3. **SSH in as `deploy`** with `EC2_SSH_KEY`, checking the server against the pinned fingerprint in `EC2_KNOWN_HOSTS`.
+4. **`deploy.sh <SHA>`** on the server: pull the new `splitlah-api` and `splitlah-migrate` images → `prisma migrate deploy` → `docker compose up -d` → wait for `GET /api/health`.
+5. **Roll back** if the health check fails: start the last release that passed (`.deployed-tag`), and fail the job so it shows red.
+6. **Close port 22 again**, always, even if a step failed.
+7. **Check from the internet:** `curl http://<server>/api/health`.
+
+Only one deploy runs at a time (`concurrency`), and only `main` can deploy to `production`.
+
+## Secrets and settings for the deploy
+
+| Name                  | Kind                      | What                                                                                     |
+| --------------------- | ------------------------- | ---------------------------------------------------------------------------------------- |
+| `AWS_DEPLOY_ROLE_ARN` | Secret (`production`)     | The IAM role the deploy job uses through OIDC                                            |
+| `EC2_SSH_KEY`         | Secret (`production`)     | Private key for the `deploy` user                                                        |
+| `EC2_KNOWN_HOSTS`     | Secret (`production`)     | The server's SSH fingerprint, so an impostor server is refused                           |
+| `EC2_HOST`            | Variable (`production`)   | Server address (public anyway, so not a secret)                                          |
+| `EC2_SG_ID`           | Variable (`production`)   | The security group the deploy job may change                                             |
+| `.env` on the server  | File, `deploy` only (600) | `DATABASE_URL`, `POSTGRES_PASSWORD`, `JWT_SECRET`, `WEB_ORIGIN`, generated on the server |
+
+The IAM role can only be used by this repository's `production` environment (its trust policy checks the token's `sub` exactly), and its permission covers only `AuthorizeSecurityGroupIngress` / `RevokeSecurityGroupIngress` on that one security group.
 
 ## The API image
 

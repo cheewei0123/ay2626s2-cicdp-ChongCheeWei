@@ -16,6 +16,14 @@ RUN npm ci -w apps/api
 COPY apps/api apps/api
 RUN npm run build -w apps/api
 
+# ---- migrate: a separate image that only applies database migrations ----
+# Build with --target migrate. It keeps the Prisma CLI, which the slim runtime image leaves out.
+# The deploy runs it once per release, before starting the new API.
+FROM build AS migrate
+WORKDIR /app/apps/api
+USER node
+CMD ["npx", "prisma", "migrate", "deploy"]
+
 # ---- 2. prod-deps: only the packages the running app needs (no TypeScript, tests, CLI) ----
 FROM node:24-slim AS prod-deps
 WORKDIR /app
