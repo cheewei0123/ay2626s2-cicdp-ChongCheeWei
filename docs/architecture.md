@@ -32,7 +32,7 @@ flowchart LR
 
 ## Module map
 
-Each feature is its own NestJS module. Built so far: `PrismaModule`, `AuthModule`, `BillsModule` (bills, items, share link, claims, summary), `SplitModule` and `HealthModule`. The rest are planned. `BillsModule` imports `SplitModule` to use `SplitService`, so the money maths has one home and is shared through dependency injection.
+Each feature is its own NestJS module. Built so far: `PrismaModule`, `AuthModule`, `BillsModule` (bills, items, share link, claims, summary), `SplitModule`, `HealthModule` and `OcrModule` (Fake only for now). The rest are planned. `BillsModule` imports `SplitModule` to use `SplitService`, so the money maths has one home and is shared through dependency injection.
 
 | Module           | Responsibility                                     | Main providers                                                    | Depends on            |
 | ---------------- | -------------------------------------------------- | ----------------------------------------------------------------- | --------------------- |
@@ -49,6 +49,24 @@ Each feature is its own NestJS module. Built so far: `PrismaModule`, `AuthModule
 | `HealthModule`   | `GET /health` for the deploy check                 | Health controller                                                 | Prisma                |
 
 Why `SplitModule` has no dependencies: it only takes numbers in and returns numbers out, so its tests run in milliseconds and never need a database.
+
+## How OCR is injected
+
+Code that reads receipts asks for the `OCR_SERVICE` token, not a class. `OcrModule` decides once, at startup, what sits behind that token, using the `OCR_PROVIDER` setting.
+
+```mermaid
+flowchart LR
+  R[ReceiptsService<br/>KAN-33] -->|"@Inject(OCR_SERVICE)"| T((OCR_SERVICE<br/>token))
+  T --> F["OcrModule useFactory<br/>createOcrService(OCR_PROVIDER)"]
+  F -->|fake / not set| FK[FakeOcrService<br/>tests, CI]
+  F -->|gemini| GM[GeminiOcrService<br/>KAN-33]
+  F -->|typo| X[App stops at startup]
+  TS[Unit test] -.->|"overrideProvider(OCR_SERVICE)"| T
+```
+
+- **Swap by config:** changing `OCR_PROVIDER` changes the reader; no code that uses OCR changes.
+- **Swap in a test:** `overrideProvider(OCR_SERVICE).useValue(stub)` puts any object with an `extract()` method behind the token.
+- **Fail fast:** an unknown or not-yet-built provider throws when the app starts, not on the first real receipt.
 
 ## One request, step by step
 
