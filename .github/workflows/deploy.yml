@@ -75,6 +75,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Shows what this job's OIDC token says about it (sub, aud, ...), so the AWS trust
+      # policy can be matched exactly. Prints the claims only, never the token itself.
+      - name: Show OIDC token claims
+        run: |
+          TOKEN="$(curl -fsS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)"
+          echo "::add-mask::$TOKEN"
+          echo "$TOKEN" | cut -d. -f2 | node -e '
+            const claims = JSON.parse(Buffer.from(require("fs").readFileSync(0, "utf8").trim(), "base64url"));
+            const { sub, aud, repository, environment, ref } = claims;
+            console.log(JSON.stringify({ sub, aud, repository, environment, ref }, null, 2));'
+
       # OIDC: AWS checks the token and gives this job short-lived credentials for the
       # splitlah-github-deploy role. No AWS keys are stored anywhere.
       - uses: aws-actions/configure-aws-credentials@v4
