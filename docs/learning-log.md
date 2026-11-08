@@ -2,6 +2,15 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-28: Guests claim items, owner locks the bill
+
+- **Two guards, two questions:** on claim routes, `ShareTokenGuard` answers "which bill?" (from the link) and `GuestTokenGuard` answers "which guest?" (from the `X-Guest-Token` header). The guest token must be for **this** bill (`403` otherwise), so a guest of one bill cannot claim on another, and nobody can claim as someone else.
+- **No duplicates by design:** claiming uses `upsert` on the unique `(itemId, participantId)` index: update if it exists, otherwise create. Tapping the same item twice changes the shares instead of adding a row. The e2e test checks the database still has 2 claims, not 3.
+- **Item must belong to the bill:** the claim looks up the item by `{ id, billId }`, so an item ID from another bill is `404`.
+- **Lock and unlock:** owner only (`BillOwnerGuard`). Lock is `OPEN → LOCKED`, unlock is `LOCKED → OPEN`; anything else is `409`. While locked, claims and items answer `409` because they share one `assertOpen()` helper (moved to `bill-status.ts` so owners and guests use the same rule).
+- **50/50 check without the summary endpoint:** the ticket asks for "summary splits it 50/50", but the summary is KAN-29. The e2e test reads the two real claims back from the database and runs them through the KAN-20 `SplitService`: Tiger × 2 ($16) becomes **959 / 959**, the same as the brief.
+- **Lint caught leftover code:** moving `assertOpen` out of `BillsService` left an unused `ConflictException` import. `--deny-warnings` failed lint until I removed it.
+
 ## KAN-27: Share link, join code and guest join
 
 - **Two ways in, no sign-up:** the share link (`/api/share/:token`, a 22-character random token) or the 5-character join code (`GET /api/join/:code` → share token). `ShareTokenGuard` finds the bill from the token (`404` if wrong) and puts it on `req.bill`, just like `BillOwnerGuard` does for owners.

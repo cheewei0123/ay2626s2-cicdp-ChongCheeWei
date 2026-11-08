@@ -1,29 +1,42 @@
+import type { ClaimsService } from './claims.service.js';
 import type { OwnedBill } from './guards/bill-owner.guard.js';
 import { JoinController, ShareController } from './share.controller.js';
 import type { ShareService } from './share.service.js';
 
-// A fake ShareService: the controllers should only pass work on to it
+// Fake services: the controllers should only pass work on to them
 const share = { view: vi.fn(), join: vi.fn(), shareTokenFor: vi.fn() };
-const service = share as unknown as ShareService;
+const claims = { claim: vi.fn(), unclaim: vi.fn() };
+const controller = new ShareController(
+  share as unknown as ShareService,
+  claims as unknown as ClaimsService,
+);
 const bill: OwnedBill = { id: 'b1', ownerId: 'u1', status: 'OPEN' };
+const guest = { participantId: 'p1', billId: 'b1' };
 
 describe('ShareController', () => {
   beforeEach(() => vi.resetAllMocks());
 
   it('shows the bill found by the share token', async () => {
-    await new ShareController(service).view(bill);
+    await controller.view(bill);
     expect(share.view).toHaveBeenCalledWith('b1');
   });
 
   it('joins with the name from the body', async () => {
-    await new ShareController(service).join(bill, { displayName: 'Ben' });
+    await controller.join(bill, { displayName: 'Ben' });
     expect(share.join).toHaveBeenCalledWith(bill, 'Ben');
+  });
+
+  it('claims and unclaims as the guest from the guest token', async () => {
+    await controller.claim(bill, guest, { itemId: 'i1', shares: 2 });
+    await controller.unclaim(bill, guest, 'i1');
+    expect(claims.claim).toHaveBeenCalledWith(bill, 'p1', 'i1', 2);
+    expect(claims.unclaim).toHaveBeenCalledWith(bill, 'p1', 'i1');
   });
 });
 
 describe('JoinController', () => {
   it('looks up the code from the URL', async () => {
-    await new JoinController(service).find('K7P2Q');
+    await new JoinController(share as unknown as ShareService).find('K7P2Q');
     expect(share.shareTokenFor).toHaveBeenCalledWith('K7P2Q');
   });
 });

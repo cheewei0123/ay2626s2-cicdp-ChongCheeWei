@@ -1,5 +1,6 @@
 import { BillsController } from './bills.controller.js';
 import type { BillsService } from './bills.service.js';
+import type { ClaimsService } from './claims.service.js';
 import type { OwnedBill } from './guards/bill-owner.guard.js';
 import { ItemsController } from './items.controller.js';
 
@@ -14,14 +15,24 @@ const bills = {
   deleteItem: vi.fn(),
 };
 const service = bills as unknown as BillsService;
+const claims = { lock: vi.fn(), unlock: vi.fn() };
+const claimsService = claims as unknown as ClaimsService;
 const user = { id: 'u1', email: 'chee@example.com' };
 const bill: OwnedBill = { id: 'b1', ownerId: 'u1', status: 'OPEN' };
 
 describe('BillsController', () => {
   beforeEach(() => vi.resetAllMocks());
 
+  it('passes lock and unlock to ClaimsService', async () => {
+    const controller = new BillsController(service, claimsService);
+    await controller.lock(bill);
+    await controller.unlock(bill);
+    expect(claims.lock).toHaveBeenCalledWith(bill);
+    expect(claims.unlock).toHaveBeenCalledWith(bill);
+  });
+
   it('passes the user or the bill on', async () => {
-    const controller = new BillsController(service);
+    const controller = new BillsController(service, claimsService);
     await controller.create(user, { title: 'Dinner' });
     await controller.listMine(user);
     await controller.getDetails(bill);
