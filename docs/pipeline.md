@@ -31,7 +31,7 @@ flowchart LR
   H -.->|merge| I
 
   classDef planned stroke-dasharray: 5 5
-  class D,F,G,H,I,J,K,L,M,N planned
+  class F,G,H,I,J,K,L,M,N planned
 ```
 
 Stage E is partly built: Gitleaks runs today; CodeQL and `npm audit` come later.
@@ -40,23 +40,24 @@ Stage E is partly built: Gitleaks runs today; CodeQL and `npm audit` come later.
 
 All jobs start at the same time, on every PR and every push to `main`. A new push to the same branch cancels the run still in progress.
 
-| Job        | What it does                                                                                             | Fails when                                                                         |
-| ---------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `gitleaks` | Scans the full git history for secrets                                                                   | A key, token or password is found                                                  |
-| `lint api` | `npm ci`, oxlint (`--deny-warnings`), Prettier check, type-check (`tsc --noEmit`, tests included), build | Any lint warning, unformatted file, type error or failed build                     |
-| `lint web` | Same, for `apps/web`                                                                                     | Same                                                                               |
-| `test-api` | Vitest with coverage, uploads the coverage report                                                        | A test fails or `src/split` / `src/common` / `src/auth` / `src/bills` is below 90% |
-| `test-web` | Vitest                                                                                                   | A test fails                                                                       |
+| Job        | What it does                                                                                                                         | Fails when                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `gitleaks` | Scans the full git history for secrets                                                                                               | A key, token or password is found                                                  |
+| `lint api` | `npm ci`, oxlint (`--deny-warnings`), Prettier check, type-check (`tsc --noEmit`, tests included), build                             | Any lint warning, unformatted file, type error or failed build                     |
+| `lint web` | Same, for `apps/web`                                                                                                                 | Same                                                                               |
+| `test-api` | Vitest with coverage, uploads the coverage report                                                                                    | A test fails or `src/split` / `src/common` / `src/auth` / `src/bills` is below 90% |
+| `test-web` | Vitest                                                                                                                               | A test fails                                                                       |
+| `test-e2e` | Starts a fresh Postgres 18 service container, `prisma migrate deploy`, then the API e2e tests (Supertest) with a random `JWT_SECRET` | A migration fails, or any e2e test fails                                           |
 
-All 5 are required checks on `main`. A typical run takes under 1 minute.
+All 6 are required checks on `main`. A typical run takes about 1 minute.
 
 ## Environments
 
-| Environment | Where it runs                                 | Database                                     | OCR and email             |
-| ----------- | --------------------------------------------- | -------------------------------------------- | ------------------------- |
-| Local       | My laptop, `infra/docker-compose.dev.yml`     | Postgres 18 in Docker, port 5433             | Fake (or real, by `.env`) |
-| CI          | GitHub Actions runners                        | Postgres service container (planned for e2e) | Always Fake               |
-| Production  | One EC2 instance, Docker Compose, Caddy HTTPS | Amazon RDS, Postgres 18                      | Gemini, real email        |
+| Environment | Where it runs                                 | Database                                      | OCR and email             |
+| ----------- | --------------------------------------------- | --------------------------------------------- | ------------------------- |
+| Local       | My laptop, `infra/docker-compose.dev.yml`     | Postgres 18 in Docker, port 5433              | Fake (or real, by `.env`) |
+| CI          | GitHub Actions runners                        | Postgres 18 service container, fresh each run | Always Fake               |
+| Production  | One EC2 instance, Docker Compose, Caddy HTTPS | Amazon RDS, Postgres 18                       | Gemini, real email        |
 
 ## Secrets
 

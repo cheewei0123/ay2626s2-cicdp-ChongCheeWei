@@ -70,3 +70,38 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test -w apps/web
+
+  # The real API against a real Postgres: every route, guard and query, not just the logic
+  test-e2e:
+    runs-on: ubuntu-latest
+    # A fresh, empty database just for this run, thrown away afterwards
+    services:
+      postgres:
+        image: postgres:18 # same version as local Docker and Amazon RDS
+        env:
+          POSTGRES_USER: splitlah
+          POSTGRES_PASSWORD: splitlah # only exists inside this throwaway container
+          POSTGRES_DB: splitlah
+        ports:
+          - 5432:5432
+        # Wait until Postgres accepts connections before the steps start
+        options: >-
+          --health-cmd "pg_isready -U splitlah"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://splitlah:splitlah@localhost:5432/splitlah?schema=public
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # A random JWT secret for this run only, so no secret is ever written in this file
+      - run: echo "JWT_SECRET=$(openssl rand -base64 48)" >> "$GITHUB_ENV"
+      # Same command production will use: apply every committed migration in order
+      - run: npx prisma migrate deploy
+        working-directory: apps/api
+      - run: npm run test:e2e -w apps/api
