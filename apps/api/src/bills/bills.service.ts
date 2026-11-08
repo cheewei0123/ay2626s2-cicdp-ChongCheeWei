@@ -1,11 +1,8 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { assertOpen } from './bill-status.js';
 import type { CreateBillDto, UpdateBillDto } from './dto/bill.dto.js';
 import type { CreateItemDto, UpdateItemDto } from './dto/item.dto.js';
 import type { OwnedBill } from './guards/bill-owner.guard.js';
@@ -21,13 +18,6 @@ const toDate = (date?: string) => (date ? new Date(date) : undefined);
 // Join codes are short, so two bills can (rarely) get the same one. The database's
 // unique index rejects it (P2002), and we simply try again with a new code.
 const MAX_CODE_TRIES = 5;
-
-// A bill can only change while it is OPEN; after locking, the split is final
-function assertOpen(bill: OwnedBill) {
-  if (bill.status !== 'OPEN') {
-    throw new ConflictException('Bill is locked; unlock it to make changes');
-  }
-}
 
 @Injectable()
 export class BillsService {
