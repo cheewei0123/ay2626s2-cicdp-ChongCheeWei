@@ -99,8 +99,10 @@ jobs:
         id: ssh-rule
         run: |
           RUNNER_IP="$(curl -fsS https://checkip.amazonaws.com)"
-          aws ec2 authorize-security-group-ingress --group-id "$EC2_SG_ID" \
-            --protocol tcp --port 22 --cidr "$RUNNER_IP/32"
+          # The description says which run opened it, in case a rule is ever left behind
+          RULE="$(jq -nc --arg cidr "$RUNNER_IP/32" --arg desc "GitHub Actions deploy run $GITHUB_RUN_ID" \
+            '[{IpProtocol: "tcp", FromPort: 22, ToPort: 22, IpRanges: [{CidrIp: $cidr, Description: $desc}]}]')"
+          aws ec2 authorize-security-group-ingress --group-id "$EC2_SG_ID" --ip-permissions "$RULE"
           echo "cidr=$RUNNER_IP/32" >> "$GITHUB_OUTPUT"
 
       # Secrets go in through env, never pasted into the script text

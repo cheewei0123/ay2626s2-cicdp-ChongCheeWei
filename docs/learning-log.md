@@ -12,6 +12,11 @@ Short notes on what I learned and what went wrong, newest first. Used as evidenc
 - **Rollback proven before the first real deploy:** I ran `deploy.sh` locally with a good release, then a broken one whose API never answers. It failed the health check, rolled back to the good release by itself and exited with an error. Re-running the same release was also safe (idempotent).
 - **Secrets made on the server:** `.env` was generated with `openssl rand` directly on the server (`umask 077`, readable only by `deploy`), so the database password and `JWT_SECRET` never passed through my laptop, GitHub or chat.
 - **Temporary choices:** Postgres runs in Docker on the same server until RDS (KAN-75), and the API is on plain HTTP port 80 until Caddy and HTTPS (KAN-39).
+- **The first real deploy failed at the AWS login:** `Not authorized to perform sts:AssumeRoleWithWebIdentity`, although the trust policy looked right. Instead of guessing, I added a step that prints the token's claims (masking the token). GitHub's `sub` was `repo:cheewei0123@210798904/ay2626s2-cicdp-ChongCheeWei@1437996139:environment:production`: it includes the account and repo **numeric IDs**, which most guides (and the ticket) don't show. GitHub does this so a renamed or re-registered name can't inherit cloud access. Updating the trust policy to that exact value fixed it; re-running the failed job deployed without a new merge.
+- **It went live:** `http://47.129.169.19/api/health` → `{"status":"ok","db":"up"}`. **Merge → live in about 2½ minutes** (build 1m 4s + deploy 1m 35s), well under the ticket's 10 minutes. Jira's KAN-37 shows the deployment to production.
+- **Port 22 open only during the deploy:** a screenshot taken mid-deploy shows the runner's `/32` rule; refreshed after the run, only my home IP is left. The rule's description now records the run ID, so a leftover could be traced.
+- **Re-deploy is safe:** running the workflow again by hand gave `No pending migrations to apply` and `Healthy`.
+- **Polish after the first deploy:** the migrate image now has OpenSSL (Prisma had warned it "may not work" without it), and the health check stays quiet while the API is still starting (`curl: (56) Connection reset by peer` on the first try was just the API booting).
 
 ## KAN-35: EC2 server with Docker
 
