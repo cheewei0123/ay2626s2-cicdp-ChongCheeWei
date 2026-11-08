@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -12,6 +13,7 @@ import { Throttle } from '@nestjs/throttler';
 import { ClaimsService } from './claims.service.js';
 import { ClaimDto } from './dto/claim.dto.js';
 import { JoinBillDto } from './dto/join.dto.js';
+import { SetSplitDto } from './dto/set-split.dto.js';
 import type { OwnedBill } from './guards/bill-owner.guard.js';
 import { CurrentGuest } from './guards/current-guest.decorator.js';
 import { type Guest, GuestTokenGuard } from './guards/guest-token.guard.js';
@@ -37,6 +39,19 @@ export class ShareController {
     @Body() dto: ClaimDto,
   ) {
     return this.claims.claim(bill, guest.participantId, dto.itemId, dto.shares);
+  }
+
+  // PATCH /api/share/:token/claims/:itemId → change how the item is split.
+  // Only a guest who claimed this item may do it.
+  @Patch('claims/:itemId')
+  @UseGuards(GuestTokenGuard)
+  setSplit(
+    @SharedBill() bill: OwnedBill,
+    @CurrentGuest() guest: Guest,
+    @Param('itemId') itemId: string,
+    @Body() dto: SetSplitDto,
+  ) {
+    return this.claims.setSplit(bill, itemId, dto, guest.participantId);
   }
 
   // DELETE /api/share/:token/claims/:itemId → 204

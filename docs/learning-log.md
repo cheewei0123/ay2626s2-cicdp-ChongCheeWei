@@ -2,6 +2,16 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-74: Split modes (equal, shares, percent, exact)
+
+- **One idea for all four modes:** each mode just gives every person a **weight** on the item: EQUAL → 1, SHARES → their shares, PERCENT → their `percentBp`, EXACT → their `exactCents`. The KAN-20 largest-remainder engine already splits by weights, so the money maths did not change, and the receipt total still always matches. (It works like the strategy pattern: one `weightOf` choice per mode, same algorithm after it.)
+- **TDD again:** 17 tests first against an empty stub (red commit), then the code (green commit). The ticket's numbers are tests: 70% / 30% of $16 → **1120 / 480**, 2:1 of $9 → **600 / 300**, whole bill still **3537**.
+- **The property test found an edge case on its first run:** an **unclaimed** EXACT item "added up to $0.00, need $0.01" and threw. Unclaimed items go to the owner, so the mode rules only apply once someone has claimed the item. Added a regression test.
+- **Two layers of validation:** the `@ValidSplitEntries` custom class-validator rule rejects bad percentages in the DTO (`400` before the controller). EXACT amounts need the item's price, so the service checks them with the same `checkItemSplit()` the engine uses. The error messages tell the user what to fix: `Percentages add up to 90%, need 100%`.
+- **Saved all at once:** the item's mode and every person's value are written in one `prisma.$transaction`, so a half-saved split (mode changed, values not) can't happen.
+- **Rule I had to decide:** if someone joins or leaves a PERCENT or EXACT item, the old values no longer add up, so the item goes back to EQUAL. Who may change a split: the owner, or anyone who claimed that item.
+- Older items without a mode still split by shares, so nothing made before KAN-74 changed.
+
 ## KAN-28: Guests claim items, owner locks the bill
 
 - **Two guards, two questions:** on claim routes, `ShareTokenGuard` answers "which bill?" (from the link) and `GuestTokenGuard` answers "which guest?" (from the `X-Guest-Token` header). The guest token must be for **this** bill (`403` otherwise), so a guest of one bill cannot claim on another, and nobody can claim as someone else.

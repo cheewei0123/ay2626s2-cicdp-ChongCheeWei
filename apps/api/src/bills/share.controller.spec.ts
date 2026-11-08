@@ -5,7 +5,7 @@ import type { ShareService } from './share.service.js';
 
 // Fake services: the controllers should only pass work on to them
 const share = { view: vi.fn(), join: vi.fn(), shareTokenFor: vi.fn() };
-const claims = { claim: vi.fn(), unclaim: vi.fn() };
+const claims = { claim: vi.fn(), unclaim: vi.fn(), setSplit: vi.fn() };
 const controller = new ShareController(
   share as unknown as ShareService,
   claims as unknown as ClaimsService,
@@ -31,6 +31,15 @@ describe('ShareController', () => {
     await controller.unclaim(bill, guest, 'i1');
     expect(claims.claim).toHaveBeenCalledWith(bill, 'p1', 'i1', 2);
     expect(claims.unclaim).toHaveBeenCalledWith(bill, 'p1', 'i1');
+  });
+
+  it('changes an item split as the guest', async () => {
+    const dto = {
+      splitMode: 'EQUAL' as const,
+      entries: [{ participantId: 'p1' }],
+    };
+    await controller.setSplit(bill, guest, 'i1', dto);
+    expect(claims.setSplit).toHaveBeenCalledWith(bill, 'i1', dto, 'p1');
   });
 });
 

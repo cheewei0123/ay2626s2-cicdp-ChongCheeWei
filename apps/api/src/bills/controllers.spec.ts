@@ -48,8 +48,22 @@ describe('BillsController', () => {
 describe('ItemsController', () => {
   beforeEach(() => vi.resetAllMocks());
 
+  it('lets the owner change an item split (guestId null = owner)', async () => {
+    const claimsMock = { setSplit: vi.fn() };
+    const controller = new ItemsController(
+      service,
+      claimsMock as unknown as ClaimsService,
+    );
+    const dto = {
+      splitMode: 'EQUAL' as const,
+      entries: [{ participantId: 'p1' }],
+    };
+    await controller.setSplit(bill, 'i1', dto);
+    expect(claimsMock.setSplit).toHaveBeenCalledWith(bill, 'i1', dto, null);
+  });
+
   it('passes the bill and item id on', async () => {
-    const controller = new ItemsController(service);
+    const controller = new ItemsController(service, claimsService);
     const item = { name: 'Laksa', unitPriceCents: 750, quantity: 1 };
     await controller.add(bill, item);
     await controller.update(bill, 'i1', { quantity: 2 });

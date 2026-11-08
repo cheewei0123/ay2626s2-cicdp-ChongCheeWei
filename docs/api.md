@@ -134,6 +134,15 @@ A guest reaches a bill in one of two ways: open the share link (contains `shareT
 
 Claims can only change while the bill is `OPEN`; otherwise `409`.
 
+**Changing an item's split** (built in KAN-74):
+
+- Guest: `PATCH /share/:token/claims/:itemId` with the guest token. Owner: `PATCH /bills/:id/items/:itemId/split`.
+- Body: `{ splitMode, entries: [{ participantId, shares? | percentBp? | exactCents? }] }`. `entries` must list exactly the people who claimed the item.
+- Response: `{ itemId, splitMode, portions: [{ participantId, cents }] }`, e.g. 70% / 30% of $16.00 → `1120` / `480`.
+- **Who may change it:** the owner, or any guest who claimed that item (`403` for anyone else). Simple on purpose: the people sharing an item sort it out between them.
+- **Errors (`400`):** `Percentages add up to 90%, need 100%` (checked by the `@ValidSplitEntries` custom validator) and `Exact amounts add up to $15.00, need $16.00` (checked in the service, which knows the price).
+- If someone claims or unclaims a `PERCENT` or `EXACT` item, it goes back to `EQUAL`, because the old values would no longer add up.
+
 ## Summary shape
 
 Returned by `GET /bills/:id/summary` and `GET /share/:token/summary`. Per-person totals always add up to `totalCents`.

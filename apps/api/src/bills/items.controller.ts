@@ -10,7 +10,9 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { BillsService } from './bills.service.js';
+import { ClaimsService } from './claims.service.js';
 import { CreateItemDto, UpdateItemDto } from './dto/item.dto.js';
+import { SetSplitDto } from './dto/set-split.dto.js';
 import {
   BillOwnerGuard,
   type OwnedBill as OwnedBillType,
@@ -22,7 +24,20 @@ import { OwnedBill } from './guards/owned-bill.decorator.js';
 @UseGuards(JwtAuthGuard, BillOwnerGuard)
 @Controller('bills/:billId/items')
 export class ItemsController {
-  constructor(private readonly bills: BillsService) {}
+  constructor(
+    private readonly bills: BillsService,
+    private readonly claims: ClaimsService,
+  ) {}
+
+  // PATCH /api/bills/:billId/items/:itemId/split → the owner changes how an item is split
+  @Patch(':itemId/split')
+  setSplit(
+    @OwnedBill() bill: OwnedBillType,
+    @Param('itemId') itemId: string,
+    @Body() dto: SetSplitDto,
+  ) {
+    return this.claims.setSplit(bill, itemId, dto, null);
+  }
 
   @Post()
   add(@OwnedBill() bill: OwnedBillType, @Body() dto: CreateItemDto) {

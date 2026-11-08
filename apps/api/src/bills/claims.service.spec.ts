@@ -1,18 +1,49 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClaimsService } from './claims.service.js';
+import type { SetSplitDto } from './dto/set-split.dto.js';
 import type { OwnedBill } from './guards/bill-owner.guard.js';
 
 const open: OwnedBill = { id: 'b1', ownerId: 'u1', status: 'OPEN' };
 const locked: OwnedBill = { ...open, status: 'LOCKED' };
 
+// Tiger Beer x2 ($16.00), claimed by Ben and Dan
+const tiger = {
+  id: 'i1',
+  unitPriceCents: 800,
+  quantity: 2,
+  claims: [
+    { participantId: 'ben', shares: 1 },
+    { participantId: 'dan', shares: 1 },
+  ],
+};
+const percent = (ben: number, dan: number): SetSplitDto => ({
+  splitMode: 'PERCENT',
+  entries: [
+    { participantId: 'ben', percentBp: ben },
+    { participantId: 'dan', percentBp: dan },
+  ],
+});
+
 describe('ClaimsService (with a mocked database)', () => {
   let service: ClaimsService;
   const prisma = {
-    item: { findFirst: vi.fn() },
-    claim: { upsert: vi.fn(), deleteMany: vi.fn() },
+    item: { findFirst: vi.fn(), update: vi.fn() },
+    claim: {
+      upsert: vi.fn(),
+      deleteMany: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+    },
     bill: { update: vi.fn() },
+    $transaction: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -66,6 +97,119 @@ describe('ClaimsService (with a mocked database)', () => {
       );
       expect(prisma.item.findFirst).not.toHaveBeenCalled();
     });
+
+    it('puts a PERCENT item back to EQUAL when someone new claims it', async () => {
+      prisma.item.findFirst.mockResolvedValue({
+        id: 'i1',
+        splitMode: 'PERCENT',
+      });
+      prisma.claim.findUnique.mockResolvedValue(null);
+
+      await service.claim(open, 'carl', 'i1');
+
+      expect(prisma.item.update.mock.calls[0][0].data).toEqual({
+        splitMode: 'EQUAL',
+      });
+      expect(prisma.claim.updateMany.mock.calls[0][0]).toEqual({
+        where: { itemId: 'i1' },
+        data: { percentBp: null, exactCents: null },
+      });
+    });
+
+    it('keeps the split when someone already on the item taps it again', async () => {
+      prisma.item.findFirst.mockResolvedValue({
+        id: 'i1',
+        splitMode: 'PERCENT',
+      });
+      prisma.claim.findUnique.mockResolvedValue({ itemId: 'i1' });
+      await service.claim(open, 'ben', 'i1');
+      expect(prisma.item.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('setSplit', () => {
+    beforeEach(() => prisma.item.findFirst.mockResolvedValue(tiger));
+
+    it('Ben 70% / Dan 30% of $16.00 → 1120 / 480, saved together', async () => {
+      const result = await service.setSplit(
+        open,
+        'i1',
+        percent(7000, 3000),
+        'ben',
+      );
+
+      expect(result).toEqual({
+        itemId: 'i1',
+        splitMode: 'PERCENT',
+        portions: [
+          { participantId: 'ben', cents: 1120 },
+          { participantId: 'dan', cents: 480 },
+        ],
+      });
+      expect(prisma.$transaction).toHaveBeenCalledOnce();
+      expect(prisma.item.update.mock.calls[0][0].data).toEqual({
+        splitMode: 'PERCENT',
+      });
+      expect(prisma.claim.update).toHaveBeenCalledTimes(2);
+      expect(prisma.claim.update.mock.calls[0][0].data).toEqual({
+        shares: 1,
+        percentBp: 7000,
+        exactCents: null,
+      });
+    });
+
+    it('lets the owner change it too', async () => {
+      await expect(
+        service.setSplit(open, 'i1', percent(5000, 5000), null),
+      ).resolves.toMatchObject({ splitMode: 'PERCENT' });
+    });
+
+    it('answers 403 for a guest who did not claim the item', async () => {
+      await expect(
+        service.setSplit(open, 'i1', percent(7000, 3000), 'ali'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('answers 400 when someone on the item is left out', async () => {
+      const onlyBen: SetSplitDto = {
+        splitMode: 'PERCENT',
+        entries: [{ participantId: 'ben', percentBp: 10000 }],
+      };
+      await expect(
+        service.setSplit(open, 'i1', onlyBen, 'ben'),
+      ).rejects.toThrow(
+        'entries must list exactly the people who claimed this item',
+      );
+    });
+
+    it('answers 400 when exact amounts do not add up to the price', async () => {
+      const exact: SetSplitDto = {
+        splitMode: 'EXACT',
+        entries: [
+          { participantId: 'ben', exactCents: 1000 },
+          { participantId: 'dan', exactCents: 500 },
+        ],
+      };
+      const attempt = service.setSplit(open, 'i1', exact, 'ben');
+      await expect(attempt).rejects.toThrow(BadRequestException);
+      await expect(attempt).rejects.toThrow(
+        'Exact amounts add up to $15.00, need $16.00',
+      );
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('answers 404 for an item that is not on this bill', async () => {
+      prisma.item.findFirst.mockResolvedValue(null);
+      await expect(
+        service.setSplit(open, 'nope', percent(7000, 3000), 'ben'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('answers 409 once the bill is locked', async () => {
+      await expect(
+        service.setSplit(locked, 'i1', percent(7000, 3000), 'ben'),
+      ).rejects.toThrow(ConflictException);
+    });
   });
 
   describe('unclaim', () => {
@@ -76,6 +220,15 @@ describe('ClaimsService (with a mocked database)', () => {
         itemId: 'i1',
         participantId: 'p1',
         item: { billId: 'b1' },
+      });
+    });
+
+    it('puts an EXACT item back to EQUAL when someone leaves it', async () => {
+      prisma.item.findFirst.mockResolvedValue({ splitMode: 'EXACT' });
+      prisma.claim.deleteMany.mockResolvedValue({ count: 1 });
+      await service.unclaim(open, 'dan', 'i1');
+      expect(prisma.item.update.mock.calls[0][0].data).toEqual({
+        splitMode: 'EQUAL',
       });
     });
 

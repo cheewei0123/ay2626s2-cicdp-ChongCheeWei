@@ -126,6 +126,14 @@ describe('checkItemSplit: rules for each mode', () => {
     expect(() => checkItemSplit(tiger(mode), [...claims])).toThrow(message);
   });
 
+  // Regression: found by the property test below
+  it.each(['PERCENT', 'EXACT'] as const)(
+    'accepts an unclaimed %s item (the owner pays it)',
+    (mode) => {
+      expect(() => checkItemSplit(tiger(mode), [])).not.toThrow();
+    },
+  );
+
   it.each(['EQUAL', 'SHARES', 'PERCENT', 'EXACT'] as const)(
     'accepts a valid %s split',
     (mode) => {

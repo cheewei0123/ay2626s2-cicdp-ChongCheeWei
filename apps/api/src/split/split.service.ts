@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { assertWholeNonNegative, billTotals } from './money.js';
+import { assertWholeNonNegative, billTotals, formatCents } from './money.js';
 
 // How one item is shared between the people who claimed it
 export type SplitMode = 'EQUAL' | 'SHARES' | 'PERCENT' | 'EXACT';
@@ -101,16 +101,97 @@ export function allocate(
   return result;
 }
 
-// KAN-74 stub (TDD red): the tests are written first, against these empty functions
-export function checkItemSplit(_item: SplitItem, _claims: SplitClaim[]): void {
-  throw new Error('Not implemented yet');
+// 9000 → "90%", 3333 → "33.33%" (basis points, integers only)
+export function formatPercent(bp: number): string {
+  const rest = bp % 100;
+  return `${Math.floor(bp / 100)}${rest ? `.${String(rest).padStart(2, '0')}` : ''}%`;
 }
 
+// Items made before KAN-74 have no mode; they keep splitting by shares as before
+const modeOf = (item: SplitItem): SplitMode => item.splitMode ?? 'SHARES';
+
+// Checks that an item's claims make sense for its split mode.
+// Throws a RangeError with a message a person can act on.
+export function checkItemSplit(item: SplitItem, claims: SplitClaim[]): void {
+  // Nobody has claimed it yet: the owner pays, so there is no split to check.
+  // (Found by the property test: an unclaimed EXACT item "added up to $0.00".)
+  if (claims.length === 0) return;
+  const mode = modeOf(item);
+  const lineCents = item.unitPriceCents * item.quantity;
+
+  if (mode === 'SHARES') {
+    for (const c of claims) {
+      if (!Number.isInteger(c.shares) || c.shares < 1) {
+        throw new RangeError('shares must be a whole number >= 1');
+      }
+    }
+  }
+
+  if (mode === 'PERCENT') {
+    let sum = 0;
+    for (const c of claims) {
+      if (c.percentBp == null) {
+        throw new RangeError(
+          'Every person on a PERCENT item needs a percentBp',
+        );
+      }
+      assertWholeNonNegative(c.percentBp, 'percentBp');
+      sum += c.percentBp;
+    }
+    if (sum !== 10000) {
+      throw new RangeError(
+        `Percentages add up to ${formatPercent(sum)}, need 100%`,
+      );
+    }
+  }
+
+  if (mode === 'EXACT') {
+    let sum = 0;
+    for (const c of claims) {
+      if (c.exactCents == null) {
+        throw new RangeError(
+          'Every person on an EXACT item needs an exactCents',
+        );
+      }
+      assertWholeNonNegative(c.exactCents, 'exactCents');
+      sum += c.exactCents;
+    }
+    if (sum !== lineCents) {
+      throw new RangeError(
+        `Exact amounts add up to ${formatCents(sum)}, need ${formatCents(lineCents)}`,
+      );
+    }
+  }
+}
+
+// Every mode becomes a weight per person; the largest-remainder maths stays the same.
+//   EQUAL → 1 each   SHARES → shares   PERCENT → percentBp   EXACT → exactCents
+function itemWeights(
+  item: SplitItem,
+  claims: SplitClaim[],
+): Map<string, bigint> {
+  checkItemSplit(item, claims);
+  const mode = modeOf(item);
+  const weightOf = (c: SplitClaim): number =>
+    mode === 'EQUAL'
+      ? 1
+      : mode === 'SHARES'
+        ? c.shares
+        : mode === 'PERCENT'
+          ? c.percentBp!
+          : c.exactCents!;
+  return new Map(claims.map((c) => [c.participantId, BigInt(weightOf(c))]));
+}
+
+// How many cents of this one item each person pays (largest remainder within the item)
 export function itemPortions(
-  _item: SplitItem,
-  _claims: SplitClaim[],
+  item: SplitItem,
+  claims: SplitClaim[],
 ): Map<string, number> {
-  throw new Error('Not implemented yet');
+  return allocate(
+    item.unitPriceCents * item.quantity,
+    itemWeights(item, claims),
+  );
 }
 
 @Injectable()
@@ -125,9 +206,6 @@ export class SplitService {
       claimsByItem.set(item.id, []);
     }
     for (const claim of claims) {
-      if (!Number.isInteger(claim.shares) || claim.shares < 1) {
-        throw new RangeError(`shares must be a whole number >= 1`);
-      }
       const itemClaims = claimsByItem.get(claim.itemId);
       if (!itemClaims) {
         throw new RangeError(`Claim for unknown item ${claim.itemId}`);
@@ -135,12 +213,20 @@ export class SplitService {
       itemClaims.push(claim);
     }
 
-    // Common multiple of every item's total shares, so each person's exact
+    // Each item's weights from its split mode (this also checks the mode's rules)
+    const weightsByItem = new Map<string, Map<string, bigint>>();
+    for (const item of items) {
+      weightsByItem.set(item.id, itemWeights(item, claimsByItem.get(item.id)!));
+    }
+    const totalOf = (w: Map<string, bigint>) =>
+      [...w.values()].reduce((a, b) => a + b, 0n);
+
+    // Common multiple of every item's total weight, so each person's exact
     // subtotal can be stored as a whole number (scaled up by this factor)
     let scale = 1n;
-    for (const itemClaims of claimsByItem.values()) {
-      const totalShares = itemClaims.reduce((a, c) => a + c.shares, 0);
-      if (totalShares > 0) scale = lcm(scale, BigInt(totalShares));
+    for (const itemWeight of weightsByItem.values()) {
+      const total = totalOf(itemWeight);
+      if (total > 0n) scale = lcm(scale, total);
     }
 
     // Each person's weight = their exact items subtotal x scale
@@ -162,16 +248,14 @@ export class SplitService {
         continue;
       }
 
-      const totalShares = itemClaims.reduce((a, c) => a + c.shares, 0);
-      for (const claim of itemClaims) {
-        // Exact: scale is a multiple of totalShares, so this divides evenly
-        const weight =
-          (BigInt(lineCents) * BigInt(claim.shares) * scale) /
-          BigInt(totalShares);
-        weights.set(
-          claim.participantId,
-          (weights.get(claim.participantId) ?? 0n) + weight,
-        );
+      const itemWeight = weightsByItem.get(item.id)!;
+      const total = totalOf(itemWeight);
+      // Only possible for a $0 EXACT item where everyone typed 0: nothing to share
+      if (total === 0n) continue;
+      for (const [participantId, w] of itemWeight) {
+        // Exact: scale is a multiple of total, so this divides evenly
+        const weight = (BigInt(lineCents) * w * scale) / total;
+        weights.set(participantId, (weights.get(participantId) ?? 0n) + weight);
       }
     }
 
