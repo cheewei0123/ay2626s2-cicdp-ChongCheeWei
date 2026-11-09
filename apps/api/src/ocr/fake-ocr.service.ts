@@ -22,6 +22,8 @@ const BRIEF_RECEIPT: OcrResult = {
 // and always the same answer, so tests never become flaky
 @Injectable()
 export class FakeOcrService implements OcrService {
+  readonly provider = 'fake';
+
   async extract(_image: Buffer, _mimeType: string): Promise<OcrResult> {
     // A deep copy, so a caller changing the result can't change the next one
     return structuredClone(BRIEF_RECEIPT);

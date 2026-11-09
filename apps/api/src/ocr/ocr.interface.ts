@@ -21,8 +21,9 @@ export interface OcrResult {
   raw: unknown; // the provider's own answer, kept for debugging
 }
 
-// The contract every OCR provider follows (Fake now, Gemini in KAN-33, Tesseract maybe)
+// The contract every OCR provider follows (Fake, Gemini, Tesseract maybe)
 export interface OcrService {
+  readonly provider: string; // saved with each receipt, e.g. 'gemini'
   extract(image: Buffer, mimeType: string): Promise<OcrResult>;
 }
 

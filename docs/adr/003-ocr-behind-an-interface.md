@@ -1,6 +1,6 @@
 # ADR 003: OCR behind an interface with dependency injection
 
-**Status:** Accepted, implemented in KAN-31 (Fake) · **Date:** 2026-11-05
+**Status:** Accepted, implemented in KAN-31 (Fake) and KAN-33 (Gemini) · **Date:** 2026-11-05
 
 ## Context
 

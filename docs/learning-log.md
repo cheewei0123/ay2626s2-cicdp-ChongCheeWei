@@ -2,6 +2,17 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-33: Reading receipts with Gemini
+
+- **One zod schema, used twice:** it is sent to Gemini as the required JSON shape, and the same schema checks the answer before anything is used. Bad answers (prices in dollars, negative prices, unknown category, not JSON) become a clear `422`, never bad data.
+- **Friendly failures:** Gemini `429` → our `429` "free limit reached"; any other error or a 60 s timeout → `503`. Every message says the items can be added by hand. Our route allows 5 uploads a minute, so users meet our message before Google's.
+- **Draft, not saved:** I first saved the items straight onto the bill, then found `docs/api.md` already said scanned items are a draft the owner checks first. I followed the contract; the code got simpler too.
+- **Measure, don't guess:** Gemini 3.8 Flash took 100 s on one receipt. Lowering "thinking" wasn't enough. I timed three models and moved to 3.5 Flash-Lite (about 2 s, 500 free a day vs 20). Because the model is a setting, each switch was one line. I also found `gemini-3.5-flash` is counted as "3.6 Flash" in AI Studio.
+- **Real receipts found real bugs:** a McDonald's discount, NTUC "2 FOR $7.95" deals ($3.975 isn't a whole cent) and GST-inclusive totals each broke the sums. Fixed with prompt rules and by comparing the total with the items' sum. Final: 35/35 items, 5/5 totals ([ocr-accuracy.md](ocr-accuracy.md)).
+- **Tests never call Gemini:** unit tests pass a pretend `generate` function; the e2e test overrides `OCR_SERVICE` with the Fake even if a developer's `.env` says `gemini`. One unit test uses a real saved NTUC answer.
+- **Choices left out:** no `sharp` resizing (its Linux binary is an optional dependency, and our image installs with `--omit=optional`); the photo isn't stored (privacy, no storage cost), so `ReceiptImage.storagePath` became nullable with an additive migration.
+- **Windows blocked oxlint:** after a clean `npm ci`, Smart App Control refused oxlint's native file ("An Application Control policy has blocked this file"). Not a code problem: I ran the same oxlint version in a Linux container (0 warnings), which is what CI does anyway.
+
 ## KAN-31: OCR behind an interface (dependency injection)
 
 - **A token, not a class:** TypeScript interfaces disappear when compiled, so Nest can't inject `OcrService` by its type. A `Symbol('OCR_SERVICE')` token stands for "whatever reads receipts", and consumers use `@Inject(OCR_SERVICE)`.

@@ -1,0 +1,46 @@
+{
+  "merchant": "NTUC FAIRPRICE",
+  "date": null,
+  "items": [
+    {
+      "name": "2x A BUTTER UNSALTD227G",
+      "quantity": 1,
+      "unitPriceCents": 795
+    },
+    {
+      "name": "CHEF LG ONION YELL",
+      "quantity": 1,
+      "unitPriceCents": 140
+    },
+    {
+      "name": "GOURMET B/BACON200G",
+      "quantity": 1,
+      "unitPriceCents": 555
+    },
+    {
+      "name": "L SUPER GREENS 125G",
+      "quantity": 2,
+      "unitPriceCents": 390
+    },
+    {
+      "name": "2x PAULS FRESH MILK 1L",
+      "quantity": 1,
+      "unitPriceCents": 595
+    },
+    {
+      "name": "PRIMA PLAIN FLOU1KG",
+      "quantity": 1,
+      "unitPriceCents": 250
+    },
+    {
+      "name": "PSR FSH EGGS (M) 30S",
+      "quantity": 1,
+      "unitPriceCents": 655
+    }
+  ],
+  "subtotalCents": null,
+  "serviceCents": null,
+  "gstCents": null,
+  "totalCents": 3770,
+  "category": "GROCERIES"
+}

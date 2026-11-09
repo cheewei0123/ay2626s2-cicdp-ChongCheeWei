@@ -9,7 +9,7 @@ import { OCR_SERVICE } from './ocr.interface.js';
     {
       provide: OCR_SERVICE,
       // Runs once when the app starts, so a wrong setting stops the app straight away
-      useFactory: () => createOcrService(process.env.OCR_PROVIDER),
+      useFactory: () => createOcrService(process.env),
     },
   ],
   exports: [OCR_SERVICE],

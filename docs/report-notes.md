@@ -71,3 +71,5 @@ Bullet points collected as the project goes, grouped by the report rubric. Scree
 - **Tool limits:** GitHub only enforces rulesets on public repos (free plan); Dependabot did not always move grouped packages together; push protection only knows provider key formats, so Gitleaks is still needed.
 - **Early mistakes kept in history:** two early commit titles don't follow the convention, and `main` is protected so they stay. The PR title now matters because squash merge uses it as the commit message.
 - **Windows setup cost time:** UTF-16 README, WSL install blocked (403), port 5432 already in use by a local Postgres.
+- **AI output is not trusted:** Gemini's answer is checked with a schema, returned as a draft, and compared with the printed totals. Testing 5 real receipts found three problems (discounts, "2 FOR" deals, GST-inclusive totals), each fixed in the prompt or the checks. See [ocr-accuracy.md](ocr-accuracy.md).
+- **Free tier trade-offs:** the slowest model took 100 s; I measured three and chose Flash-Lite (about 2 s, 500 a day). Google may use free-tier uploads to improve its products, so the photo is not stored and users should cover card numbers.
