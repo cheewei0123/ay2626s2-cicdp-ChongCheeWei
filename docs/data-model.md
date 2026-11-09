@@ -94,7 +94,7 @@ erDiagram
         string id PK
         string billId FK "nullable"
         string expenseId FK "nullable"
-        string storagePath
+        string storagePath "nullable, photo not kept"
         string ocrProvider "gemini | tesseract | fake"
         json rawJson
     }

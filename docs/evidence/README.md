@@ -48,3 +48,5 @@ Screenshots used in the report, named `kan-<ticket>-<what>.png`.
 | `kan-37-jira-deployment.png`              | KAN-37 | Jira KAN-37 Development panel showing 1 deployment to Production                                                               |
 | `kan-37-redeploy-idempotent.png`          | KAN-37 | Re-running the deploy: `No pending migrations to apply`, then `Healthy`                                                        |
 | `kan-35-deploy-ssh-docker-ps.png`         | KAN-35 | `ssh deploy@<server> docker ps` working with the GitHub Actions key                                                            |
+| `kan-33-gemini-free-limits.png`           | KAN-33 | AI Studio free limits for Gemini 3.8 Flash: 5 per minute, 20 per day                                                           |
+| `kan-33-gemini-limits-by-model.png`       | KAN-33 | Free limits by model: 3.5 Flash-Lite allows 500 a day vs 20 for the Flash models                                               |

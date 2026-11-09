@@ -32,14 +32,14 @@ flowchart LR
 
 ## Module map
 
-Each feature is its own NestJS module. Built so far: `PrismaModule`, `AuthModule`, `BillsModule` (bills, items, share link, claims, summary), `SplitModule`, `HealthModule` and `OcrModule` (Fake only for now). The rest are planned. `BillsModule` imports `SplitModule` to use `SplitService`, so the money maths has one home and is shared through dependency injection.
+Each feature is its own NestJS module. Built so far: `PrismaModule`, `AuthModule`, `BillsModule` (bills, items, share link, claims, summary), `SplitModule`, `HealthModule`, `OcrModule` (Gemini and Fake) and `ReceiptsModule`. The rest are planned. `BillsModule` imports `SplitModule` to use `SplitService`, so the money maths has one home and is shared through dependency injection.
 
 | Module           | Responsibility                                     | Main providers                                                    | Depends on            |
 | ---------------- | -------------------------------------------------- | ----------------------------------------------------------------- | --------------------- |
 | `AuthModule`     | Register, login, email verification                | `AuthService`, JWT strategy, `JwtAuthGuard`, `EmailVerifiedGuard` | Users, Email          |
 | `UsersModule`    | Profile, PayNow number and QR                      | `UsersService`                                                    | Prisma                |
 | `BillsModule`    | Bills, items, participants, claims, share link     | `BillsService`, `BillOwnerGuard`, `ShareTokenGuard`               | Prisma, Split         |
-| `ReceiptsModule` | Receipt upload                                     | `ReceiptsService`                                                 | Ocr, Prisma           |
+| `ReceiptsModule` | Receipt upload → draft items (built)               | `ReceiptsService`                                                 | Ocr, Prisma           |
 | `OcrModule`      | Read items from a receipt photo                    | `OCR_SERVICE` token → Gemini / Tesseract / Fake                   | none                  |
 | `SplitModule`    | **Pure** money maths: charges and per-person split | `SplitService`, `billTotals()` (built)                            | none (no DB, no HTTP) |
 | `ExpensesModule` | Monthly expenses, categories                       | `ExpensesService`                                                 | Prisma                |
@@ -56,10 +56,10 @@ Code that reads receipts asks for the `OCR_SERVICE` token, not a class. `OcrModu
 
 ```mermaid
 flowchart LR
-  R[ReceiptsService<br/>KAN-33] -->|"@Inject(OCR_SERVICE)"| T((OCR_SERVICE<br/>token))
+  R[ReceiptsService] -->|"@Inject(OCR_SERVICE)"| T((OCR_SERVICE<br/>token))
   T --> F["OcrModule useFactory<br/>createOcrService(OCR_PROVIDER)"]
   F -->|fake / not set| FK[FakeOcrService<br/>tests, CI]
-  F -->|gemini| GM[GeminiOcrService<br/>KAN-33]
+  F -->|gemini| GM[GeminiOcrService<br/>production]
   F -->|typo| X[App stops at startup]
   TS[Unit test] -.->|"overrideProvider(OCR_SERVICE)"| T
 ```

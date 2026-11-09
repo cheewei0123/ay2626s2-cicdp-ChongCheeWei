@@ -167,7 +167,7 @@ model ReceiptImage {
   id          String   @id @default(cuid())
   billId      String?
   expenseId   String?
-  storagePath String
+  storagePath String? // null: the photo itself is not kept, only what was read from it
   ocrProvider String
   rawJson     Json
   createdAt   DateTime @default(now())

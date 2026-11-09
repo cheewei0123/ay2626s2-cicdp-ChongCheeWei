@@ -1,0 +1,14 @@
+{
+  "merchant": "Maxwell Food Centre",
+  "date": "2026-11-01",
+  "items": [
+    { "name": "Chicken Rice", "quantity": 1, "unitPriceCents": 600 },
+    { "name": "Laksa", "quantity": 1, "unitPriceCents": 750 },
+    { "name": "Tiger Beer", "quantity": 2, "unitPriceCents": 800 }
+  ],
+  "subtotalCents": 2950,
+  "serviceCents": 295,
+  "gstCents": 292,
+  "totalCents": 3537,
+  "category": "FOOD_DRINKS"
+}

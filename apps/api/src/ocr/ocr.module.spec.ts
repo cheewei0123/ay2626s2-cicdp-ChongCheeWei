@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { FakeOcrService } from './fake-ocr.service.js';
+import { GeminiOcrService } from './gemini-ocr.service.js';
 import { createOcrService } from './ocr.factory.js';
 import {
   OCR_SERVICE,
@@ -24,28 +25,44 @@ const photo = Buffer.from('not really a photo');
 
 describe('createOcrService (the provider is chosen by config)', () => {
   it('gives the Fake when OCR_PROVIDER is fake', () => {
-    expect(createOcrService('fake')).toBeInstanceOf(FakeOcrService);
+    expect(createOcrService({ OCR_PROVIDER: 'fake' })).toBeInstanceOf(
+      FakeOcrService,
+    );
   });
 
   it('uses the Fake when OCR_PROVIDER is not set', () => {
-    expect(createOcrService(undefined)).toBeInstanceOf(FakeOcrService);
+    expect(createOcrService({})).toBeInstanceOf(FakeOcrService);
   });
 
   it('ignores case and spaces', () => {
-    expect(createOcrService(' FAKE ')).toBeInstanceOf(FakeOcrService);
+    expect(createOcrService({ OCR_PROVIDER: ' FAKE ' })).toBeInstanceOf(
+      FakeOcrService,
+    );
   });
 
-  it.each(['gemini', 'tesseract'])(
-    'stops at startup if %s is chosen before it exists',
-    (provider) => {
-      expect(() => createOcrService(provider)).toThrow(
-        `OCR_PROVIDER=${provider} is not available yet`,
-      );
-    },
-  );
+  it('gives Gemini when OCR_PROVIDER is gemini and a key is set', () => {
+    const ocr = createOcrService({
+      OCR_PROVIDER: 'gemini',
+      GEMINI_API_KEY: 'test-key',
+    });
+    expect(ocr).toBeInstanceOf(GeminiOcrService);
+    expect(ocr.provider).toBe('gemini');
+  });
+
+  it('stops at startup if gemini is chosen without a key', () => {
+    expect(() => createOcrService({ OCR_PROVIDER: 'gemini' })).toThrow(
+      'GEMINI_API_KEY is required when OCR_PROVIDER=gemini',
+    );
+  });
+
+  it('stops at startup if tesseract is chosen before it exists', () => {
+    expect(() => createOcrService({ OCR_PROVIDER: 'tesseract' })).toThrow(
+      'OCR_PROVIDER=tesseract is not available yet',
+    );
+  });
 
   it('stops at startup on a typo, instead of failing on the first receipt', () => {
-    expect(() => createOcrService('gemnii')).toThrow(
+    expect(() => createOcrService({ OCR_PROVIDER: 'gemnii' })).toThrow(
       'OCR_PROVIDER must be one of: fake, gemini, tesseract (got "gemnii")',
     );
   });
@@ -75,6 +92,7 @@ describe('OcrModule (dependency injection)', () => {
 
   it('can be swapped in a test with overrideProvider, without touching the consumer', async () => {
     const stub: OcrService = {
+      provider: 'stub',
       extract: async () => ({
         items: [{ name: 'Kopi', unitPriceCents: 150, quantity: 1 }],
         raw: {},

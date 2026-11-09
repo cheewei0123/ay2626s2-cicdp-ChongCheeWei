@@ -6,7 +6,7 @@ import { AppService } from './app.service.js';
 import { AuthModule } from './auth/auth.module.js';
 import { BillsModule } from './bills/bills.module.js';
 import { HealthModule } from './health/health.module.js';
-import { OcrModule } from './ocr/ocr.module.js';
+import { ReceiptsModule } from './receipts/receipts.module.js';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
@@ -16,7 +16,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     AuthModule,
     BillsModule,
     HealthModule,
-    OcrModule,
+    ReceiptsModule, // brings in OcrModule
     // At most 100 requests per minute from one IP; busy routes set lower limits with @Throttle
     ThrottlerModule.forRoot({ throttlers: [{ ttl: 60_000, limit: 100 }] }),
   ],
