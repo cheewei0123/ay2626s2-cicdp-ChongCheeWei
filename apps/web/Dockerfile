@@ -3,7 +3,7 @@
 #   docker build -f apps/web/Dockerfile -t splitlah-web .
 
 # ---- 1. build: compile the React app into static files (HTML, JS, CSS) ----
-FROM node:24-slim AS build
+FROM node:26-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/
