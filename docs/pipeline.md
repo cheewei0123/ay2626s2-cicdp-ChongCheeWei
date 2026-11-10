@@ -46,7 +46,7 @@ All jobs start at the same time, on every PR and every push to `main`. A new pus
 | `lint api`     | `npm ci`, oxlint (`--deny-warnings`), Prettier check, type-check (`tsc --noEmit`, tests included), build                             | Any lint warning, unformatted file, type error or failed build                     |
 | `lint web`     | Same, for `apps/web`                                                                                                                 | Same                                                                               |
 | `test-api`     | Vitest with coverage, uploads the coverage report                                                                                    | A test fails or `src/split` / `src/common` / `src/auth` / `src/bills` is below 90% |
-| `test-web`     | Vitest                                                                                                                               | A test fails                                                                       |
+| `test-web`     | Vitest with coverage: component tests in a fake browser (jsdom) with a fake API                                                      | A test fails or `apps/web/src` is below 90%                                        |
 | `test-e2e`     | Starts a fresh Postgres 18 service container, `prisma migrate deploy`, then the API e2e tests (Supertest) with a random `JWT_SECRET` | A migration fails, or any e2e test fails                                           |
 | `docker-build` | Builds the API, migrate and web images (`apps/api/Dockerfile`, `apps/web/Dockerfile`, no push), reusing cached layers                | An image does not build, or the Caddyfile is invalid                               |
 
