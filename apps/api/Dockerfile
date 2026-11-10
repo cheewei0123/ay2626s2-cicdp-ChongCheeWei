@@ -3,7 +3,7 @@
 # Each stage starts clean; only what the last stage copies ends up in the image.
 
 # ---- 1. build: all packages (incl. dev tools), generate the Prisma client, compile ----
-FROM node:24-slim AS build
+FROM node:26-slim AS build
 # Prisma's CLI (prisma generate here, prisma migrate deploy in the migrate image) needs
 # OpenSSL, which the slim image leaves out. Without it Prisma warns it "may not work".
 RUN apt-get update && apt-get install -y --no-install-recommends openssl \
@@ -29,7 +29,7 @@ USER node
 CMD ["npx", "prisma", "migrate", "deploy"]
 
 # ---- 2. prod-deps: only the packages the running app needs (no TypeScript, tests, CLI) ----
-FROM node:24-slim AS prod-deps
+FROM node:26-slim AS prod-deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/
@@ -40,7 +40,7 @@ COPY apps/web/package.json apps/web/
 RUN npm ci -w apps/api --omit=dev --omit=optional --ignore-scripts
 
 # ---- 3. runtime: the image that actually runs ----
-FROM node:24-slim AS runtime
+FROM node:26-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=prod-deps /app/node_modules ./node_modules
