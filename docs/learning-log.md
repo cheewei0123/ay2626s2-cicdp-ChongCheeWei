@@ -13,6 +13,9 @@ Short notes on what I learned and what went wrong, newest first. Used as evidenc
 - **A rate-limit hole closed:** the API trusts one proxy for the client's IP (`trust proxy 1`). With no proxy in front, a client could send a fake `X-Forwarded-For` and dodge the per-IP limits. I tested Caddy locally: a faked `6.6.6.6` reached the API as the real address.
 - **Tested before merging:** the real API image behind the web image answered `{"status":"ok","db":"up"}` through Caddy, app paths like `/bills/abc` load the React app, and the Caddyfile validates.
 - **Windows line endings:** my Python edits saved files with CRLF, which Prettier flagged. Git would have fixed them on commit, but I converted them back to LF.
+- **It went live first time:** the deploy passed, and Let's Encrypt issued the certificate in seconds (valid to 8 Feb 2027, renewed automatically). `http://` answers `308` to `https://`, and port 3000 doesn't answer from the internet.
+- **Certificate kept across a restart:** after `docker compose restart` the site served the same certificate (same serial), so the `caddy-data` volume works and a restart won't use up Let's Encrypt's limits.
+- **iPhone check:** Safari opens the app with no "Not Secure" warning. Recent iOS Safari doesn't show a padlock any more; it only warns when a page isn't secure.
 
 ## KAN-76: Expenses API
 
