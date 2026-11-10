@@ -2,6 +2,18 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-39: HTTPS with Caddy
+
+- **Why now:** the iPhone camera and installing the PWA only work over HTTPS, and logins were travelling as plain HTTP.
+- **Free name:** DuckDNS points `splitlah.duckdns.org` at the server. Port 443 was already open; `curl` said "connection refused" (open but nothing listening) rather than timing out (blocked).
+- **One container, not two:** the web image is Caddy with the React build inside. It serves the files and passes `/api/*` to `api:3000`. The API no longer has a public port.
+- **`infra/` is excluded from Docker builds** (`.dockerignore`), so the Caddyfile lives next to the web Dockerfile. That also means CI builds and checks it on every PR.
+- **Not root:** the official Caddy image runs as root. A `caddy` user still works on ports 80 and 443, because the Caddy binary already has permission to use low ports; it only needs to own `/data`, where the certificate is kept.
+- **Health check moved inside:** `deploy.sh` now asks the API inside its container, so a slow Let's Encrypt certificate can't roll back a good release. The deploy job then checks `https://` from the internet, which also proves the certificate.
+- **A rate-limit hole closed:** the API trusts one proxy for the client's IP (`trust proxy 1`). With no proxy in front, a client could send a fake `X-Forwarded-For` and dodge the per-IP limits. I tested Caddy locally: a faked `6.6.6.6` reached the API as the real address.
+- **Tested before merging:** the real API image behind the web image answered `{"status":"ok","db":"up"}` through Caddy, app paths like `/bills/abc` load the React app, and the Caddyfile validates.
+- **Windows line endings:** my Python edits saved files with CRLF, which Prettier flagged. Git would have fixed them on commit, but I converted them back to LF.
+
 ## KAN-76: Expenses API
 
 - **No migration needed:** the `Expense` table, its `(userId, spentAt)` index and the unique `(userId, billId)` were already designed in KAN-70.

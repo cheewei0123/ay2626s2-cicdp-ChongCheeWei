@@ -27,9 +27,9 @@ updates:
     commit-message:
       prefix: 'KAN-22 chore(ci)'
 
-  # Base image in the API Dockerfile (node:24-slim), e.g. security patches
+  # Base images in the Dockerfiles (node:24-slim, caddy:2-alpine), e.g. security patches
   - package-ecosystem: docker
-    directory: /apps/api
+    directories: [/apps/api, /apps/web]
     schedule:
       interval: weekly
     commit-message:

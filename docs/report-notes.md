@@ -17,6 +17,7 @@ Bullet points collected as the project goes, grouped by the report rubric. Scree
   - Money is stored as integer cents; rates as basis points (1000 = 10%). No floats, so no rounding drift.
   - Deleting a bill cascades to its items, participants, claims and payments.
   - Guests are participants without a user account (`userId` is optional).
+- **HTTPS** (KAN-39): `https://splitlah.duckdns.org`. One web container (Caddy) serves the React build, passes `/api` to the API on Docker's internal network, and renews its Let's Encrypt certificate itself. Only ports 80 (redirect) and 443 are public; the API has no public port.
 - **Module boundaries** (KAN-76): `ExpensesModule` imports only `OcrModule` (to scan personal receipts) and the global Prisma. It does not import `BillsModule`; a locked bill will reach it through an event (KAN-79).
 - **Months in Singapore time:** an expense at 11pm on 30 Nov belongs to November. Singapore is UTC+8 all year, so the month boundaries are exact with a fixed offset (no time-zone library).
 - **Split engine** (`apps/api/src/split`): pure functions, no database or HTTP, so it is fast and easy to test.

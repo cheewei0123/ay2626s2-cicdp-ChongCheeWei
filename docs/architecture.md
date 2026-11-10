@@ -10,8 +10,7 @@ Everything in production runs with Docker Compose on one EC2 instance, except th
 flowchart LR
   U[iPhone PWA<br/>React]
   subgraph EC2["EC2 (Docker Compose)"]
-    C[Caddy<br/>HTTPS]
-    W[Web<br/>static files]
+    C[Web container<br/>Caddy: HTTPS + React files]
     A[NestJS API]
   end
   DB[(PostgreSQL<br/>Amazon RDS)]
@@ -19,14 +18,13 @@ flowchart LR
   E[Email<br/>provider]
 
   U -->|HTTPS| C
-  C --> W
   C -->|/api| A
   A --> DB
   A --> G
   A --> E
 ```
 
-- **Caddy** gets a free HTTPS certificate (DuckDNS domain) and sends `/api` to the API, everything else to the web files.
+- **Caddy** gets a free HTTPS certificate for `splitlah.duckdns.org`, serves the React files itself, and sends `/api` to the API (KAN-39).
 - **Locally**, the API and web run with `npm run start:dev` / `npm run dev`, and Postgres runs in Docker (`infra/docker-compose.dev.yml`).
 - **In tests and CI**, OCR and email are Fakes, so nothing outside is called.
 

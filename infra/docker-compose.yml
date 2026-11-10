@@ -2,9 +2,24 @@
 # deploy.sh sets TAG to the commit SHA being deployed. Secrets come from /opt/splitlah/.env,
 # which exists only on the server and is never in git.
 # The database is Amazon RDS (KAN-75), reached through DATABASE_URL in .env. There is no db service.
+# Only the web container (Caddy) faces the internet; the API is reached through it (KAN-39).
 name: splitlah
 
 services:
+  # Caddy: HTTPS for splitlah.duckdns.org, the React app, and /api/* passed to the API
+  web:
+    image: ghcr.io/cheewei0123/splitlah-web:${TAG:?set TAG to the commit SHA}
+    restart: unless-stopped
+    ports:
+      - '80:80' # only redirects to HTTPS (and answers Let's Encrypt's check)
+      - '443:443'
+    volumes:
+      # The certificate is kept here, so a restart doesn't ask Let's Encrypt for a new one
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+
   api:
     image: ghcr.io/cheewei0123/splitlah-api:${TAG:?set TAG to the commit SHA}
     restart: unless-stopped
@@ -15,9 +30,7 @@ services:
       - ./rds-ca.pem:/certs/rds-ca.pem:ro
     environment:
       NODE_EXTRA_CA_CERTS: /certs/rds-ca.pem
-    ports:
-      # Public on port 80 until Caddy and HTTPS take over in KAN-39
-      - '80:3000'
+    # No "ports": only the web container can reach it, on the internal network (api:3000)
 
   # Runs `prisma migrate deploy` once per release; not started by `docker compose up`
   migrate:
@@ -28,3 +41,7 @@ services:
     environment:
       NODE_EXTRA_CA_CERTS: /certs/rds-ca.pem
     profiles: ['tools']
+
+volumes:
+  caddy-data:
+  caddy-config:

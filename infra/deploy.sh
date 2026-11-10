@@ -10,11 +10,12 @@ cd /opt/splitlah
 STATE_FILE=.deployed-tag # remembers the last release that passed its health check
 PREVIOUS_TAG="$(cat "$STATE_FILE" 2>/dev/null || true)"
 
-# Waits up to 60 s for GET /api/health to answer 200 (the API needs a few seconds to start)
+# Waits up to 60 s for GET /api/health to answer 200 (the API needs a few seconds to start).
+# Asks the API inside its container, so a slow certificate from Let's Encrypt can't fail
+# the check; the deploy job checks https:// from the internet afterwards.
 healthy() {
   for _ in $(seq 1 12); do
-    # -s: no error output while the API is still starting; only the final result matters
-    if curl -fs --max-time 3 http://localhost/api/health >/dev/null; then return 0; fi
+    if docker compose exec -T api node -e       "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"       >/dev/null 2>&1; then return 0; fi
     sleep 5
   done
   return 1
@@ -24,12 +25,12 @@ echo "== Deploying $NEW_TAG (previous: ${PREVIOUS_TAG:-none})"
 export TAG="$NEW_TAG"
 
 echo "== 1. Pull the new images from GHCR"
-docker compose pull api migrate
+docker compose pull web api migrate
 
 echo "== 2. Apply database migrations (additive only, so the old version still works if we roll back)"
 docker compose run --rm migrate
 
-echo "== 3. Start the new API"
+echo "== 3. Start the new API and web server"
 docker compose up -d --remove-orphans
 
 echo "== 4. Health check"

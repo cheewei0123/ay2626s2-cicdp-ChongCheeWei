@@ -1,0 +1,19 @@
+# The production web server (Caddy), baked into the splitlah-web image.
+# - HTTPS for the site: Caddy gets a free Let's Encrypt certificate and renews it by itself.
+#   Plain http:// is redirected to https:// automatically.
+# - /api/* goes to the API container; everything else is the React app.
+# SITE_ADDRESS lets a local test use ":80" (plain HTTP, no certificate).
+{$SITE_ADDRESS:splitlah.duckdns.org} {
+	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	handle {
+		root * /srv
+		# A single-page app: a path like /bills/abc has no file, so serve the app and let React route it
+		try_files {path} /index.html
+		file_server
+	}
+}

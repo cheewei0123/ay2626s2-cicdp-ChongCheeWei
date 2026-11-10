@@ -47,7 +47,7 @@ splitlah/
 ├── apps/
 │   ├── api/        # NestJS backend
 │   └── web/        # React PWA frontend
-├── infra/          # Docker Compose, Caddyfile, deploy scripts
+├── infra/          # Docker Compose, deploy and server setup scripts
 ├── docs/           # Architecture, API, data model, ADRs, evidence
 └── .github/        # CI/CD workflows, PR template, Dependabot
 ```
