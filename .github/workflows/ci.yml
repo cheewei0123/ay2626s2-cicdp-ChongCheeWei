@@ -93,6 +93,14 @@ jobs:
           target: migrate
           push: false
           cache-from: type=gha
+      # The web image (React build + Caddy), so a broken Caddyfile or build can't merge
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   # The real API against a real Postgres: every route, guard and query, not just the logic
   test-e2e:

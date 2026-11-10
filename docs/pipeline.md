@@ -49,16 +49,16 @@ All jobs start at the same time, on every PR and every push to `main`. A new pus
 | `test-web` | Vitest                                                                                                                               | A test fails                                                                       |
 | `test-e2e` | Starts a fresh Postgres 18 service container, `prisma migrate deploy`, then the API e2e tests (Supertest) with a random `JWT_SECRET` | A migration fails, or any e2e test fails                                           |
 
-| `docker-build` | Builds the API image with the multi-stage `apps/api/Dockerfile` (no push), reusing cached layers | The image does not build |
+| `docker-build` | Builds the API, migrate and web images (`apps/api/Dockerfile`, `apps/web/Dockerfile`, no push), reusing cached layers | An image does not build, or the Caddyfile is invalid |
 
 All 7 are required checks on `main`. A typical run takes about 1 minute.
 
 ## On merge to `main` (`.github/workflows/deploy.yml`)
 
-| Job           | What it does                                                                                                                                              |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `build-image` | Builds the API image and pushes it to GHCR as `ghcr.io/cheewei0123/splitlah-api:<commit SHA>` and `:latest`, logging in with the run's own `GITHUB_TOKEN` |
-| `deploy`      | Runs in the `production` environment and ships that exact SHA to EC2 (steps below)                                                                        |
+| Job           | What it does                                                                                                                                                                                  |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `build-image` | Builds the API, migrate and web images and pushes them to GHCR as `ghcr.io/cheewei0123/splitlah-<api\|migrate\|web>:<commit SHA>` and `:latest`, logging in with the run's own `GITHUB_TOKEN` |
+| `deploy`      | Runs in the `production` environment and ships that exact SHA to EC2 (steps below)                                                                                                            |
 
 The deploy job, step by step:
 

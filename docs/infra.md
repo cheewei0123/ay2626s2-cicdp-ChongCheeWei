@@ -11,7 +11,7 @@ Where SplitLah runs in production, how it was set up, and the trade-offs. The pi
 | OS             | **Ubuntu Server 24.04 LTS**                        | Long-term support; Docker publishes packages for it              |
 | Disk           | 20 GB gp3                                          | Free tier allows up to 30 GB                                     |
 | Swap           | 1 GB                                               | 1 GB of RAM is tight when pulling and starting Docker images     |
-| Public address | `47.129.169.19` (public IPv4)                      | Caddy will serve HTTPS on it (KAN-39)                            |
+| Public address | `splitlah.duckdns.org` → `47.129.169.19`           | Free name for the HTTPS certificate (KAN-39)                     |
 
 ## Firewall (security group)
 
@@ -22,6 +22,17 @@ Where SplitLah runs in production, how it was set up, and the trade-offs. The pi
 | 443  | Anywhere (`0.0.0.0/0`)      | HTTPS                           |
 
 Postgres (5432) and the API (3000) are **never** opened. Only Caddy faces the internet; the API is reached through it.
+
+## HTTPS (Caddy, KAN-39)
+
+The site is **https://splitlah.duckdns.org**. The iPhone camera and installing the PWA both need HTTPS.
+
+- **DuckDNS** gives a free name (`splitlah.duckdns.org`) pointing at the server's IP.
+- **Caddy** asks Let's Encrypt for a certificate the first time it starts and renews it by itself. `http://` is redirected to `https://`. The certificate is kept in the `caddy-data` volume, so a restart doesn't request a new one.
+- **One web container:** the `splitlah-web` image is Caddy with the built React files inside. It serves the app and passes `/api/*` to the API at `api:3000` on Docker's internal network. The ticket suggested a separate `web` (static server) container behind Caddy; one container means one less hop and one less image to update.
+- The **Caddyfile** (`apps/web/Caddyfile`) is baked into the image, so CI builds and checks it on every PR, and a release always runs with the Caddyfile from the same commit.
+- Like the API, it runs as a **non-root user** (`caddy`). The Caddy binary is already allowed to use ports 80 and 443 without root.
+- `deploy.sh` checks the API **inside its container**, so a slow certificate can't roll back a good release. The deploy job then checks `https://splitlah.duckdns.org/api/health` from the internet, which also fails if the certificate is wrong.
 
 ## The database (Amazon RDS, KAN-75)
 
@@ -114,7 +125,8 @@ Options I did not choose: opening SSH to the whole internet (simplest, but bots 
 
 | Service   | Image                                        | Reachable from                          |
 | --------- | -------------------------------------------- | --------------------------------------- |
-| `api`     | `ghcr.io/cheewei0123/splitlah-api:<SHA>`     | Port 80 (until Caddy and HTTPS, KAN-39) |
+| `web`     | `ghcr.io/cheewei0123/splitlah-web:<SHA>`     | Ports 80 and 443 (the only public ones) |
+| `api`     | `ghcr.io/cheewei0123/splitlah-api:<SHA>`     | Only the `web` container (`api:3000`)   |
 | `migrate` | `ghcr.io/cheewei0123/splitlah-migrate:<SHA>` | Runs once per deploy, then exits        |
 
 ## Cost
@@ -139,6 +151,7 @@ The ticket suggested a US$1 alert. I set US$10 because the public IPv4 alone is 
   - Cost: free tier now; after it, RDS costs more than a container on the server I already pay for.
   - Lock-in: low. It is plain PostgreSQL, the app only knows `DATABASE_URL`, and `pg_dump` works.
   - More to set up: a second security group, TLS certificates and two database users.
-- **Plain HTTP on port 80 for now.** Logins and tokens travel unencrypted until Caddy adds HTTPS in KAN-39.
+- **A free domain I don't control.** DuckDNS could go down or change its rules. And if the instance is stopped and started, its public IP changes and the DuckDNS record must be updated (an Elastic IP would keep it fixed, at the same price while the server runs).
+- **The web server image runs Caddy's latest 2.x** (`caddy:2-alpine`), so a rebuild can pick up a newer Caddy. Dependabot also watches Docker base images.
 - **The `docker` group is close to root.** Anyone who can run Docker can mount the host's files into a container. So the `deploy` key is powerful even without sudo, and must stay only in GitHub Secrets.
 - **Free-tier limits:** 1 GB of RAM (hence the swap), and burstable CPU that slows down under long heavy load.

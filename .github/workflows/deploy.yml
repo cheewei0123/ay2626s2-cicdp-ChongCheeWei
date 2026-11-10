@@ -55,6 +55,18 @@ jobs:
           labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      # The web app served by Caddy with HTTPS; same commit, same tag
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/splitlah-web:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/splitlah-web:latest
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   # Ship the new images to the EC2 server
   deploy:
@@ -65,7 +77,7 @@ jobs:
     # show each deployment
     environment:
       name: production
-      url: http://${{ vars.EC2_HOST }}
+      url: https://splitlah.duckdns.org
     permissions:
       id-token: write # lets this job get an OIDC token that proves "I am this repo's production deploy"
       contents: read
@@ -130,6 +142,8 @@ jobs:
           aws ec2 revoke-security-group-ingress --group-id "$EC2_SG_ID" \
             --protocol tcp --port 22 --cidr "${{ steps.ssh-rule.outputs.cidr }}"
 
-      # The same check a user would make: is the API answering from the internet?
+      # The same check a user would make: is the API answering over HTTPS from the internet?
+      # curl checks the certificate too, so an expired or wrong one fails this step.
+      # --retry-all-errors: on the first HTTPS deploy the certificate takes a few seconds
       - name: Check it is live
-        run: curl -fsS --retry 5 --retry-delay 5 "http://$EC2_HOST/api/health"
+        run: curl -fsS --retry 12 --retry-delay 5 --retry-all-errors https://splitlah.duckdns.org/api/health
