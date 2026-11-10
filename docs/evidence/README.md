@@ -50,3 +50,9 @@ Screenshots used in the report, named `kan-<ticket>-<what>.png`.
 | `kan-35-deploy-ssh-docker-ps.png`         | KAN-35 | `ssh deploy@<server> docker ps` working with the GitHub Actions key                                                            |
 | `kan-33-gemini-free-limits.png`           | KAN-33 | AI Studio free limits for Gemini 3.8 Flash: 5 per minute, 20 per day                                                           |
 | `kan-33-gemini-limits-by-model.png`       | KAN-33 | Free limits by model: 3.5 Flash-Lite allows 500 a day vs 20 for the Flash models                                               |
+| `kan-33-gemini-on-in-production.png`      | KAN-33 | Server redeploy after adding the Gemini settings to `.env`: `Healthy`, and the API container reports `OCR_PROVIDER` = `gemini` |
+| `kan-75-rds-sg-inbound.png`               | KAN-75 | `rds-sg`: port 5432 allowed only from a security group, not an IP (account ID blacked out)                                     |
+| `kan-75-rds-connectivity.png`             | KAN-75 | RDS Connectivity & security: Publicly accessible No, only `rds-sg`, private subnets                                            |
+| `kan-75-rds-backups.png`                  | KAN-75 | RDS Maintenance & backups: automated backups enabled, kept 1 day                                                               |
+| `kan-75-app-user-connects.png`            | KAN-75 | `psql` as `app` on database `splitlah`: PostgreSQL 18.3                                                                        |
+| `kan-75-migrate-on-rds.png`               | KAN-75 | `migrate` container applying all 3 migrations to RDS before the switch                                                         |

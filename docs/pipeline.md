@@ -74,14 +74,14 @@ Only one deploy runs at a time (`concurrency`), and only `main` can deploy to `p
 
 ## Secrets and settings for the deploy
 
-| Name                  | Kind                      | What                                                                                     |
-| --------------------- | ------------------------- | ---------------------------------------------------------------------------------------- |
-| `AWS_DEPLOY_ROLE_ARN` | Secret (`production`)     | The IAM role the deploy job uses through OIDC                                            |
-| `EC2_SSH_KEY`         | Secret (`production`)     | Private key for the `deploy` user                                                        |
-| `EC2_KNOWN_HOSTS`     | Secret (`production`)     | The server's SSH fingerprint, so an impostor server is refused                           |
-| `EC2_HOST`            | Variable (`production`)   | Server address (public anyway, so not a secret)                                          |
-| `EC2_SG_ID`           | Variable (`production`)   | The security group the deploy job may change                                             |
-| `.env` on the server  | File, `deploy` only (600) | `DATABASE_URL`, `POSTGRES_PASSWORD`, `JWT_SECRET`, `WEB_ORIGIN`, generated on the server |
+| Name                  | Kind                      | What                                                                                  |
+| --------------------- | ------------------------- | ------------------------------------------------------------------------------------- |
+| `AWS_DEPLOY_ROLE_ARN` | Secret (`production`)     | The IAM role the deploy job uses through OIDC                                         |
+| `EC2_SSH_KEY`         | Secret (`production`)     | Private key for the `deploy` user                                                     |
+| `EC2_KNOWN_HOSTS`     | Secret (`production`)     | The server's SSH fingerprint, so an impostor server is refused                        |
+| `EC2_HOST`            | Variable (`production`)   | Server address (public anyway, so not a secret)                                       |
+| `EC2_SG_ID`           | Variable (`production`)   | The security group the deploy job may change                                          |
+| `.env` on the server  | File, `deploy` only (600) | `DATABASE_URL` (RDS), `JWT_SECRET`, `WEB_ORIGIN`, Gemini settings, made on the server |
 
 The IAM role can only be used by this repository's `production` environment (its trust policy checks the token's `sub` exactly), and its permission covers only `AuthorizeSecurityGroupIngress` / `RevokeSecurityGroupIngress` on that one security group.
 

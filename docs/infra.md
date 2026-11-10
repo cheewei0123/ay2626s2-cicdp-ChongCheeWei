@@ -4,14 +4,14 @@ Where SplitLah runs in production, how it was set up, and the trade-offs. The pi
 
 ## The server
 
-| Setting        | Value                                              | Why                                                                   |
-| -------------- | -------------------------------------------------- | --------------------------------------------------------------------- |
-| Cloud / region | AWS, **Asia Pacific (Singapore) `ap-southeast-1`** | Users are in Singapore; the database (RDS) will be in the same region |
-| Instance       | EC2 **t3.micro** (2 vCPU, 1 GB RAM), x86           | Free-tier eligible; x86 matches the image GitHub Actions builds       |
-| OS             | **Ubuntu Server 24.04 LTS**                        | Long-term support; Docker publishes packages for it                   |
-| Disk           | 20 GB gp3                                          | Free tier allows up to 30 GB                                          |
-| Swap           | 1 GB                                               | 1 GB of RAM is tight when pulling and starting Docker images          |
-| Public address | `47.129.169.19` (public IPv4)                      | Caddy will serve HTTPS on it (KAN-39)                                 |
+| Setting        | Value                                              | Why                                                              |
+| -------------- | -------------------------------------------------- | ---------------------------------------------------------------- |
+| Cloud / region | AWS, **Asia Pacific (Singapore) `ap-southeast-1`** | Users are in Singapore; the database (RDS) is in the same region |
+| Instance       | EC2 **t3.micro** (2 vCPU, 1 GB RAM), x86           | Free-tier eligible; x86 matches the image GitHub Actions builds  |
+| OS             | **Ubuntu Server 24.04 LTS**                        | Long-term support; Docker publishes packages for it              |
+| Disk           | 20 GB gp3                                          | Free tier allows up to 30 GB                                     |
+| Swap           | 1 GB                                               | 1 GB of RAM is tight when pulling and starting Docker images     |
+| Public address | `47.129.169.19` (public IPv4)                      | Caddy will serve HTTPS on it (KAN-39)                            |
 
 ## Firewall (security group)
 
@@ -22,6 +22,39 @@ Where SplitLah runs in production, how it was set up, and the trade-offs. The pi
 | 443  | Anywhere (`0.0.0.0/0`)      | HTTPS                           |
 
 Postgres (5432) and the API (3000) are **never** opened. Only Caddy faces the internet; the API is reached through it.
+
+## The database (Amazon RDS, KAN-75)
+
+| Setting             | Value                                                         | Why                                                         |
+| ------------------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
+| Engine              | **PostgreSQL 18.3**                                           | Same major version as local Docker and CI (dev/prod parity) |
+| Instance            | `db.t4g.micro` (ARM), Single-AZ, Free tier template           | Free tier                                                   |
+| Storage             | 20 GB, autoscaling **off**, encrypted                         | Free tier limit; autoscaling could quietly grow the bill    |
+| **Public access**   | **No**                                                        | The endpoint resolves to a private `172.31.x.x` address     |
+| Security group      | `rds-sg`: port 5432 **only from the server's security group** | Not from any IP, so even a new server IP needs no change    |
+| Backups             | Automated, kept **1 day** (what the Free tier template set)   | Restore to any minute in the last day                       |
+| Deletion protection | **On**                                                        | One wrong click can't delete the database                   |
+| Credentials         | Self managed (not Secrets Manager)                            | Secrets Manager costs US$0.40 a month                       |
+
+**Two database users.** The master user `postgres` is only used by me, to create the app user; its password is only in my password manager. The API logs in as `app`, which owns the `splitlah` database and nothing else, so a leaked app password can't touch other databases or create users.
+
+**Encrypted and verified (TLS).** `DATABASE_URL` ends in `?sslmode=require`. The app's driver (`pg` 8) treats `require` as **verify-full**: it checks that the certificate is for this exact RDS endpoint. Node doesn't trust Amazon's RDS certificate authority by default, so Amazon's public certificates are downloaded once to `/opt/splitlah/rds-ca.pem` and given to Node with `NODE_EXTRA_CA_CERTS` (in `infra/docker-compose.yml`). Prisma's migration tool also connects over TLS with `sslmode=require`. `pg` 9 will change `require` to mean "encrypt but don't check the certificate", so when Dependabot brings `pg` 9 the URL should become `sslmode=verify-full`.
+
+**Proof it is private:** from my laptop the endpoint resolves to `172.31.24.34` and `Test-NetConnection … -Port 5432` gives `TcpTestSucceeded: False`. From the server, `psql` connects (`SSL connection (protocol: TLSv1.3)`).
+
+### Setup (done once)
+
+1. EC2 → Security Groups: `rds-sg`, inbound PostgreSQL 5432 from the **server's** security group.
+2. RDS → Create database → **Full configuration**, with the settings above.
+3. On the server, download the certificates:
+   `sudo -u deploy curl -fsSo /opt/splitlah/rds-ca.pem https://truststore.pki.rds.amazonaws.com/ap-southeast-1/ap-southeast-1-bundle.pem`
+4. Log in as `postgres` (with `psql` from the `postgres:18` image, `sslmode=verify-full`) and run:
+   `CREATE ROLE app LOGIN;` → `\password app` → `GRANT app TO postgres;` → `CREATE DATABASE splitlah OWNER app;`
+   The `GRANT` is needed since Postgres 16: you can only make a role the owner of a database if you can act as that role.
+5. In `/opt/splitlah/.env`: `DATABASE_URL=postgresql://app:<password>@<endpoint>:5432/splitlah?sslmode=require`. The password is made with `openssl rand -hex 24`, so it has only `0-9a-f` and needs no escaping in a URL.
+6. Test before switching: a one-off `api` container connects with `pg`, and the `migrate` container creates the tables on RDS. The live site kept using the old database until the merge.
+
+**Fallback:** if the free credits run out, put a `db` service back in `docker-compose.yml` and point `DATABASE_URL` at it. No code changes, because Prisma only reads `DATABASE_URL`. The old database's Docker volume is still on the server.
 
 ## Setup (repeatable)
 
@@ -51,14 +84,15 @@ What the script does:
 
 ## Keys and accounts
 
-| Key / account                     | Where it lives                                           | Used for                                   |
-| --------------------------------- | -------------------------------------------------------- | ------------------------------------------ |
-| AWS root account                  | Me only, **MFA on**                                      | Billing and account settings               |
-| `splitlah-chee.pem`               | My laptop only (`~/.ssh`, readable only by me)           | My SSH logins as `ubuntu`                  |
-| `splitlah-actions` (private)      | GitHub Secret `EC2_SSH_KEY` (`production`) and my laptop | The deploy job's SSH login                 |
-| `splitlah-actions.pub` (public)   | `/home/deploy/.ssh/authorized_keys` on the server        | Lets that key in as `deploy`               |
-| IAM role `splitlah-github-deploy` | AWS; used by GitHub Actions through OIDC (no keys)       | Opening and closing port 22 for one deploy |
-| `/opt/splitlah/.env`              | The server only, readable only by `deploy`               | Database password, `JWT_SECRET`            |
+| Key / account                     | Where it lives                                           | Used for                                                  |
+| --------------------------------- | -------------------------------------------------------- | --------------------------------------------------------- |
+| AWS root account                  | Me only, **MFA on**                                      | Billing and account settings                              |
+| `splitlah-chee.pem`               | My laptop only (`~/.ssh`, readable only by me)           | My SSH logins as `ubuntu`                                 |
+| `splitlah-actions` (private)      | GitHub Secret `EC2_SSH_KEY` (`production`) and my laptop | The deploy job's SSH login                                |
+| `splitlah-actions.pub` (public)   | `/home/deploy/.ssh/authorized_keys` on the server        | Lets that key in as `deploy`                              |
+| IAM role `splitlah-github-deploy` | AWS; used by GitHub Actions through OIDC (no keys)       | Opening and closing port 22 for one deploy                |
+| `/opt/splitlah/.env`              | The server only, readable only by `deploy`               | `DATABASE_URL` (RDS `app` user), `JWT_SECRET`, Gemini key |
+| RDS master password (`postgres`)  | My password manager only                                 | Creating the `app` user                                   |
 
 No key is in git. If the Actions key leaks, removing one line from `authorized_keys` cuts it off without touching my own access.
 
@@ -76,21 +110,21 @@ Options I did not choose: opening SSH to the whole internet (simplest, but bots 
 
 ## What runs on the server
 
-`/opt/splitlah/` holds `docker-compose.yml` and `deploy.sh` (copied in by every deploy), `.env`, and `.deployed-tag` (the last release that passed its health check).
+`/opt/splitlah/` holds `docker-compose.yml` and `deploy.sh` (copied in by every deploy), `.env`, `rds-ca.pem` (Amazon's public RDS certificates) and `.deployed-tag` (the last release that passed its health check).
 
-| Service   | Image                                        | Reachable from                                                    |
-| --------- | -------------------------------------------- | ----------------------------------------------------------------- |
-| `api`     | `ghcr.io/cheewei0123/splitlah-api:<SHA>`     | Port 80 (until Caddy and HTTPS, KAN-39)                           |
-| `db`      | `postgres:18`, data in a Docker volume       | Only the other containers, never the internet (until RDS, KAN-75) |
-| `migrate` | `ghcr.io/cheewei0123/splitlah-migrate:<SHA>` | Runs once per deploy, then exits                                  |
+| Service   | Image                                        | Reachable from                          |
+| --------- | -------------------------------------------- | --------------------------------------- |
+| `api`     | `ghcr.io/cheewei0123/splitlah-api:<SHA>`     | Port 80 (until Caddy and HTTPS, KAN-39) |
+| `migrate` | `ghcr.io/cheewei0123/splitlah-migrate:<SHA>` | Runs once per deploy, then exits        |
 
 ## Cost
 
-| Item                | Cost                                                         |
-| ------------------- | ------------------------------------------------------------ |
-| t3.micro, 20 GB gp3 | Free tier                                                    |
-| Public IPv4 address | About US$0.005/hour (≈ US$3.60/month), paid from AWS credits |
-| **Budget alert**    | **US$10/month**, emails me before anything goes over         |
+| Item                               | Cost                                                         |
+| ---------------------------------- | ------------------------------------------------------------ |
+| t3.micro, 20 GB gp3                | Free tier                                                    |
+| Public IPv4 address                | About US$0.005/hour (≈ US$3.60/month), paid from AWS credits |
+| RDS `db.t4g.micro`, 20 GB, backups | Free tier; no public IP, so no IPv4 charge                   |
+| **Budget alert**                   | **US$10/month**, emails me before anything goes over         |
 
 The ticket suggested a US$1 alert. I set US$10 because the public IPv4 alone is about US$3.60 a month, so a US$1 alert would fire every month and stop meaning anything.
 
@@ -98,7 +132,13 @@ The ticket suggested a US$1 alert. I set US$10 because the public IPv4 alone is 
 
 - **One server, no redundancy.** If the instance fails, the app is down until it is replaced. Acceptable for a student project; production would use at least two instances behind a load balancer.
 - **SSH only from my IP** stops bots from trying to log in, but my IP changes (it changed when my VPN was on, and I was locked out until I updated the rule). The deploy job gets in by opening port 22 for its own IP for a few seconds (OIDC, above), which is more moving parts than leaving SSH open, but keeps port 22 closed almost all the time.
-- **The database runs on the same server for now.** If the server dies, so does the data (only the Docker volume). KAN-75 moves it to Amazon RDS with backups.
+- **Managed database (RDS) vs a Postgres container:**
+  - Reliability: AWS takes the backups and applies patches, and the data survives if the server dies. Before KAN-75 the data was only a Docker volume on the server.
+  - Short history: backups are kept for 1 day, so a mistake noticed two days later can't be undone from them.
+  - Still one copy: Single-AZ, so if that data centre fails the database is down until AWS recovers it. Multi-AZ keeps a standby copy but costs double and is not free tier.
+  - Cost: free tier now; after it, RDS costs more than a container on the server I already pay for.
+  - Lock-in: low. It is plain PostgreSQL, the app only knows `DATABASE_URL`, and `pg_dump` works.
+  - More to set up: a second security group, TLS certificates and two database users.
 - **Plain HTTP on port 80 for now.** Logins and tokens travel unencrypted until Caddy adds HTTPS in KAN-39.
 - **The `docker` group is close to root.** Anyone who can run Docker can mount the host's files into a container. So the `deploy` key is powerful even without sudo, and must stay only in GitHub Secrets.
 - **Free-tier limits:** 1 GB of RAM (hence the swap), and burstable CPU that slows down under long heavy load.
