@@ -57,3 +57,4 @@ Screenshots used in the report, named `kan-<ticket>-<what>.png`.
 | `kan-75-app-user-connects.png`            | KAN-75 | `psql` as `app` on database `splitlah`: PostgreSQL 18.3                                                                        |
 | `kan-75-migrate-on-rds.png`               | KAN-75 | `migrate` container applying all 3 migrations to RDS before the switch                                                         |
 | `kan-75-redeploy-on-rds.png`              | KAN-75 | Redeploy after the app password change: migrations checked on RDS, only the API container starts, `Healthy`                    |
+| `kan-38-board-burndown.png`               | KAN-38 | Sprint 2 board (17 done) and burndown: 51 of 51 points, below the guideline the whole sprint                                   |
