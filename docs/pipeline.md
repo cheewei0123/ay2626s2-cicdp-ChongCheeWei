@@ -40,18 +40,17 @@ Stage E is partly built: Gitleaks runs today; CodeQL and `npm audit` come later.
 
 All jobs start at the same time, on every PR and every push to `main`. A new push to the same branch cancels the run still in progress.
 
-| Job        | What it does                                                                                                                         | Fails when                                                                         |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| `gitleaks` | Scans the full git history for secrets                                                                                               | A key, token or password is found                                                  |
-| `lint api` | `npm ci`, oxlint (`--deny-warnings`), Prettier check, type-check (`tsc --noEmit`, tests included), build                             | Any lint warning, unformatted file, type error or failed build                     |
-| `lint web` | Same, for `apps/web`                                                                                                                 | Same                                                                               |
-| `test-api` | Vitest with coverage, uploads the coverage report                                                                                    | A test fails or `src/split` / `src/common` / `src/auth` / `src/bills` is below 90% |
-| `test-web` | Vitest                                                                                                                               | A test fails                                                                       |
-| `test-e2e` | Starts a fresh Postgres 18 service container, `prisma migrate deploy`, then the API e2e tests (Supertest) with a random `JWT_SECRET` | A migration fails, or any e2e test fails                                           |
+| Job            | What it does                                                                                                                         | Fails when                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `gitleaks`     | Scans the full git history for secrets                                                                                               | A key, token or password is found                                                  |
+| `lint api`     | `npm ci`, oxlint (`--deny-warnings`), Prettier check, type-check (`tsc --noEmit`, tests included), build                             | Any lint warning, unformatted file, type error or failed build                     |
+| `lint web`     | Same, for `apps/web`                                                                                                                 | Same                                                                               |
+| `test-api`     | Vitest with coverage, uploads the coverage report                                                                                    | A test fails or `src/split` / `src/common` / `src/auth` / `src/bills` is below 90% |
+| `test-web`     | Vitest                                                                                                                               | A test fails                                                                       |
+| `test-e2e`     | Starts a fresh Postgres 18 service container, `prisma migrate deploy`, then the API e2e tests (Supertest) with a random `JWT_SECRET` | A migration fails, or any e2e test fails                                           |
+| `docker-build` | Builds the API, migrate and web images (`apps/api/Dockerfile`, `apps/web/Dockerfile`, no push), reusing cached layers                | An image does not build, or the Caddyfile is invalid                               |
 
-| `docker-build` | Builds the API, migrate and web images (`apps/api/Dockerfile`, `apps/web/Dockerfile`, no push), reusing cached layers | An image does not build, or the Caddyfile is invalid |
-
-All 7 are required checks on `main`. A typical run takes about 1 minute.
+All 7 are required checks on `main`. A typical run takes about 2–2½ minutes; `docker-build` is the slowest job. The npm cache was measured to save almost nothing (see the KAN-50 learning-log entry); Docker's layer cache is the one that saves time.
 
 ## On merge to `main` (`.github/workflows/deploy.yml`)
 

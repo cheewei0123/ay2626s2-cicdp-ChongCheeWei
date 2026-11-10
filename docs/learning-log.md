@@ -2,6 +2,20 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-50: Sprint 1 evidence, measured again
+
+- **Direct push to `main` (KAN-17):** an empty commit pushed straight to `main` was rejected with `GH013`: "Changes must be made through a pull request" and "7 of 7 required status checks are expected". The rule applies to me as the repo owner too. The test commit never reached GitHub.
+- **npm cache (KAN-16), same commit twice:** the first CI run after Dependabot changed `package-lock.json` logged `npm cache is not found`. Re-running the same commit restored the 151 MB cache that the first run had saved.
+
+  |                                    | No cache   | Cache     |
+  | ---------------------------------- | ---------- | --------- |
+  | `npm ci`, average of the 5 jobs    | 11 s       | 9 s       |
+  | `setup-node` (downloads the cache) | 1 s        | 4 s       |
+  | Whole CI run                       | 2 min 42 s | 2 min 7 s |
+
+- **The npm cache barely helps:** downloading 151 MB of cache takes about as long as `npm ci` saves, because GitHub's runners download from npm very fast. The run was 35 s faster, but that came from `docker-build` (158 s → 121 s, Docker's layer cache), not npm. `docker-build` is the slowest job, so that is the cache that matters.
+- **Docs had drifted:** the report notes still said 5 required checks, "branch must be up to date" (the ruleset doesn't require it) and "under 1 minute" per run.
+
 ## KAN-39: HTTPS with Caddy
 
 - **Why now:** the iPhone camera and installing the PWA only work over HTTPS, and logins were travelling as plain HTTP.

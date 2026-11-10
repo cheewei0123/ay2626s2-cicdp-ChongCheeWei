@@ -37,15 +37,17 @@ Bullet points collected as the project goes, grouped by the report rubric. Scree
 ### Pipeline (`.github/workflows/ci.yml`)
 
 - Runs on every PR and every push to `main`; a new push cancels the old run.
-- 5 jobs in parallel: `gitleaks`, `lint api`, `lint web`, `test-api`, `test-web`. A typical run takes under 1 minute.
+- 7 jobs in parallel: `gitleaks`, `lint api`, `lint web`, `test-api`, `test-web`, `test-e2e`, `docker-build`. A run takes about 2–2½ minutes, most of it `docker-build`.
 - `npm ci` with the npm cache keyed on the lockfile; Node version from `.nvmrc`.
+- **Measured the npm cache:** same commit, no cache vs cache: `npm ci` 11 s vs 9 s, but restoring the cache costs 3 s more, so no real saving. Docker's layer cache saved 37 s on `docker-build`. Evidence: `kan-16-npm-cache-miss.png`, `kan-16-npm-cache-hit.png`.
 - Lint uses oxlint with `--deny-warnings`, because warnings alone exit 0 and would not fail CI.
 - **Coverage gate:** `test-api` fails if `src/split` drops below 90% lines or branches (currently 100%). Evidence: `kan-21-green-coverage.png`.
 
 ### Protecting main (KAN-17)
 
-- Ruleset: PR required, all 5 checks required, branch must be up to date, no force push or deletion.
+- Ruleset `protect-main`: PR required, all 7 checks required, no force push or deletion. It applies to me as the owner too (no bypass).
 - The ruleset was not enforced on a private repo on the free plan. Making the repo public fixed it. Evidence: `kan-17-ruleset-not-enforced.png`.
+- A direct `git push origin main` is rejected with `GH013`. Evidence: `kan-17-direct-push-rejected.png`.
 
 ### TDD (KAN-19, KAN-20)
 
