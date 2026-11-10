@@ -12,6 +12,9 @@ Screenshots used in the report, named `kan-<ticket>-<what>.png`.
 | `kan-16-typecheck-build-green.png`        | KAN-16 | All 5 checks green after adding type-check and build to the lint jobs                                                          |
 | `kan-17-ruleset-not-enforced.png`         | KAN-17 | Ruleset configured but not enforced on a private repo on the free plan                                                         |
 | `kan-17-required-checks.png`              | KAN-17 | `protect-main` ruleset requiring all 5 checks                                                                                  |
+| `kan-17-direct-push-rejected.png`         | KAN-17 | `git push origin main` rejected with `GH013`: PR required, 7 of 7 required checks expected                                     |
+| `kan-16-npm-cache-miss.png`               | KAN-16 | First CI run after a lockfile change: `npm cache is not found`                                                                 |
+| `kan-16-npm-cache-hit.png`                | KAN-16 | Same commit re-run: the 151 MB npm cache restored from the lockfile key                                                        |
 | `kan-70-er-diagram.png`                   | KAN-70 | The Mermaid ER diagram rendered on GitHub                                                                                      |
 | `kan-18-studio-bill.png`                  | KAN-18 | Prisma Studio: the seeded bill (service 1000 bp, GST 900 bp)                                                                   |
 | `kan-18-studio-item.png`                  | KAN-18 | Prisma Studio: Chicken Rice 600, Laksa 750, Tiger 800 × 2                                                                      |
