@@ -2,6 +2,17 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-76: Expenses API
+
+- **No migration needed:** the `Expense` table, its `(userId, spentAt)` index and the unique `(userId, billId)` were already designed in KAN-70.
+- **Tests first:** I wrote the month, summary, service and controller tests before the code and saw all 4 files fail (the code didn't exist), then wrote the code until all 28 passed.
+- **Singapore months:** a month is `[1st 00:00 SGT, next 1st 00:00 SGT)`, stored as UTC instants. 11pm on 30 Nov SGT is 3pm UTC, still November; 00:30 on 1 Dec SGT is 30 Nov in UTC but counts as December. Unit and e2e tests check both sides of midnight.
+- **Summary maths as a pure function:** `summarise()` has no database, so a fast-check property test can throw hundreds of random months at it and check that the category totals always equal the month total.
+- **Someone else's expense is 404, not 403:** every query includes `userId`, so another user's expense looks exactly like a missing one and IDs can't be probed. The e2e test checks list, summary, edit and delete as user B.
+- **Paging that never repeats:** ordered by `spentAt`, then `createdAt`, then `id`, so two expenses at the same time always come in the same order and pages don't overlap.
+- **Bill shares stay honest:** a `BILL_SHARE`'s amount, merchant and date come from the bill (`409` to change them), but the category and note are personal.
+- **Small trap:** a DTO unit test crashed with `Reflect.getMetadata is not a function`. `@Type(() => Number)` needs `reflect-metadata`, which Nest loads at startup but a test that imports the DTO alone doesn't.
+
 ## KAN-75: Moving the database to Amazon RDS
 
 - **Private by design:** public access is off, so the endpoint resolves to a private `172.31.x.x` address. The `rds-sg` rule allows port 5432 only from the server's **security group**, not an IP. From my laptop the port is unreachable; from the server `psql` connects.

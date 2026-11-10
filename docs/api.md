@@ -107,7 +107,7 @@ Every endpoint can also return `500` for unexpected errors (same format).
   - `serviceBp` and `gstBp` are suggestions: `0` when the receipt shows no service charge, and `0` GST when the printed total equals the items' sum (GST already included, as at fast food and food courts).
   - `check` helps the owner spot mistakes: `subtotalMatches` (items vs the printed subtotal) and `totalMatches` (our total vs the printed total); `null` when the receipt doesn't show that number.
   - `409` locked bill (checked before calling the AI, so no quota is used), `413` over 5 MB, `422` the AI's answer failed validation, `429` free limit reached, `503` the AI is down or took over 60 s. Every error says the items can be added by hand.
-  - `POST /expenses/receipt` moves to the Expenses API (KAN-76).
+  - `POST /expenses/receipt` is part of the Expenses API (KAN-76).
 - **Lock** freezes the split and creates an `Expense` (source `BILL_SHARE`) for every participant who has a user account. **Unlock** removes those expenses.
 - Payments can only be marked while the bill is `LOCKED`. The app never moves money; this only records that someone says they paid.
 
@@ -188,19 +188,26 @@ Built in KAN-29:
 
 ## Expenses
 
-| Method | Path                              | Who        | Request body                                              | Response                                                   | Errors             |
-| ------ | --------------------------------- | ---------- | --------------------------------------------------------- | ---------------------------------------------------------- | ------------------ |
-| GET    | `/expenses?month=YYYY-MM`         | `verified` | none                                                      | `200 expense[]` for that month                             | 400, 401, 403      |
-| POST   | `/expenses`                       | `verified` | `{ amountCents, category, merchant?, note?, spentAt }`    | `201 expense` (source `MANUAL`)                            | 400, 401, 403      |
-| PATCH  | `/expenses/:id`                   | `verified` | `{ amountCents?, category?, merchant?, note?, spentAt? }` | `200 expense`                                              | 400, 401, 403, 404 |
-| DELETE | `/expenses/:id`                   | `verified` | none                                                      | `204`                                                      | 401, 403, 404, 409 |
-| POST   | `/expenses/receipt`               | `verified` | `multipart` receipt photo                                 | `201` draft `{ amountCents, merchant, category, spentAt }` | 400, 401, 403, 413 |
-| GET    | `/expenses/summary?month=YYYY-MM` | `verified` | none                                                      | `200 { totalCents, total, byCategory[] }`                  | 400, 401, 403      |
+| Method | Path                                         | Who        | Request body                                                    | Response                                                                   | Errors                            |
+| ------ | -------------------------------------------- | ---------- | --------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------- |
+| GET    | `/expenses?month=YYYY-MM&page=1&pageSize=50` | `verified` | none                                                            | `200 { month, page, pageSize, totalCount, items: expense[] }`              | 400, 401, 403                     |
+| POST   | `/expenses`                                  | `verified` | `{ amountCents, category, spentAt, merchant?, note?, source? }` | `201 expense` (source `MANUAL`, or `RECEIPT` for a saved scan)             | 400, 401, 403                     |
+| PATCH  | `/expenses/:id`                              | `verified` | `{ amountCents?, category?, merchant?, note?, spentAt? }`       | `200 expense`                                                              | 400, 401, 403, 404, 409           |
+| DELETE | `/expenses/:id`                              | `verified` | none                                                            | `204`                                                                      | 401, 403, 404, 409                |
+| POST   | `/expenses/receipt`                          | `verified` | `multipart` receipt photo (field `image`)                       | `201` draft `{ amountCents, amount, merchant, category, spentAt, source }` | 400, 401, 403, 413, 422, 429, 503 |
+| GET    | `/expenses/summary?month=YYYY-MM`            | `verified` | none                                                            | `200 { month, totalCents, total, byCategory[] }`                           | 400, 401, 403                     |
 
 - `category` is one of: `FOOD_DRINKS`, `GROCERIES`, `TRANSPORT`, `SHOPPING`, `GIFTS`, `ENTERTAINMENT`, `BILLS_UTILITIES`, `HEALTH`, `TRAVEL`, `OTHERS`.
 - A `BILL_SHARE` expense comes from a locked bill. It cannot be deleted here (`409`); unlock the bill instead. Its category can still be changed.
 - When the user changes a category, `MerchantCategory` remembers it, so the next receipt from the same merchant gets that category.
 - Users only ever see their own expenses (`404` for someone else's, so IDs can't be probed).
+- Built in KAN-76, with a login (`JwtAuthGuard`) for now; `EmailVerifiedGuard` comes with email verification (KAN-77). Remembering category changes (`MerchantCategory`) is KAN-78, and creating `BILL_SHARE` expenses on lock is KAN-79.
+  - **Months are Singapore time** (UTC+8): an expense at 11pm on 30 Nov is in November. `month` defaults to the current month in Singapore.
+  - `expense` is `{ id, amountCents, amount, category, merchant, note, spentAt, source, billId, createdAt }`. Newest first; `pageSize` is 1 to 100 (default 50).
+  - `byCategory[]` is `{ category, totalCents, total, count }`, biggest first. The category totals always add up to `totalCents`.
+  - `amountCents` is 1 to 100000000 (whole cents). `source` can be `MANUAL` or `RECEIPT`; only a locked bill makes a `BILL_SHARE`.
+  - A `BILL_SHARE`'s amount, merchant and date come from the bill, so changing them is `409`; `category` and `note` can change.
+  - `POST /expenses/receipt` is a draft, nothing is saved: `amountCents` is the printed total (or the items added up), `category` is `OTHERS` if the AI gave none, and `spentAt` is `null` if no date was read. No total at all → `422`. Same limits as the bill receipt route (5 a minute, 5 MB, JPEG or PNG).
 
 ## Health
 

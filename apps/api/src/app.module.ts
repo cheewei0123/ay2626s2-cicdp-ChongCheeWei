@@ -5,6 +5,7 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthModule } from './auth/auth.module.js';
 import { BillsModule } from './bills/bills.module.js';
+import { ExpensesModule } from './expenses/expenses.module.js';
 import { HealthModule } from './health/health.module.js';
 import { ReceiptsModule } from './receipts/receipts.module.js';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware.js';
@@ -15,6 +16,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     PrismaModule,
     AuthModule,
     BillsModule,
+    ExpensesModule,
     HealthModule,
     ReceiptsModule, // brings in OcrModule
     // At most 100 requests per minute from one IP; busy routes set lower limits with @Throttle

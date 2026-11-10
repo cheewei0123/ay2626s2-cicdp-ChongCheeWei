@@ -32,7 +32,7 @@ flowchart LR
 
 ## Module map
 
-Each feature is its own NestJS module. Built so far: `PrismaModule`, `AuthModule`, `BillsModule` (bills, items, share link, claims, summary), `SplitModule`, `HealthModule`, `OcrModule` (Gemini and Fake) and `ReceiptsModule`. The rest are planned. `BillsModule` imports `SplitModule` to use `SplitService`, so the money maths has one home and is shared through dependency injection.
+Each feature is its own NestJS module. Built so far: `PrismaModule`, `AuthModule`, `BillsModule` (bills, items, share link, claims, summary), `SplitModule`, `HealthModule`, `OcrModule` (Gemini and Fake), `ReceiptsModule` and `ExpensesModule`. The rest are planned. `BillsModule` imports `SplitModule` to use `SplitService`, so the money maths has one home and is shared through dependency injection.
 
 | Module           | Responsibility                                     | Main providers                                                    | Depends on            |
 | ---------------- | -------------------------------------------------- | ----------------------------------------------------------------- | --------------------- |
@@ -42,7 +42,7 @@ Each feature is its own NestJS module. Built so far: `PrismaModule`, `AuthModule
 | `ReceiptsModule` | Receipt upload → draft items (built)               | `ReceiptsService`                                                 | Ocr, Prisma           |
 | `OcrModule`      | Read items from a receipt photo                    | `OCR_SERVICE` token → Gemini / Tesseract / Fake                   | none                  |
 | `SplitModule`    | **Pure** money maths: charges and per-person split | `SplitService`, `billTotals()` (built)                            | none (no DB, no HTTP) |
-| `ExpensesModule` | Monthly expenses, categories                       | `ExpensesService`                                                 | Prisma                |
+| `ExpensesModule` | Monthly expenses, categories (built)               | `ExpensesService`                                                 | Ocr, Prisma           |
 | `PaymentsModule` | PayNow QR payload, mark paid                       | `PaymentsService`                                                 | Prisma                |
 | `EmailModule`    | Send emails                                        | `EMAIL_SERVICE` token → Resend / SMTP / Fake                      | none                  |
 | `PrismaModule`   | Database access, **global** (built)                | `PrismaService`                                                   | none                  |
