@@ -22,6 +22,7 @@ Bullet points collected as the project goes, grouped by the report rubric. Scree
   - **Largest remainder:** floor everyone's exact share, then give the leftover cents to the largest fractions. Per-person totals always add up to the receipt total.
   - Worked example: Chee 720, Ali 899, Ben 959, Dan 959 = 3537.
 - **Database:** Prisma 7 + PostgreSQL 18. Docker locally, Amazon RDS in production (same version for dev/prod parity).
+- **RDS is private** (KAN-75): no public access, and its security group accepts port 5432 only from the server's security group. From my laptop the port is unreachable. The API logs in as an `app` user that owns only the `splitlah` database, over TLS with the certificate checked. Evidence: `kan-75-rds-connectivity.png`, `kan-75-rds-sg-inbound.png`.
 
 ## c) Implementation and CI/CD (30%)
 
@@ -72,4 +73,5 @@ Bullet points collected as the project goes, grouped by the report rubric. Scree
 - **Early mistakes kept in history:** two early commit titles don't follow the convention, and `main` is protected so they stay. The PR title now matters because squash merge uses it as the commit message.
 - **Windows setup cost time:** UTF-16 README, WSL install blocked (403), port 5432 already in use by a local Postgres.
 - **AI output is not trusted:** Gemini's answer is checked with a schema, returned as a draft, and compared with the printed totals. Testing 5 real receipts found three problems (discounts, "2 FOR" deals, GST-inclusive totals), each fixed in the prompt or the checks. See [ocr-accuracy.md](ocr-accuracy.md).
+- **Managed database vs container (KAN-75):** RDS gives backups, patching and data that survives the server, for free on the free tier. Costs: Single-AZ is still one copy, it will cost more than a container once the free tier ends, and it needs more setup (security group, certificates, users). Lock-in is low: plain Postgres behind `DATABASE_URL`, so going back to a container is a config change.
 - **Free tier trade-offs:** the slowest model took 100 s; I measured three and chose Flash-Lite (about 2 s, 500 a day). Google may use free-tier uploads to improve its products, so the photo is not stored and users should cover card numbers.

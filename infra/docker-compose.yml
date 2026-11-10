@@ -1,33 +1,20 @@
 # Production stack on the EC2 server (/opt/splitlah/docker-compose.yml).
 # deploy.sh sets TAG to the commit SHA being deployed. Secrets come from /opt/splitlah/.env,
 # which exists only on the server and is never in git.
+# The database is Amazon RDS (KAN-75), reached through DATABASE_URL in .env. There is no db service.
 name: splitlah
 
 services:
-  # Postgres runs here until KAN-75 moves it to Amazon RDS (then only DATABASE_URL changes)
-  db:
-    image: postgres:18
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: splitlah
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      POSTGRES_DB: splitlah
-    volumes:
-      - db-data:/var/lib/postgresql
-    # No "ports": the database is only reachable by the other containers, never the internet
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U splitlah']
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   api:
     image: ghcr.io/cheewei0123/splitlah-api:${TAG:?set TAG to the commit SHA}
     restart: unless-stopped
     env_file: .env
-    depends_on:
-      db:
-        condition: service_healthy
+    # Amazon's public RDS certificates (downloaded once to /opt/splitlah, see docs/infra.md).
+    # Node only trusts the usual public CAs, so without these it refuses the RDS certificate.
+    volumes:
+      - ./rds-ca.pem:/certs/rds-ca.pem:ro
+    environment:
+      NODE_EXTRA_CA_CERTS: /certs/rds-ca.pem
     ports:
       # Public on port 80 until Caddy and HTTPS take over in KAN-39
       - '80:3000'
@@ -36,10 +23,8 @@ services:
   migrate:
     image: ghcr.io/cheewei0123/splitlah-migrate:${TAG:?set TAG to the commit SHA}
     env_file: .env
-    depends_on:
-      db:
-        condition: service_healthy
+    volumes:
+      - ./rds-ca.pem:/certs/rds-ca.pem:ro
+    environment:
+      NODE_EXTRA_CA_CERTS: /certs/rds-ca.pem
     profiles: ['tools']
-
-volumes:
-  db-data:

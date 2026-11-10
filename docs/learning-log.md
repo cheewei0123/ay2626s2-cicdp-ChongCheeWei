@@ -2,6 +2,15 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-75: Moving the database to Amazon RDS
+
+- **Private by design:** public access is off, so the endpoint resolves to a private `172.31.x.x` address. The `rds-sg` rule allows port 5432 only from the server's **security group**, not an IP. From my laptop the port is unreachable; from the server `psql` connects.
+- **My rule pointed at the wrong group:** the first connection from the server timed out. A timeout (not "refused") means a firewall is dropping packets. In CloudShell, `describe-instances` showed the server uses `sg-0f8e…` while `rds-sg` allowed `sg-0bf1…`. Fixing the source fixed it at once.
+- **Two users:** the master user only creates things; the API logs in as `app`, which owns just the `splitlah` database. Postgres 16+ needed `GRANT app TO postgres` before `CREATE DATABASE … OWNER app`.
+- **TLS that is actually checked:** the `pg` driver treats `sslmode=require` as verify-full and warns that `pg` 9 will change that. Node doesn't trust Amazon's RDS certificate authority, so Amazon's public certificates are mounted into the containers with `NODE_EXTRA_CA_CERTS`. The first test failed only at the password step, which proved the network and certificate were already fine.
+- **Tested before switching:** a one-off API container connected with `pg`, and the `migrate` container created all 3 migrations on RDS, while the live site still used the old database. The real switch is the merge: the deploy uses the new compose file (no `db` service).
+- **SSH from outside home:** my public IP changed between two attempts minutes apart, so a single-IP rule kept locking me out. A temporary `/24` rule for that network let me in; SSH still accepts only my key.
+
 ## KAN-33: Reading receipts with Gemini
 
 - **One zod schema, used twice:** it is sent to Gemini as the required JSON shape, and the same schema checks the answer before anything is used. Bad answers (prices in dollars, negative prices, unknown category, not JSON) become a clear `422`, never bad data.

@@ -29,7 +29,7 @@ docker compose pull api migrate
 echo "== 2. Apply database migrations (additive only, so the old version still works if we roll back)"
 docker compose run --rm migrate
 
-echo "== 3. Start the new API (and the database, if it isn't running)"
+echo "== 3. Start the new API"
 docker compose up -d --remove-orphans
 
 echo "== 4. Health check"
