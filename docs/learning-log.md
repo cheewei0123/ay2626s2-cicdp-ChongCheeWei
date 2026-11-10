@@ -2,6 +2,17 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-42: Login and register screens
+
+- **One API client:** every call goes through `api()` in `apps/web/src/api/client.ts`. It adds `/api`, the `Bearer` token and JSON, and turns the API's error JSON into a sentence (`displayName must be…` → `Name must be…`, a list of problems → one per line, `429` → "Too many tries").
+- **Staying logged in:** the token is kept in `localStorage`. On a refresh, `AuthProvider` asks `GET /me` who it belongs to; an expired token gets `401`, which clears it and shows Log in. The page waits ("Loading…") instead of flashing Log in first.
+- **Same rules on both sides:** the forms check the `RegisterDto` rules before sending (email, 8–128 characters, `+65` mobile starting with 8 or 9), so most mistakes show at once. The API still checks, because the browser can't be trusted.
+- **Same address in dev and production:** Vite sends `/api` to `localhost:3000` in development, like Caddy does in production, so there is no CORS and no different URL to configure.
+- **Tests that act like a person:** Testing Library types into fields found by their label and clicks buttons by name, with `fetch` replaced by a fake API. Finding fields by label also proves the labels are linked to the inputs (screen readers need that). The web app now has a 90% coverage gate too (100% lines).
+- **iPhone details:** inputs use 16px text, because iPhone Safari zooms in on anything smaller, and buttons are 48px tall.
+- **Tried for real:** against the local API, registering landed on My bills, a refresh kept me logged in, a wrong password showed "Invalid email or password", and Log out went back to Log in with the token gone.
+- **Lint warning avoided:** React's fast refresh wants files to export only components, so `useAuth` lives in `context.ts`, not next to `AuthProvider`.
+
 ## KAN-50: Sprint 1 evidence, measured again
 
 - **Direct push to `main` (KAN-17):** an empty commit pushed straight to `main` was rejected with `GH013`: "Changes must be made through a pull request" and "7 of 7 required status checks are expected". The rule applies to me as the repo owner too. The test commit never reached GitHub.

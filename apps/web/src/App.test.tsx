@@ -1,9 +1,11 @@
-import { renderToString } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { expect, it } from 'vitest';
 import App from './App';
 
-describe('App', () => {
-  it('renders the app name', () => {
-    expect(renderToString(<App />)).toContain('SplitLah');
-  });
+it('opens on the log in page when nobody is logged in', async () => {
+  render(<App />);
+  expect(
+    await screen.findByRole('button', { name: 'Log in' }),
+  ).toBeInTheDocument();
+  expect(window.location.pathname).toBe('/login');
 });
