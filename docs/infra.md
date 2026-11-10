@@ -25,7 +25,7 @@ Postgres (5432) and the API (3000) are **never** opened. Only Caddy faces the in
 
 ## HTTPS (Caddy, KAN-39)
 
-The site is **https://splitlah.duckdns.org**. The iPhone camera and installing the PWA both need HTTPS.
+The site is **https://splitlah.duckdns.org**. The iPhone camera and installing the PWA both need HTTPS. Checked on 10 Nov: Let's Encrypt certificate valid to 8 Feb 2027, the same certificate after a restart, and the app opens on iPhone Safari without a warning.
 
 - **DuckDNS** gives a free name (`splitlah.duckdns.org`) pointing at the server's IP.
 - **Caddy** asks Let's Encrypt for a certificate the first time it starts and renews it by itself. `http://` is redirected to `https://`. The certificate is kept in the `caddy-data` volume, so a restart doesn't request a new one.
