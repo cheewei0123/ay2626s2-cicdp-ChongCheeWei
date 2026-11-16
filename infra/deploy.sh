@@ -24,6 +24,18 @@ healthy() {
 echo "== Deploying $NEW_TAG (previous: ${PREVIOUS_TAG:-none})"
 export TAG="$NEW_TAG"
 
+# Every release leaves three images tagged with its commit SHA. `docker image prune`
+# without -a only removes untagged images, so those piled up until the disk was full
+# and the pull failed ("no space left on device"). -a removes every image that no
+# container is using. The running release is in use, so it stays for a rollback.
+free_disk() {
+  docker image prune -af >/dev/null
+  df -h / | awk 'NR==2 { print "   disk: " $3 " used, " $4 " free (" $5 ")" }'
+}
+
+echo "== 0. Remove images from old releases"
+free_disk
+
 echo "== 1. Pull the new images from GHCR"
 docker compose pull web api migrate
 
@@ -37,7 +49,7 @@ echo "== 4. Health check"
 if healthy; then
   echo "$NEW_TAG" > "$STATE_FILE"
   echo "== Healthy. $NEW_TAG is live."
-  docker image prune -f >/dev/null # remove old, unused images so the disk doesn't fill up
+  free_disk # the release before this one is no longer needed
   exit 0
 fi
 

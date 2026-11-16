@@ -14,6 +14,16 @@ Short notes on what I learned and what went wrong, newest first. Used as evidenc
 - **jsdom limits:** it has no canvas and no `URL.createObjectURL`, so the tests swap `shrinkImage` for a pass-through and `image.ts` is the one file not covered by tests (web coverage is still 96%). I tried it in a real browser instead.
 - **Tried for real** against the local API with the fake receipt reader: scan → 3 items, total $35.37 ✓; changing Laksa to $8.50 showed the warning; switching service charge off gave $33.25.
 
+## KAN-40: three deploys failed because the server's disk was full
+
+- **What happened:** on 16 Nov, three merges in a row (#70, #73, #71) built and pushed their images, then failed in the deploy step with `no space left on device` while pulling. The first one was only a test-library update, so it was not the code.
+- **The site stayed up:** the script stops at the pull (`set -e`), before it touches the running containers, so the previous release (KAN-43) kept serving. `/api/health` answered `ok` the whole time. A failed deploy is red in GitHub but invisible to users.
+- **The cause was my cleanup line:** `docker image prune -f` only removes **untagged** images. Every release leaves three images tagged with its commit SHA (`web`, `api`, `migrate`), and those were never removed. After about 30 deploys the 20 GB disk was full.
+- **The fix:** `docker image prune -af` removes every image that no container is using. It runs before the pull (so a full disk heals itself on the next deploy) and again after a healthy release. The running release is "in use", so it is always kept for a rollback.
+- **Now visible:** each deploy prints the disk use (`disk: 6.2G used, 13G free (33%)`), so a disk filling up shows in the log long before it fails.
+- **No SSH needed to fix it:** the deploy job copies `deploy.sh` to the server before running it, so merging the fix was the repair.
+- **Lesson:** a cleanup step that "runs without errors" is not the same as one that cleans up. I should have checked the disk after a few deploys.
+
 ## KAN-44 (part 1): share a bill, friends tap their items
 
 - **The flow:** Check items → **Share** (QR code, 5-character join code, copy link, who has joined) → a friend opens `/s/:token`, types a name once, and taps what they had. "My total so far" stays at the bottom of their screen.
