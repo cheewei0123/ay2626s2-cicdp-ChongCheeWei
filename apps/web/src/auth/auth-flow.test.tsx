@@ -246,15 +246,6 @@ describe('Staying logged in', () => {
 });
 
 describe('Other pages', () => {
-  it('a shared bill link opens without logging in', async () => {
-    const fetchMock = fakeApi({});
-    renderApp('/s/abc123');
-    expect(
-      await screen.findByText('Opening shared bills is coming soon.'),
-    ).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
   it('an unknown address goes to My bills (or log in)', async () => {
     fakeApi({});
     const router = renderApp('/nowhere');

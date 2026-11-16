@@ -18,6 +18,9 @@ const dinner: Bill = {
   status: 'OPEN',
   serviceBp: 1000,
   gstBp: 900,
+  shareToken: 'tok',
+  joinCode: 'K7P2Q',
+  participants: [],
   items: [
     { id: 'i1', name: 'Chicken Rice', unitPriceCents: 600, quantity: 1 },
     { id: 'i2', name: 'Laksa', unitPriceCents: 750, quantity: 1 },

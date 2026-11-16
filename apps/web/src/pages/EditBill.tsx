@@ -159,8 +159,8 @@ export default function EditBill() {
             {formatCents(totals.totalCents)}. Check the items and charges.
           </p>
         ))}
-      <Link to="/bills" className={primaryButton}>
-        Done
+      <Link to={`/bills/${id}/share`} className={primaryButton}>
+        Next: share
       </Link>
     </Page>
   );

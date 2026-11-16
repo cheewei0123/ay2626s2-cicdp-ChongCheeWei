@@ -8,6 +8,7 @@ import MyBills from './pages/MyBills';
 import NewBill from './pages/NewBill';
 import Register from './pages/Register';
 import ScanReceipt from './pages/ScanReceipt';
+import Share from './pages/Share';
 
 const needsLogin = (page: ReactNode) => <RequireAuth>{page}</RequireAuth>;
 
@@ -19,6 +20,7 @@ export const routes: RouteObject[] = [
   { path: '/bills/new', element: needsLogin(<NewBill />) },
   { path: '/bills/:id/scan', element: needsLogin(<ScanReceipt />) },
   { path: '/bills/:id/edit', element: needsLogin(<EditBill />) },
+  { path: '/bills/:id/share', element: needsLogin(<Share />) },
   { path: '/s/:token', element: <GuestBill /> }, // public: friends open the share link
   { path: '*', element: <Navigate to="/bills" replace /> },
 ];
