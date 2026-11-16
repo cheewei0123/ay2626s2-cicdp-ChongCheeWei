@@ -1,18 +1,29 @@
 import type { ReactNode } from 'react';
 import { NavLink } from 'react-router';
+import { Brand, Logo } from './Logo';
 
 const tab = ({ isActive }: { isActive: boolean }) =>
-  `flex-1 rounded-lg py-2 text-center font-medium ${isActive ? 'bg-white text-slate-900 shadow' : 'text-slate-500'}`;
+  `flex-1 rounded-full py-2.5 text-center font-medium transition ${isActive ? 'bg-raised text-ink' : 'text-muted'}`;
 
-// The frame shared by Log in and Register (wireframe #1): name, tagline and two tabs
+// The frame shared by Log in and Register (wireframe #1): logo, headline and two tabs
 export function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-6 py-10">
-      <header className="text-center">
-        <h1 className="text-4xl font-bold text-emerald-600">SplitLah</h1>
-        <p className="mt-1 text-slate-500">Split the bill, to the cent</p>
+    <main className="rise mx-auto flex min-h-screen max-w-sm flex-col gap-6 px-5 py-6">
+      <Brand />
+      <header className="flex flex-col gap-4">
+        <div className="self-center py-2">
+          <Logo size={132} moving />
+        </div>
+        <h1 className="text-4xl leading-tight font-semibold tracking-tighter">
+          <span className="block">Split the bill.</span>
+          <span className="block">Track the spend.</span>
+        </h1>
+        <p className="text-muted">
+          Scan a receipt, share a link, and everyone pays their exact share by
+          PayNow. Your share goes into your monthly expenses by itself.
+        </p>
       </header>
-      <nav className="flex gap-1 rounded-xl bg-slate-100 p-1">
+      <nav className="glass flex gap-1 rounded-full p-1">
         <NavLink to="/login" className={tab}>
           Log in
         </NavLink>

@@ -2,6 +2,28 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-43: Scan a receipt and check the items
+
+- **The flow:** My bills → New bill (a name) → Add items (photo, or "Type it in") → Check items (fix items, service charge and GST, see the totals).
+- **Dollars to cents without decimals:** `parseDollars("12.5")` gives `1250` by splitting the text at the dot and padding the cents ("5" → "50"). `19.99 * 100` in JavaScript is `1998.9999999999998`, so the maths never touches a decimal number. Percent to basis points is the same function ("7.5" → 750).
+- **Totals come from the API:** every change (add, edit, delete, charges) is saved at once and the bill is loaded again. The page never works out service or GST itself, so the money maths still has one home (`SplitModule`).
+- **The camera is one line of HTML:** `<input type="file" accept="image/*" capture="environment">` opens the back camera on a phone and a file picker on a laptop. No camera library.
+- **Photos are shrunk first:** iPhone photos can be over the API's 5 MB limit. The photo is drawn onto a canvas at most 1600 px wide and sent as a JPEG. A 1.5 MB test photo became 363 KB.
+- **The AI's answer is still checked by a person:** after a scan the items are put on the (open, unshared) bill and shown on Check items. The receipt's printed total travels with them: "Receipt says $35.37 ✓" when our total matches, a warning when it doesn't.
+- **A test caught a timing mistake of mine:** I changed the fake API's next answer before the page had loaded the first one, so the page started with the wrong bill. Wait for the screen first, then set up the next answer.
+- **jsdom limits:** it has no canvas and no `URL.createObjectURL`, so the tests swap `shrinkImage` for a pass-through and `image.ts` is the one file not covered by tests (web coverage is still 96%). I tried it in a real browser instead.
+- **Tried for real** against the local API with the fake receipt reader: scan → 3 items, total $35.37 ✓; changing Laksa to $8.50 showed the warning; switching service charge off gave $33.25.
+
+## KAN-43 follow-up: one look for every screen
+
+- **Design tokens:** every colour is a name in `apps/web/src/index.css` (`@theme`), and screens only use the names (`text-muted`, `bg-raised`). I changed the whole look three times in one day (green pills → my site's look → dark glass, then new colours) and no screen file needed a new colour; no test changed either, because the tests find things by label and role, not by style.
+- **Written down first:** `docs/ui-reference.md` says what I saw in the design I liked and what I took from it; `docs/ui-design.md` is the rules (colours, glass, shapes, building blocks, a checklist). Only the style is borrowed: no photos, icons, text or layouts from the reference.
+- **Frosted glass is three lines of CSS:** a see-through white background, a 1px light border and `backdrop-filter: blur()`. The glow is one fixed `body::before` with three `radial-gradient`s, so no screen has to draw it.
+- **Shared pieces instead of copied classes:** `row`, `Initial`, `SectionLabel`, `primaryButton` and friends live in `components/Page.tsx`, so bills and items look the same because they are the same code.
+- **An SVG cuts off what leaves its box:** the logo's halves slide apart, and the edges were clipped until the SVG got `overflow: visible` and the mark was made a little smaller.
+- **Self-hosted font:** Plus Jakarta Sans comes from an npm package and is built into the app, so there is no request to Google and it works offline.
+- **Respecting the phone:** the page rise-in and the logo movement switch off under `prefers-reduced-motion`.
+
 ## KAN-42: Login and register screens
 
 - **One API client:** every call goes through `api()` in `apps/web/src/api/client.ts`. It adds `/api`, the `Bearer` token and JSON, and turns the API's error JSON into a sentence (`displayName must be…` → `Name must be…`, a list of problems → one per line, `429` → "Too many tries").

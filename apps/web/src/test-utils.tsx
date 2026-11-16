@@ -23,7 +23,8 @@ export function fakeApi(replies: Record<string, Reply | Promise<Reply>>) {
 }
 
 // The whole app (same routes as production) opened at `path`
-export function renderApp(path: string) {
+// (or at a path with the state another page would pass along)
+export function renderApp(path: string | { pathname: string; state: unknown }) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   render(
     <AuthProvider>

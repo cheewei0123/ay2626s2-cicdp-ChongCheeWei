@@ -25,7 +25,7 @@ flowchart LR
 ```
 
 - **Caddy** gets a free HTTPS certificate for `splitlah.duckdns.org`, serves the React files itself, and sends `/api` to the API (KAN-39).
-- **Web app:** React Router pages; one API client (`apps/web/src/api/client.ts`) adds the login token and turns error JSON into sentences; `AuthProvider` keeps who is logged in (KAN-42).
+- **Web app:** React Router pages; one API client (`apps/web/src/api/client.ts`) adds the login token and turns error JSON into sentences; `AuthProvider` keeps who is logged in (KAN-42). Bill pages show totals worked out by the API, never their own (KAN-43).
 - **Locally**, the API and web run with `npm run start:dev` / `npm run dev`, and Postgres runs in Docker (`infra/docker-compose.dev.yml`).
 - **In tests and CI**, OCR and email are Fakes, so nothing outside is called.
 

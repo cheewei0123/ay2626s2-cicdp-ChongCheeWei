@@ -23,7 +23,7 @@ export function setUnauthorizedHandler(handler: () => void) {
   onUnauthorized = handler;
 }
 
-type Options = { method?: string; body?: unknown };
+type Options = { method?: string; body?: object };
 
 export async function api<T>(
   path: string,
@@ -32,14 +32,17 @@ export async function api<T>(
   const token = tokenStore.get();
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  // A photo upload is a FormData; the browser sets its Content-Type itself
+  const isForm = body instanceof FormData;
+  if (body !== undefined && !isForm)
+    headers['Content-Type'] = 'application/json';
 
   let res: Response;
   try {
     res = await fetch(`/api${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined || isForm ? body : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(

@@ -12,6 +12,7 @@ const chee = {
   paynowMobile: null,
 };
 const loggedIn = { status: 200, body: { user: chee, accessToken: 'jwt-1' } };
+const noBills = { 'GET /api/bills': { status: 200, body: [] } };
 
 const token = () => localStorage.getItem('splitlah.token');
 const logInButton = () => screen.findByRole('button', { name: 'Log in' });
@@ -19,6 +20,7 @@ const logInButton = () => screen.findByRole('button', { name: 'Log in' });
 describe('Register', () => {
   it('registers, logs you in and lands on My bills', async () => {
     const fetchMock = fakeApi({
+      ...noBills,
       'POST /api/auth/register': { ...loggedIn, status: 201 },
     });
     const user = userEvent.setup();
@@ -33,7 +35,7 @@ describe('Register', () => {
       await screen.findByRole('heading', { name: 'My bills' }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText('Hi Chee! You have no bills yet.'),
+      await screen.findByText('Hi Chee! You have no bills yet.'),
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/bills');
     expect(token()).toBe('jwt-1');
@@ -107,7 +109,7 @@ describe('Register', () => {
 
   it('sends you to My bills if you are already logged in', async () => {
     localStorage.setItem('splitlah.token', 'jwt-1');
-    fakeApi({ 'GET /api/me': { status: 200, body: chee } });
+    fakeApi({ ...noBills, 'GET /api/me': { status: 200, body: chee } });
     const router = renderApp('/register');
     expect(
       await screen.findByRole('heading', { name: 'My bills' }),
@@ -118,7 +120,7 @@ describe('Register', () => {
 
 describe('Log in', () => {
   it('logs in and goes to My bills', async () => {
-    fakeApi({ 'POST /api/auth/login': loggedIn });
+    fakeApi({ ...noBills, 'POST /api/auth/login': loggedIn });
     const user = userEvent.setup();
     const router = renderApp('/login');
 
@@ -134,7 +136,7 @@ describe('Log in', () => {
   });
 
   it('sends you to log in first, then back to the page you opened', async () => {
-    fakeApi({ 'POST /api/auth/login': loggedIn });
+    fakeApi({ ...noBills, 'POST /api/auth/login': loggedIn });
     const user = userEvent.setup();
     const router = renderApp('/bills');
 
@@ -201,7 +203,10 @@ describe('Log in', () => {
 describe('Staying logged in', () => {
   it('a refresh keeps you logged in (the saved token is checked with GET /me)', async () => {
     localStorage.setItem('splitlah.token', 'jwt-1');
-    const fetchMock = fakeApi({ 'GET /api/me': { status: 200, body: chee } });
+    const fetchMock = fakeApi({
+      ...noBills,
+      'GET /api/me': { status: 200, body: chee },
+    });
     renderApp('/bills');
 
     expect(screen.getByText('Loading…')).toBeInTheDocument();
@@ -229,7 +234,7 @@ describe('Staying logged in', () => {
 
   it('log out clears the token and goes back to log in', async () => {
     localStorage.setItem('splitlah.token', 'jwt-1');
-    fakeApi({ 'GET /api/me': { status: 200, body: chee } });
+    fakeApi({ ...noBills, 'GET /api/me': { status: 200, body: chee } });
     const user = userEvent.setup();
     renderApp('/bills');
 
