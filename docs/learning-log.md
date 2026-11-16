@@ -14,6 +14,18 @@ Short notes on what I learned and what went wrong, newest first. Used as evidenc
 - **jsdom limits:** it has no canvas and no `URL.createObjectURL`, so the tests swap `shrinkImage` for a pass-through and `image.ts` is the one file not covered by tests (web coverage is still 96%). I tried it in a real browser instead.
 - **Tried for real** against the local API with the fake receipt reader: scan → 3 items, total $35.37 ✓; changing Laksa to $8.50 showed the warning; switching service charge off gave $33.25.
 
+## KAN-44 (part 1): share a bill, friends tap their items
+
+- **The flow:** Check items → **Share** (QR code, 5-character join code, copy link, who has joined) → a friend opens `/s/:token`, types a name once, and taps what they had. "My total so far" stays at the bottom of their screen.
+- **Two kinds of token, kept apart:** the owner has a login token (`Authorization: Bearer`); a friend has a guest token for one bill, sent as `X-Guest-Token` and kept in `localStorage` under that bill's share token. A `401` on a guest call only forgets the guest token and asks the name again; it must never log the owner out when both are on the same phone. A test covers exactly that.
+- **Polling, not WebSockets:** `usePolling` loads now and every 5 seconds, and clears its timer when the page is left. It is 8 lines, and its test uses fake timers to "wait" 5 seconds instantly. WebSockets stay a stretch item.
+- **Still no money maths in the browser:** the friend's total comes from `GET /share/:token/summary`, worked out by the tested split engine.
+- **The QR code is an SVG** drawn by `qrcode.react` from the link. It sits on a white card, because phone cameras need dark squares on a light background, even in a dark app.
+- **Use what the phone has:** `navigator.clipboard` copies the link, and the "Share…" button (the phone's own share sheet) only appears where `navigator.share` exists.
+- **A test that failed for the right reason to check:** a missing fake reply for `GET /me` made the app log the owner out in the test. The app was right; my test setup was wrong.
+- **Tried for real** against the local API: joined as "Ali", tapped Laksa and Tiger Beer → `$26.71` (8.50 + 16.00, + 9% GST); a second friend joining appeared on the owner's Share screen within 6 seconds.
+- **Not built yet (part 2):** the "Adjust split" sheet (equal / % / shares / exact) for shared items, and typing a join code on the home page.
+
 ## KAN-43 follow-up: one look for every screen
 
 - **Design tokens:** every colour is a name in `apps/web/src/index.css` (`@theme`), and screens only use the names (`text-muted`, `bg-raised`). I changed the whole look three times in one day (green pills → my site's look → dark glass, then new colours) and no screen file needed a new colour; no test changed either, because the tests find things by label and role, not by style.

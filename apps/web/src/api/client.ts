@@ -23,15 +23,17 @@ export function setUnauthorizedHandler(handler: () => void) {
   onUnauthorized = handler;
 }
 
-type Options = { method?: string; body?: object };
+// guestToken: a friend who joined a bill without an account (see bills/guest.ts)
+type Options = { method?: string; body?: object; guestToken?: string };
 
 export async function api<T>(
   path: string,
-  { method = 'GET', body }: Options = {},
+  { method = 'GET', body, guestToken }: Options = {},
 ): Promise<T> {
   const token = tokenStore.get();
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
+  if (guestToken) headers['X-Guest-Token'] = guestToken;
   // A photo upload is a FormData; the browser sets its Content-Type itself
   const isForm = body instanceof FormData;
   if (body !== undefined && !isForm)
@@ -54,7 +56,8 @@ export async function api<T>(
   if (res.status === 204) return undefined as T;
   const data: unknown = await res.json().catch(() => null);
   if (!res.ok) {
-    if (res.status === 401 && token) onUnauthorized();
+    // A guest's 401 is about their guest token, so it must not log the owner out
+    if (res.status === 401 && token && !guestToken) onUnauthorized();
     throw new ApiError(res.status, errorMessage(res.status, data));
   }
   return data as T;
