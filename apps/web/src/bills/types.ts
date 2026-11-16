@@ -45,7 +45,18 @@ export type SharedBill = {
   status: Bill['status'];
   owner: { displayName: string };
   participants: Person[];
-  items: (Item & { claims: { participantId: string }[] })[];
+  items: SharedItem[];
+};
+
+// An item with who claimed it and how it is split between them
+export type SharedItem = Item & {
+  splitMode: 'EQUAL' | 'PERCENT' | 'SHARES' | 'EXACT';
+  claims: {
+    participantId: string;
+    shares: number;
+    percentBp: number | null;
+    exactCents: number | null;
+  }[];
 };
 
 // GET /share/:token/summary: what each person owes

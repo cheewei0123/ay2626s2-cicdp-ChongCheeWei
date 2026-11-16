@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { NavLink } from 'react-router';
+import { Link, NavLink } from 'react-router';
 import { Brand, Logo } from './Logo';
 
 const tab = ({ isActive }: { isActive: boolean }) =>
@@ -32,6 +32,9 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         </NavLink>
       </nav>
       {children}
+      <Link to="/join" className="py-2 text-center font-medium text-muted">
+        Have a code? Join a bill
+      </Link>
     </main>
   );
 }

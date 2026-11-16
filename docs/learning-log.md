@@ -14,6 +14,16 @@ Short notes on what I learned and what went wrong, newest first. Used as evidenc
 - **jsdom limits:** it has no canvas and no `URL.createObjectURL`, so the tests swap `shrinkImage` for a pass-through and `image.ts` is the one file not covered by tests (web coverage is still 96%). I tried it in a real browser instead.
 - **Tried for real** against the local API with the fake receipt reader: scan → 3 items, total $35.37 ✓; changing Laksa to $8.50 showed the warning; switching service charge off gave $33.25.
 
+## KAN-44 (part 2): adjust how a shared item is split, and join with a code
+
+- **Adjust split sheet:** on an item I share with someone, "Adjust split" opens a sheet with four modes: Equal, % , Shares (2 : 1) and Exact amounts. It tells you while you type whether it adds up ("90%, need 100%", "$15.00, need $16.00"), and **Save is disabled until it does**.
+- **The rules are one plain function:** `checkSplit(mode, ids, values, itemCents)` in `bills/split.ts` returns either the entries to send or a message. No React in it, so 16 quick unit tests cover every rule, and the sheet only draws what it returns.
+- **Reused maths:** "70" → `7000` basis points and "10" → `1000` cents both go through the same text-to-hundredths helper from KAN-43, so there is still no decimal maths in the browser.
+- **Checked twice on purpose:** the browser check is for speed and kindness; the API checks the same rules again (`SetSplitDto`, then the split engine), because anyone can send a request without my page.
+- **Tried for real (the ticket's 70/30 test):** Ali and Dan share a $16.00 Tiger Beer. After 70/30, Ali owed `$21.48` and Dan `$5.23`, and the four people's totals still added up to the bill's `$33.25` exactly. The cents are right because the tested split engine (largest remainder) does the rounding, not the page.
+- **Join with a code:** `/join` takes the 5-character code, asks `GET /join/:code` for the share token and opens the same `/s/:token` page as the link. The code's shape is checked first, so a typo doesn't use up the rate limit.
+- **A new button broke an old test:** the test looked for a button named `/Tiger Beer/`, and "Adjust split of Tiger Beer" now matched too. Finding things by their accessible name means names must be distinct, which is also what a screen-reader user needs.
+
 ## KAN-40: three deploys failed because the server's disk was full
 
 - **What happened:** on 16 Nov, three merges in a row (#70, #73, #71) built and pushed their images, then failed in the deploy step with `no space left on device` while pulling. The first one was only a test-library update, so it was not the code.

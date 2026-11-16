@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Navigate, type RouteObject } from 'react-router';
 import { RequireAuth } from './auth/RequireAuth';
 import GuestBill from './pages/GuestBill';
+import JoinCode from './pages/JoinCode';
 import EditBill from './pages/EditBill';
 import Login from './pages/Login';
 import MyBills from './pages/MyBills';
@@ -22,5 +23,6 @@ export const routes: RouteObject[] = [
   { path: '/bills/:id/edit', element: needsLogin(<EditBill />) },
   { path: '/bills/:id/share', element: needsLogin(<Share />) },
   { path: '/s/:token', element: <GuestBill /> }, // public: friends open the share link
+  { path: '/join', element: <JoinCode /> }, // public: or type the 5-character code
   { path: '*', element: <Navigate to="/bills" replace /> },
 ];

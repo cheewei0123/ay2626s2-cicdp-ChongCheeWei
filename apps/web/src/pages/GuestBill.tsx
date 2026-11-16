@@ -5,6 +5,7 @@ import { guestStore } from '../bills/guest';
 import { formatCents } from '../bills/money';
 import type { Person, SharedBill, Summary } from '../bills/types';
 import { usePolling } from '../bills/usePolling';
+import { AdjustSplit } from '../components/AdjustSplit';
 import { Field } from '../components/Field';
 import { FormError } from '../components/FormError';
 import { Page, primaryButton, row } from '../components/Page';
@@ -17,6 +18,7 @@ export default function GuestBill() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [guest, setGuest] = useState(() => guestStore.get(token));
   const [error, setError] = useState('');
+  const [adjusting, setAdjusting] = useState<string | null>(null); // an item's id
 
   const load = useCallback(async () => {
     try {
@@ -64,6 +66,8 @@ export default function GuestBill() {
   const names = new Map(bill.participants.map((p) => [p.id, p.displayName]));
   const myTotal =
     summary?.people.find((p) => p.participantId === me)?.totalCents ?? 0;
+
+  const adjustItem = bill.items.find((i) => i.id === adjusting);
 
   // Tap an item to say "I had this"; tap again to take it back
   async function toggle(itemId: string, mine: boolean) {
@@ -138,10 +142,36 @@ export default function GuestBill() {
                   {formatCents(item.unitPriceCents * item.quantity)}
                 </span>
               </button>
+              {/* Only for an item I share with someone, while the bill is open */}
+              {mine && claimers.length > 1 && !locked && (
+                <button
+                  type="button"
+                  onClick={() => setAdjusting(item.id)}
+                  className="h-11 px-5 text-sm font-medium text-muted underline"
+                >
+                  Adjust split of {item.name}
+                </button>
+              )}
             </li>
           );
         })}
       </ul>
+      {adjustItem && (
+        <AdjustSplit
+          item={adjustItem}
+          nameOf={(id) => (id === me ? 'You' : (names.get(id) ?? ''))}
+          onClose={() => setAdjusting(null)}
+          onSave={async (body) => {
+            await api(`/share/${token}/claims/${adjustItem.id}`, {
+              method: 'PATCH',
+              body,
+              guestToken: guest.token,
+            });
+            setAdjusting(null);
+            await load();
+          }}
+        />
+      )}
       {/* Stays at the bottom of the screen while the list scrolls */}
       <dl className="hero sticky bottom-4 flex items-end justify-between rounded-[32px] p-6">
         <dt>
