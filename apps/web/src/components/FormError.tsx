@@ -4,7 +4,7 @@ export function FormError({ message }: { message: string }) {
   return (
     <p
       role="alert"
-      className="whitespace-pre-line rounded-lg bg-red-50 p-3 text-sm text-red-700"
+      className="whitespace-pre-line rounded-[28px] bg-danger/10 p-4 text-sm text-danger"
     >
       {message}
     </p>

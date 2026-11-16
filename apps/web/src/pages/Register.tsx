@@ -5,6 +5,7 @@ import { validateRegister, type FieldErrors } from '../auth/validation';
 import { AuthLayout } from '../components/AuthLayout';
 import { Field } from '../components/Field';
 import { FormError } from '../components/FormError';
+import { primaryButton } from '../components/Page';
 
 export default function Register() {
   const { user, register } = useAuth();
@@ -90,11 +91,7 @@ export default function Register() {
           hint="Friends pay you here"
         />
         <FormError message={formError} />
-        <button
-          type="submit"
-          disabled={busy}
-          className="h-12 rounded-lg bg-emerald-600 font-semibold text-white disabled:opacity-60"
-        >
+        <button type="submit" disabled={busy} className={primaryButton}>
           {busy ? 'Creating account…' : 'Create account'}
         </button>
       </form>

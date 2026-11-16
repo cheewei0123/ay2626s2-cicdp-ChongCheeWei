@@ -8,3 +8,6 @@ afterEach(() => {
   localStorage.clear(); // no login token leaks into the next test
   vi.unstubAllGlobals(); // undo the fake fetch
 });
+
+// jsdom has no photo preview URLs; the scan screen only needs some address
+URL.createObjectURL = () => 'blob:preview';

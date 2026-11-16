@@ -14,7 +14,7 @@ export function Field({ label, name, error, hint, ...input }: Props) {
   const message = error ?? hint;
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-medium text-slate-700">
+      <label htmlFor={id} className="px-2 text-sm font-medium text-muted">
         {label}
       </label>
       <input
@@ -22,13 +22,13 @@ export function Field({ label, name, error, hint, ...input }: Props) {
         name={name}
         aria-invalid={error ? true : undefined}
         aria-describedby={message ? `${id}-message` : undefined}
-        className={`h-12 rounded-lg border px-3 text-base ${error ? 'border-red-500' : 'border-slate-300'}`}
+        className={`h-14 rounded-full border bg-surface px-5 text-base text-ink backdrop-blur-xl placeholder:text-faint ${error ? 'border-danger' : 'border-line'}`}
         {...input}
       />
       {message && (
         <span
           id={`${id}-message`}
-          className={`text-sm ${error ? 'text-red-600' : 'text-slate-500'}`}
+          className={`px-2 text-sm ${error ? 'text-danger' : 'text-muted'}`}
         >
           {message}
         </span>
