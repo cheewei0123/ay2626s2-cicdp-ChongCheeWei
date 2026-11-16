@@ -126,7 +126,7 @@ describe('Tapping what you had', () => {
     const laksa = screen.getByRole('button', { name: /Laksa/ });
     expect(laksa).toHaveTextContent('You');
     expect(laksa).toHaveAttribute('aria-pressed', 'true');
-    const beer = screen.getByRole('button', { name: /Tiger Beer/ });
+    const beer = screen.getByRole('button', { name: /^Tiger Beer/ });
     expect(beer).toHaveTextContent('You, Ben · shared');
     expect(beer).toHaveTextContent('$16.00');
     expect(screen.getByText('My total so far').closest('dl')).toHaveTextContent(
