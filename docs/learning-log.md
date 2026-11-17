@@ -2,17 +2,15 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
-## KAN-43: Scan a receipt and check the items
+## KAN-45: the summary screen and the Lock button
 
-- **The flow:** My bills → New bill (a name) → Add items (photo, or "Type it in") → Check items (fix items, service charge and GST, see the totals).
-- **Dollars to cents without decimals:** `parseDollars("12.5")` gives `1250` by splitting the text at the dot and padding the cents ("5" → "50"). `19.99 * 100` in JavaScript is `1998.9999999999998`, so the maths never touches a decimal number. Percent to basis points is the same function ("7.5" → 750).
-- **Totals come from the API:** every change (add, edit, delete, charges) is saved at once and the bill is loaded again. The page never works out service or GST itself, so the money maths still has one home (`SplitModule`).
-- **The camera is one line of HTML:** `<input type="file" accept="image/*" capture="environment">` opens the back camera on a phone and a file picker on a laptop. No camera library.
-- **Photos are shrunk first:** iPhone photos can be over the API's 5 MB limit. The photo is drawn onto a canvas at most 1600 px wide and sent as a JPEG. A 1.5 MB test photo became 363 KB.
-- **The AI's answer is still checked by a person:** after a scan the items are put on the (open, unshared) bill and shown on Check items. The receipt's printed total travels with them: "Receipt says $35.37 ✓" when our total matches, a warning when it doesn't.
-- **A test caught a timing mistake of mine:** I changed the fake API's next answer before the page had loaded the first one, so the page started with the wrong bill. Wait for the screen first, then set up the next answer.
-- **jsdom limits:** it has no canvas and no `URL.createObjectURL`, so the tests swap `shrinkImage` for a pass-through and `image.ts` is the one file not covered by tests (web coverage is still 96%). I tried it in a real browser instead.
-- **Tried for real** against the local API with the fake receipt reader: scan → 3 items, total $35.37 ✓; changing Laksa to $8.50 showed the warning; switching service charge off gave $33.25.
+- **What it shows:** one card per person with what they had, their part of the service charge and GST, and their total in big numbers, plus a "Paid" badge. At the bottom: the bill's subtotal, service, GST and total, and "Everyone's totals add up to $35.37 ✓".
+- **Two ways in, one view:** the owner opens `/bills/:id/summary` (from "See summary" on the share screen, or from My bills once a bill is locked); a friend taps the Summary tab on the share link. Both draw the same `SummaryView`, so they can never disagree.
+- **No money maths in the page again:** every number comes from `GET .../summary`, which the tested split engine works out. The page only adds up the people's totals to show the check, and shows a warning if they ever don't match.
+- **Unclaimed items:** if nobody tapped an item, the API gives it to the owner. The screen says so in amber ("$16.00 unclaimed, assigned to you"), and the owner's card lists it as "(unclaimed)", so nobody pays for something without being told.
+- **Lock and unlock:** Lock bill (`POST /bills/:id/lock`) makes the split final and friends can no longer tap. Unlock is a quiet glass button, because the main white button is for the next step forward. Any refusal from the API (`409`) is shown as a sentence.
+- **Tried for real:** I made the brief's bill on my laptop through the real API (Chee, Ali, Ben and Dan) and the screen showed Chee $7.20, Ali $8.99, Ben $9.59, Dan $9.59 = $35.37, the ticket's acceptance test. Lock then Unlock worked, and a fifth friend saw the same breakdown on the Summary tab with their own card as "You".
+- **Testing by role and name:** each card is an `<article>` named after the person, so a test can say "in Ben's card, find $9.59". It is also how a screen reader announces the cards.
 
 ## KAN-44 (part 2): adjust how a shared item is split, and join with a code
 
@@ -55,6 +53,18 @@ Short notes on what I learned and what went wrong, newest first. Used as evidenc
 - **An SVG cuts off what leaves its box:** the logo's halves slide apart, and the edges were clipped until the SVG got `overflow: visible` and the mark was made a little smaller.
 - **Self-hosted font:** Plus Jakarta Sans comes from an npm package and is built into the app, so there is no request to Google and it works offline.
 - **Respecting the phone:** the page rise-in and the logo movement switch off under `prefers-reduced-motion`.
+
+## KAN-43: Scan a receipt and check the items
+
+- **The flow:** My bills → New bill (a name) → Add items (photo, or "Type it in") → Check items (fix items, service charge and GST, see the totals).
+- **Dollars to cents without decimals:** `parseDollars("12.5")` gives `1250` by splitting the text at the dot and padding the cents ("5" → "50"). `19.99 * 100` in JavaScript is `1998.9999999999998`, so the maths never touches a decimal number. Percent to basis points is the same function ("7.5" → 750).
+- **Totals come from the API:** every change (add, edit, delete, charges) is saved at once and the bill is loaded again. The page never works out service or GST itself, so the money maths still has one home (`SplitModule`).
+- **The camera is one line of HTML:** `<input type="file" accept="image/*" capture="environment">` opens the back camera on a phone and a file picker on a laptop. No camera library.
+- **Photos are shrunk first:** iPhone photos can be over the API's 5 MB limit. The photo is drawn onto a canvas at most 1600 px wide and sent as a JPEG. A 1.5 MB test photo became 363 KB.
+- **The AI's answer is still checked by a person:** after a scan the items are put on the (open, unshared) bill and shown on Check items. The receipt's printed total travels with them: "Receipt says $35.37 ✓" when our total matches, a warning when it doesn't.
+- **A test caught a timing mistake of mine:** I changed the fake API's next answer before the page had loaded the first one, so the page started with the wrong bill. Wait for the screen first, then set up the next answer.
+- **jsdom limits:** it has no canvas and no `URL.createObjectURL`, so the tests swap `shrinkImage` for a pass-through and `image.ts` is the one file not covered by tests (web coverage is still 96%). I tried it in a real browser instead.
+- **Tried for real** against the local API with the fake receipt reader: scan → 3 items, total $35.37 ✓; changing Laksa to $8.50 showed the warning; switching service charge off gave $33.25.
 
 ## KAN-42: Login and register screens
 

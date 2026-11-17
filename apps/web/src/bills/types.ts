@@ -59,7 +59,25 @@ export type SharedItem = Item & {
   }[];
 };
 
-// GET /share/:token/summary: what each person owes
+// One person's share of the bill, worked out by the API's split engine
+export type PersonShare = {
+  participantId: string;
+  displayName: string;
+  isOwner: boolean;
+  itemsCents: number;
+  serviceCents: number;
+  gstCents: number;
+  totalCents: number;
+  paid: boolean;
+};
+
+// GET /bills/:id/summary and /share/:token/summary: what each person owes.
+// The people's totals always add up to totalCents.
 export type Summary = {
-  people: { participantId: string; totalCents: number }[];
+  subtotalCents: number;
+  serviceCents: number;
+  gstCents: number;
+  totalCents: number;
+  unclaimedCents: number; // nobody tapped these items, so the owner pays for them
+  people: PersonShare[];
 };

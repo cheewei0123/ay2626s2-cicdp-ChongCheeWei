@@ -85,8 +85,8 @@ export default function Share() {
           </li>
         ))}
       </ul>
-      <Link to="/bills" className={plainButton}>
-        Done
+      <Link to={`/bills/${id}/summary`} className={plainButton}>
+        See summary
       </Link>
     </Page>
   );

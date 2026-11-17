@@ -9,6 +9,7 @@ import { AdjustSplit } from '../components/AdjustSplit';
 import { Field } from '../components/Field';
 import { FormError } from '../components/FormError';
 import { Page, primaryButton, row } from '../components/Page';
+import { SummaryView } from '../components/SummaryView';
 
 // What a friend sees after opening the share link (/s/:token). No account needed:
 // they type a name once (wireframe #9), then tap what they had (wireframe #10).
@@ -19,6 +20,7 @@ export default function GuestBill() {
   const [guest, setGuest] = useState(() => guestStore.get(token));
   const [error, setError] = useState('');
   const [adjusting, setAdjusting] = useState<string | null>(null); // an item's id
+  const [tab, setTab] = useState<'items' | 'summary'>('items');
 
   const load = useCallback(async () => {
     try {
@@ -97,8 +99,25 @@ export default function GuestBill() {
     }
   }
 
-  return (
-    <Page title="Tap what you had">
+  const tabs = (
+    <div role="tablist" className="glass flex rounded-full p-1">
+      {(['items', 'summary'] as const).map((name) => (
+        <button
+          key={name}
+          type="button"
+          role="tab"
+          aria-selected={tab === name}
+          onClick={() => setTab(name)}
+          className={`h-11 flex-1 rounded-full text-sm font-medium transition ${tab === name ? 'bg-raised' : 'text-muted'}`}
+        >
+          {name === 'items' ? 'My items' : 'Summary'}
+        </button>
+      ))}
+    </div>
+  );
+
+  const intro = (
+    <>
       <p className="text-muted">
         {bill.title} · paid by {bill.owner.displayName}
       </p>
@@ -107,7 +126,26 @@ export default function GuestBill() {
           This bill is locked, so it can't be changed any more.
         </p>
       )}
+      {tabs}
       <FormError message={error} />
+    </>
+  );
+
+  // Everyone's breakdown, so it's clear the split is fair
+  if (tab === 'summary')
+    return (
+      <Page title="Summary">
+        {intro}
+        {/* The bill and its summary always arrive together */}
+        {summary && (
+          <SummaryView summary={summary} items={bill.items} me={me} />
+        )}
+      </Page>
+    );
+
+  return (
+    <Page title="Tap what you had">
+      {intro}
       <ul className="flex flex-col gap-2">
         {bill.items.map((item) => {
           const claimers = item.claims.map((c) => c.participantId);
