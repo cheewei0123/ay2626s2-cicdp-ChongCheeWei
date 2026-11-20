@@ -41,8 +41,8 @@ Trivy's are listed in `.trivyignore.yaml` with an expiry date, so they can't sta
 
 - **Trivy's action is pinned to a full commit SHA** (`ed142fd…`, v0.36.0), not a tag. In March 2026 attackers force-pushed 76 of `aquasecurity/trivy-action`'s 77 tags to code that stole CI secrets (CVE-2026-33634). A tag can be moved; a commit SHA can't. v0.36.0 was released after the clean-up, and it pins its own `setup-trivy` by SHA too.
 - The Trivy binary is pinned as well (`version: v0.76.2`), so a bad "latest" release can't slip in.
-- GitHub's own actions (`checkout`, `codeql-action`) stay on major tags, like the rest of the workflows; Dependabot keeps them and the Trivy SHA up to date.
-- Jobs get only the permissions they need: `contents: read`, plus `security-events: write` only on the jobs that upload results.
+- **Every third-party action is pinned to a commit SHA** with its version in a comment (Gitleaks, Docker's build actions, the AWS credentials action, Trivy). CodeQL's own scan of the workflows flagged the Docker ones on the first PR. Only GitHub's own actions (`actions/*`, `github/codeql-action`) stay on major tags. Dependabot updates the SHAs and their comments.
+- `ci.yml` sets `permissions: contents: read` for the whole workflow, so a job's token can only read the code unless the job asks for more (Gitleaks: comment on the PR; Trivy: upload to the Security tab). CodeQL flagged the `npm audit` job, which had no limit.
 - CodeQL also scans the `actions` language, i.e. the workflow files, for problems like untrusted input in `run:` lines.
 
 ## Trade-offs
