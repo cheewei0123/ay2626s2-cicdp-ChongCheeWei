@@ -1,0 +1,12 @@
+# Findings Trivy may skip, each with the reason and a date it stops being skipped.
+# The reasons are explained in docs/security.md. Keep this list short.
+vulnerabilities:
+  - id: CVE-2026-78661
+    paths:
+      - usr/bin/caddy
+    statement: >-
+      golang.org/x/net/html inside the Caddy binary. Caddy's newest release (v2.11.9)
+      is still built with x/net v0.60.0; the fix (v0.62.0) is merged but not released.
+      Our Caddyfile only serves files and proxies /api, it does not use Caddy's HTML
+      templates, so untrusted HTML is never parsed. Dependabot updates the caddy image.
+    expired_at: 2026-12-31

@@ -42,6 +42,11 @@ RUN npm ci -w apps/api --omit=dev --omit=optional --ignore-scripts
 # ---- 3. runtime: the image that actually runs ----
 FROM node:24-slim AS runtime
 ENV NODE_ENV=production
+# The API runs with plain `node`, so npm is not needed here. The npm that comes with the
+# base image brings its own packages, and Trivy found HIGH CVEs in them (KAN-41).
+# Deleting it here means a running container has no npm to attack or misuse.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+  /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 WORKDIR /app
 COPY --from=prod-deps /app/node_modules ./node_modules
 # npm puts a package here when the API needs a different version than the shared one

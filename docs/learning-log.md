@@ -2,6 +2,16 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-41: security scans (CodeQL, npm audit, Trivy)
+
+- **Three scans, three different views:** CodeQL reads our code, `npm audit` reads our dependency list, Trivy reads the finished Docker image. On the first run `npm audit` said **0**, but Trivy found **7 HIGH** CVEs, because it also sees what we never listed ourselves.
+- **Where the findings were:** 6 were in the npm CLI that comes inside the `node:24-slim` base image (`brace-expansion`, `undici`). The API doesn't use npm at runtime (`node dist/main.js`), so the runtime stage now deletes it. Rescan: **0 HIGH**. The one in the web image is inside Caddy's binary, and no Caddy release has the fix yet.
+- **Accepting a risk properly:** the Caddy CVE is in `.trivyignore.yaml` with a reason (our Caddyfile never parses HTML) and `expired_at: 2026-12-31`, so it can't stay ignored forever by accident. The reasoning is in `docs/security.md`.
+- **The scanner was the attack:** in March 2026 attackers moved 76 of `trivy-action`'s 77 version tags to code that stole CI secrets (CVE-2026-33634). So the action is pinned to a full commit SHA (v0.36.0, released after the clean-up), and the Trivy binary to `v0.76.2`. A tag can be moved; a SHA can't.
+- **A full disk breaks things in strange ways:** my laptop's C: drive filled up, so Docker went read-only in the middle of a scan and left Trivy's database corrupted (a `SIGBUS` crash, not a "disk full" message). Clearing Docker's 11 GB build cache and deleting the broken cache fixed it.
+- **Removing a file in a later layer doesn't shrink the image:** the base layer still holds npm, so the image is the same size. What changes is what a running container can use, and what the scanner reports.
+- **CodeQL scans the workflows too** (`actions` language), e.g. for untrusted PR text used inside a `run:` line.
+
 ## KAN-43: Scan a receipt and check the items
 
 - **The flow:** My bills → New bill (a name) → Add items (photo, or "Type it in") → Check items (fix items, service charge and GST, see the totals).
