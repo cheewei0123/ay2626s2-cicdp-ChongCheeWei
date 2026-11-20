@@ -146,8 +146,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
-      # Reads package-lock.json only, so no npm ci is needed
-      - run: npm audit --audit-level=high
+      # npm audit through audit-ci (pinned), which can accept a single advisory with a
+      # reason (audit-ci.jsonc). Reads package-lock.json only, so no npm ci is needed.
+      - run: npx --yes audit-ci@7.1.0 --config audit-ci.jsonc
 
   # Known vulnerabilities in what we ship: the OS packages and binaries in each image
   trivy:

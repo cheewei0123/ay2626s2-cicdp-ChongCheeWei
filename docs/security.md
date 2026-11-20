@@ -4,14 +4,14 @@ What the pipeline scans, what it found, and the risks I accepted. Built in KAN-2
 
 ## What is scanned, and where
 
-| Scan                   | Looks at                                                       | Runs                                   | Fails the PR when                                    |
-| ---------------------- | -------------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------- |
-| Gitleaks               | Every commit in the history, for keys, tokens and passwords    | `ci.yml`, every PR and push to `main`  | Any secret is found                                  |
-| GitHub push protection | Each `git push`, for known provider key formats                | GitHub, before the push is accepted    | The push itself is refused                           |
-| CodeQL                 | Our TypeScript (API and web) and the workflow files themselves | `codeql.yml`, every PR, `main`, weekly | A new security finding (`security-extended` queries) |
-| `npm audit`            | Every package in `package-lock.json`                           | `ci.yml` job `npm audit`               | A HIGH or CRITICAL advisory                          |
-| Trivy                  | What we ship: the OS packages and binaries inside each image   | `ci.yml` jobs `trivy api`, `trivy web` | A HIGH or CRITICAL CVE that has a fix                |
-| Dependabot             | npm packages, GitHub Actions and Docker base images            | Weekly, as PRs through the same checks | (it opens PRs; the checks above decide)              |
+| Scan                       | Looks at                                                       | Runs                                   | Fails the PR when                                    |
+| -------------------------- | -------------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------- |
+| Gitleaks                   | Every commit in the history, for keys, tokens and passwords    | `ci.yml`, every PR and push to `main`  | Any secret is found                                  |
+| GitHub push protection     | Each `git push`, for known provider key formats                | GitHub, before the push is accepted    | The push itself is refused                           |
+| CodeQL                     | Our TypeScript (API and web) and the workflow files themselves | `codeql.yml`, every PR, `main`, weekly | A new security finding (`security-extended` queries) |
+| `npm audit` (via audit-ci) | Every package in `package-lock.json`                           | `ci.yml` job `npm audit`               | A HIGH or CRITICAL advisory not in `audit-ci.jsonc`  |
+| Trivy                      | What we ship: the OS packages and binaries inside each image   | `ci.yml` jobs `trivy api`, `trivy web` | A HIGH or CRITICAL CVE that has a fix                |
+| Dependabot                 | npm packages, GitHub Actions and Docker base images            | Weekly, as PRs through the same checks | (it opens PRs; the checks above decide)              |
 
 Each one sees something the others can't: CodeQL reads our code, `npm audit` reads our dependency list, Trivy reads the finished image (including things we never listed, like the npm that comes with Node), and Gitleaks reads history. Results from CodeQL and Trivy go to the repo's **Security → Code scanning** tab.
 
@@ -28,11 +28,12 @@ Removing npm is safe because the API runs with `node dist/main.js` and its healt
 
 ## Accepted risks
 
-Listed in `.trivyignore.yaml`, each with an expiry date, so it cannot stay ignored forever by accident: after the date Trivy fails the check again.
+Trivy's are listed in `.trivyignore.yaml` with an expiry date, so they can't stay ignored forever by accident: after the date Trivy fails the check again. `npm audit` has no way to skip one advisory, so it runs through [audit-ci](https://github.com/IBM/audit-ci) (pinned to 7.1.0) with `audit-ci.jsonc`; audit-ci has no expiry field, so the review date is written next to the entry.
 
-| CVE            | Where                            | Why it is accepted                                                                                                                                                                                                                             | Until       |
-| -------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| CVE-2026-78661 | `golang.org/x/net/html` in Caddy | No fixed Caddy release exists yet (the fix is merged upstream). The bug is in parsing HTML; our Caddyfile only serves files and proxies `/api`, without Caddy's HTML templates. Dependabot updates the `caddy` image when a release comes out. | 31 Dec 2026 |
+| CVE                 | Where                                                               | Why it is accepted                                                                                                                                                                                                                                                                                                                                                                       | Until       |
+| ------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| CVE-2026-78661      | `golang.org/x/net/html` in Caddy                                    | No fixed Caddy release exists yet (the fix is merged upstream). The bug is in parsing HTML; our Caddyfile only serves files and proxies `/api`, without Caddy's HTML templates. Dependabot updates the `caddy` image when a release comes out.                                                                                                                                           | 31 Dec 2026 |
+| GHSA-7589-6fvf-x4pw | `effect` 3.20.0 inside the Prisma CLI (`prisma` → `@prisma/config`) | A ReDoS in `Schema.TemplateLiteral`, published after the first scan. Prisma 7.10.1 (the newest) pins `effect` to exactly 3.20.0; an npm `overrides` entry did not change it and left the install broken, so it can't be patched from our side. The CLI only runs in CI and the migrate image, and only reads our own `prisma.config.ts`, never user input. Accepted in `audit-ci.jsonc`. | 31 Dec 2026 |
 
 `ignore-unfixed` is on: a CVE with no fix anywhere can't be acted on, so it is shown but doesn't fail the build.
 

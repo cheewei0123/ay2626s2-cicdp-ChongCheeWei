@@ -11,6 +11,7 @@ Short notes on what I learned and what went wrong, newest first. Used as evidenc
 - **A full disk breaks things in strange ways:** my laptop's C: drive filled up, so Docker went read-only in the middle of a scan and left Trivy's database corrupted (a `SIGBUS` crash, not a "disk full" message). Clearing Docker's 11 GB build cache and deleting the broken cache fixed it.
 - **Removing a file in a later layer doesn't shrink the image:** the base layer still holds npm, so the image is the same size. What changes is what a running container can use, and what the scanner reports.
 - **CodeQL scans the workflows too** (`actions` language), e.g. for untrusted PR text used inside a `run:` line.
+- **An advisory can appear between two runs:** three days after the first clean `npm audit`, a HIGH advisory for `effect` (inside the Prisma CLI) was published, so the gate would have failed the PR with no code change. Prisma pins `effect` exactly, and an npm `overrides` entry left the install broken, so I accepted it through audit-ci's allowlist with a reason and a review date. Scans are about time, not just code.
 
 ## KAN-43: Scan a receipt and check the items
 
