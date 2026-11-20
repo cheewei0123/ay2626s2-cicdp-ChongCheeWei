@@ -69,7 +69,7 @@ Bullet points collected as the project goes, grouped by the report rubric. Scree
 ### Security scans (KAN-41)
 
 - **CodeQL** (our TypeScript and the workflow files), **`npm audit`** (lockfile, fails on HIGH) and **Trivy** (each image, fails on HIGH/CRITICAL with a fix) run on every PR; results go to the Security tab. Details: [security.md](security.md).
-- **Defence in depth:** `npm audit` found 0, Trivy found 7 HIGH in the same commit, because the image contains things the lockfile doesn't list (the npm CLI inside `node:24-slim`). Deleting npm from the runtime image fixed 6; the 7th (Caddy) is an accepted risk with an expiry date.
+- **Defence in depth:** `npm audit` found 0, Trivy found 7 HIGH in the same commit, because the image contains things the lockfile doesn't list (the npm CLI inside `node:24-slim`). Deleting npm from the runtime image fixed 6; the 7th, and a new one three days later, were inside Caddy, fixed by rebuilding the same Caddy release with patched Go libraries.
 - **Supply chain:** the Trivy action is pinned to a commit SHA because its tags were hijacked in March 2026 (CVE-2026-33634).
 - Evidence: `kan-41-security-tab.png`, `kan-41-trivy-red.png`, `kan-41-checks-green.png`.
 
