@@ -11,6 +11,11 @@
 	}
 
 	handle {
+		# Every file except the hashed ones in /assets is checked with the server before use
+		# (no-cache), so a phone never keeps an old index.html or service worker after a deploy.
+		# /assets/* names change with every build, so those can be cached as usual.
+		@notHashed not path /assets/*
+		header @notHashed Cache-Control "no-cache"
 		root * /srv
 		# A single-page app: a path like /bills/abc has no file, so serve the app and let React route it
 		try_files {path} /index.html

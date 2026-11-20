@@ -2,6 +2,15 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-46: installable app (PWA)
+
+- **What makes a website installable:** a manifest (name, `display: standalone`, icons 192, 512 and a maskable one) and a service worker. `vite-plugin-pwa` writes both at build time; `pwa.config.ts` holds the settings and `pwa.config.test.ts` checks them, including that each icon file really has the size the manifest claims.
+- **iPhones mostly ignore the manifest:** Safari takes the home screen icon from `<link rel="apple-touch-icon">` (180×180, no transparent corners, iOS rounds them) and full-screen mode from `apple-mobile-web-app-capable`, so `index.html` needs those as well.
+- **Never cache money:** only the app shell (HTML, JS, CSS, icons, fonts) is precached. There are no runtime caching rules, and `/api/` is on the navigation fallback's deny list, so bills always come from the server. Checked in headless Edge: offline, `/bills/abc` still opens the app, but `fetch('/api/health')` fails instead of returning an old answer.
+- **New deploys reach the phone:** `registerType: 'autoUpdate'` makes the new service worker take over and reload the page. That only works if the browser asks the server for `sw.js` and `index.html` every time, so the Caddyfile sends `Cache-Control: no-cache` for every file except the hashed ones in `/assets`, which can be cached because their names change with each build.
+- **The Claude desktop browser pane can't register service workers** ("unknown error when fetching the script", and the request never reaches the server). The same build works in Edge, so the check was done there.
+- **Icons:** drawn from the same shapes and colours as `favicon.svg` (two half circles on the dark background), at 192, 512, 512 maskable (full bleed, logo inside the safe zone) and 180 for iOS.
+
 ## KAN-41: security scans (CodeQL, npm audit, Trivy)
 
 - **Three scans, three different views:** CodeQL reads our code, `npm audit` reads our dependency list, Trivy reads the finished Docker image. On the first run `npm audit` said **0**, but Trivy found **7 HIGH** CVEs, because it also sees what we never listed ourselves.
