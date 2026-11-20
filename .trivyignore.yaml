@@ -1,0 +1,9 @@
+# Findings Trivy may skip, each with the reason and a date it stops being skipped.
+# The reasons are explained in docs/security.md. Keep this list short; it is empty now.
+#
+# Format:
+#   - id: CVE-YYYY-NNNNN
+#     paths: [path/inside/the/image]
+#     statement: why it can't be fixed yet and why it is safe for us
+#     expired_at: YYYY-MM-DD
+vulnerabilities: []

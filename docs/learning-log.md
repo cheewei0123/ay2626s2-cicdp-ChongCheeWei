@@ -2,6 +2,18 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-41: security scans (CodeQL, npm audit, Trivy)
+
+- **Three scans, three different views:** CodeQL reads our code, `npm audit` reads our dependency list, Trivy reads the finished Docker image. On the first run `npm audit` said **0**, but Trivy found **7 HIGH** CVEs, because it also sees what we never listed ourselves.
+- **Where the findings were:** 6 were in the npm CLI that comes inside the `node:24-slim` base image (`brace-expansion`, `undici`). The API doesn't use npm at runtime (`node dist/main.js`), so the runtime stage now deletes it. Rescan: **0 HIGH**. The one in the web image is inside Caddy's binary, and no Caddy release has the fix yet.
+- **Accepting a risk, then fixing it:** I first accepted the Caddy CVE in `.trivyignore.yaml` with a reason and `expired_at: 2026-12-31`. Three days later the PR's `trivy web` check went red on a _new_ CVE in the same binary (Go's standard library 1.27.3), published after my local scan. Caddy's builder image already had the fixed Go, so the web Dockerfile now rebuilds the same Caddy release (v2.11.9) with `xcaddy`, Go 1.27.4 and `x/net` v0.62.0: 0 HIGH with an empty ignore list. Copying the new binary drops the official image's `setcap` (permission for ports 80/443 without root), so it is set again; without it the non-root container couldn't start on 443.
+- **The scanner was the attack:** in March 2026 attackers moved 76 of `trivy-action`'s 77 version tags to code that stole CI secrets (CVE-2026-33634). So the action is pinned to a full commit SHA (v0.36.0, released after the clean-up), and the Trivy binary to `v0.76.2`. A tag can be moved; a SHA can't.
+- **A full disk breaks things in strange ways:** my laptop's C: drive filled up, so Docker went read-only in the middle of a scan and left Trivy's database corrupted (a `SIGBUS` crash, not a "disk full" message). Clearing Docker's 11 GB build cache and deleting the broken cache fixed it.
+- **Removing a file in a later layer doesn't shrink the image:** the base layer still holds npm, so the image is the same size. What changes is what a running container can use, and what the scanner reports.
+- **CodeQL scans the workflows too** (`actions` language), e.g. for untrusted PR text used inside a `run:` line.
+- **The new scanner checked my own pipeline:** on the first PR, CodeQL's `actions` scan raised 3 findings: a job with no permission limit, and Docker's actions on movable tags. GitHub offered one-click fix commits, but I fixed them myself: one workflow-wide `permissions: contents: read`, and every third-party action (13 places in 2 workflows) pinned to the commit its tag pointed to, so nothing changed in what runs.
+- **An advisory can appear between two runs:** three days after the first clean `npm audit`, a HIGH advisory for `effect` (inside the Prisma CLI) was published, so the gate would have failed the PR with no code change. Prisma pins `effect` exactly, and an npm `overrides` entry left the install broken, so I accepted it through audit-ci's allowlist with a reason and a review date. Scans are about time, not just code.
+
 ## KAN-45: the summary screen and the Lock button
 
 - **What it shows:** one card per person with what they had, their part of the service charge and GST, and their total in big numbers, plus a "Paid" badge. At the bottom: the bill's subtotal, service, GST and total, and "Everyone's totals add up to $35.37 ✓".

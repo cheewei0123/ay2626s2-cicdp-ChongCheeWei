@@ -37,11 +37,12 @@ Bullet points collected as the project goes, grouped by the report rubric. Scree
 ### Pipeline (`.github/workflows/ci.yml`)
 
 - Runs on every PR and every push to `main`; a new push cancels the old run.
-- 7 jobs in parallel: `gitleaks`, `lint api`, `lint web`, `test-api`, `test-web`, `test-e2e`, `docker-build`. A run takes about 2–2½ minutes, most of it `docker-build`.
+- 12 checks in parallel: `gitleaks`, `lint api`, `lint web`, `test-api`, `test-web`, `test-e2e`, `docker-build`, `npm audit`, `trivy api`, `trivy web`, and two CodeQL jobs (from KAN-41). A run takes about 2–2½ minutes, most of it `docker-build`.
 - `npm ci` with the npm cache keyed on the lockfile; Node version from `.nvmrc`.
 - **Measured the npm cache:** same commit, no cache vs cache: `npm ci` 11 s vs 9 s, but restoring the cache costs 3 s more, so no real saving. Docker's layer cache saved 37 s on `docker-build`. Evidence: `kan-16-npm-cache-miss.png`, `kan-16-npm-cache-hit.png`.
 - Lint uses oxlint with `--deny-warnings`, because warnings alone exit 0 and would not fail CI.
 - **Coverage gate:** `test-api` fails if `src/split` drops below 90% lines or branches (currently 100%). Evidence: `kan-21-green-coverage.png`.
+- **Web coverage gate:** `test-web` fails if `apps/web/src` drops below 90% (98% at KAN-45).
 
 ### Protecting main (KAN-17)
 
@@ -64,6 +65,13 @@ Bullet points collected as the project goes, grouped by the report rubric. Scree
 - **Gitleaks** scans the full git history on every PR and is a required check. Evidence: `kan-22-gitleaks-blocks-pr.png`.
 - **GitHub push protection** blocked a fake AWS key before it reached GitHub. Evidence: `kan-22-push-protection-blocked.png`.
 - **Dependabot** opens weekly update PRs, which go through the same pipeline. Packages that must share a version (vitest, prisma) are grouped.
+
+### Security scans (KAN-41)
+
+- **CodeQL** (our TypeScript and the workflow files), **`npm audit`** (lockfile, fails on HIGH) and **Trivy** (each image, fails on HIGH/CRITICAL with a fix) run on every PR; results go to the Security tab. Details: [security.md](security.md).
+- **Defence in depth:** `npm audit` found 0, Trivy found 7 HIGH in the same commit, because the image contains things the lockfile doesn't list (the npm CLI inside `node:24-slim`). Deleting npm from the runtime image fixed 6; the 7th, and a new one three days later, were inside Caddy, fixed by rebuilding the same Caddy release with patched Go libraries.
+- **Supply chain:** the Trivy action is pinned to a commit SHA because its tags were hijacked in March 2026 (CVE-2026-33634).
+- Evidence: `kan-41-security-tab.png`, `kan-41-trivy-red.png`, `kan-41-checks-green.png`.
 
 ### Onboarding
 
