@@ -1,0 +1,12 @@
+{
+  // npm audit, but with one advisory accepted (npm audit itself can't skip one).
+  // Fails on HIGH or CRITICAL. Every allowed advisory is explained in docs/security.md.
+  "$schema": "https://github.com/IBM/audit-ci/raw/main/docs/schema.json",
+  "high": true,
+  "allowlist": [
+    // effect <=3.22.0 (ReDoS in Schema.TemplateLiteral), only inside the Prisma CLI:
+    // prisma 7.10.1 pins effect to exactly 3.20.0 and npm overrides can't change it.
+    // The CLI only reads our own prisma.config.ts. Review again by 31 Dec 2026.
+    "GHSA-7589-6fvf-x4pw",
+  ],
+}
