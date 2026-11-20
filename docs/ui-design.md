@@ -75,19 +75,21 @@ Three styles defined once in `index.css`:
 
 All in `components/Page.tsx` unless a file is named.
 
-| Need                       | Use                                                                                                                                |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| A logged-in page           | `<Page title back action>`                                                                                                         |
-| The main button            | `primaryButton` (one per screen)                                                                                                   |
-| Any other button           | `plainButton`; small ones in the top bar: `smallButton`                                                                            |
-| A round icon button        | `roundButton` (with an `aria-label`)                                                                                               |
-| A row in a list            | `row`, with `<Initial of={name} />`, two lines of text, a value and `›`                                                            |
-| A heading above a list     | `<SectionLabel count={n}>` ("Items 3")                                                                                             |
-| The logo                   | `<Brand />`, `<Logo size moving>` (`components/Logo.tsx`)                                                                          |
-| A text input with a label  | `<Field label name error hint>` (`components/Field.tsx`)                                                                           |
-| An API error for the form  | `<FormError message>` (`components/FormError.tsx`)                                                                                 |
-| A sheet over the page      | Like `AdjustSplit`: `role="dialog"` with an `aria-label`, a dark scrim, a panel rising from the bottom, one main button and Cancel |
-| The login / register frame | `<AuthLayout>` (`components/AuthLayout.tsx`)                                                                                       |
+| Need                       | Use                                                                                                                                      |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| A logged-in page           | `<Page title back action>`                                                                                                               |
+| The main button            | `primaryButton` (one per screen)                                                                                                         |
+| Any other button           | `plainButton`; small ones in the top bar: `smallButton`                                                                                  |
+| A round icon button        | `roundButton` (with an `aria-label`)                                                                                                     |
+| A row in a list            | `row`, with `<Initial of={name} />`, two lines of text, a value and `›`                                                                  |
+| A heading above a list     | `<SectionLabel count={n}>` ("Items 3")                                                                                                   |
+| The logo                   | `<Brand />`, `<Logo size moving>` (`components/Logo.tsx`)                                                                                |
+| A text input with a label  | `<Field label name error hint>` (`components/Field.tsx`)                                                                                 |
+| An API error for the form  | `<FormError message>` (`components/FormError.tsx`)                                                                                       |
+| A sheet over the page      | Like `AdjustSplit`: `role="dialog"` with an `aria-label`, a dark scrim, a panel rising from the bottom, one main button and Cancel       |
+| Two tabs on one page       | A `glass` pill track with `role="tablist"`; each `role="tab"` is `h-11`, the chosen one `bg-raised` (the guest page: My items / Summary) |
+| What each person owes      | `<SummaryView>` (`components/SummaryView.tsx`): one `<PersonCard>` per person, then the totals in the `hero` card                        |
+| The login / register frame | `<AuthLayout>` (`components/AuthLayout.tsx`)                                                                                             |
 
 ## The order of a screen
 

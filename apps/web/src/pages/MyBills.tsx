@@ -50,7 +50,11 @@ export default function MyBills() {
       <ul className="flex flex-col gap-2">
         {bills?.map((bill) => (
           <li key={bill.id}>
-            <Link to={`/bills/${bill.id}/edit`} className={row}>
+            {/* An open bill can still be edited; a locked one opens its summary */}
+            <Link
+              to={`/bills/${bill.id}/${bill.status === 'OPEN' ? 'edit' : 'summary'}`}
+              className={row}
+            >
               <Initial of={bill.title} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">{bill.title}</span>
