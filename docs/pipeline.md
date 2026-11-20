@@ -11,7 +11,7 @@ flowchart LR
   subgraph PR["On every pull request"]
     direction LR
     A[Install<br/>npm ci + cache] --> B[Lint + format<br/>oxlint, Prettier]
-    B --> C[Unit tests + coverage<br/>gate 90% on src/split]
+    B --> C[Unit tests + coverage<br/>gate 90% on API business code]
     C --> D[API e2e<br/>Supertest + Postgres]
     D --> E[Security<br/>Gitleaks, CodeQL, npm audit]
     E --> F[Docker build]
@@ -40,18 +40,18 @@ Stages E and G are built (KAN-41): Gitleaks, CodeQL, `npm audit` and Trivy. What
 
 All jobs start at the same time, on every PR and every push to `main`. A new push to the same branch cancels the run still in progress.
 
-| Job                                              | What it does                                                                                                                         | Fails when                                                                              |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
-| `gitleaks`                                       | Scans the full git history for secrets                                                                                               | A key, token or password is found                                                       |
-| `lint api`                                       | `npm ci`, oxlint (`--deny-warnings`), Prettier check, type-check (`tsc --noEmit`, tests included), build                             | Any lint warning, unformatted file, type error or failed build                          |
-| `lint web`                                       | Same, for `apps/web`                                                                                                                 | Same                                                                                    |
-| `test-api`                                       | Vitest with coverage, uploads the coverage report                                                                                    | A test fails or `src/split` / `src/common` / `src/auth` / `src/bills` is below 90%      |
-| `test-web`                                       | Vitest with coverage: component tests in a fake browser (jsdom) with a fake API                                                      | A test fails or `apps/web/src` is below 90%                                             |
-| `test-e2e`                                       | Starts a fresh Postgres 18 service container, `prisma migrate deploy`, then the API e2e tests (Supertest) with a random `JWT_SECRET` | A migration fails, or any e2e test fails                                                |
-| `docker-build`                                   | Builds the API, migrate and web images (`apps/api/Dockerfile`, `apps/web/Dockerfile`, no push), reusing cached layers                | An image does not build, or the Caddyfile is invalid                                    |
-| `npm audit`                                      | `npm audit` through audit-ci: every package in `package-lock.json` against known advisories                                          | A HIGH or CRITICAL advisory that is not accepted in `audit-ci.jsonc`                    |
-| `trivy api`, `trivy web`                         | Builds each image and scans the OS packages and binaries in it; results go to the Security tab                                       | A HIGH or CRITICAL CVE that has a fix (except the accepted ones in `.trivyignore.yaml`) |
-| `codeql javascript-typescript`, `codeql actions` | `codeql.yml`: reads our TypeScript and the workflow files for security bugs (also weekly)                                            | A new security finding                                                                  |
+| Job                                              | What it does                                                                                                                         | Fails when                                                                                                |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `gitleaks`                                       | Scans the full git history for secrets                                                                                               | A key, token or password is found                                                                         |
+| `lint api`                                       | `npm ci`, oxlint (`--deny-warnings`), Prettier check, type-check (`tsc --noEmit`, tests included), build                             | Any lint warning, unformatted file, type error or failed build                                            |
+| `lint web`                                       | Same, for `apps/web`                                                                                                                 | Same                                                                                                      |
+| `test-api`                                       | Vitest with coverage, uploads the coverage report                                                                                    | A test fails or any of `src/split`, `common`, `auth`, `bills`, `ocr`, `receipts`, `expenses` is below 90% |
+| `test-web`                                       | Vitest with coverage: component tests in a fake browser (jsdom) with a fake API                                                      | A test fails or `apps/web/src` is below 90%                                                               |
+| `test-e2e`                                       | Starts a fresh Postgres 18 service container, `prisma migrate deploy`, then the API e2e tests (Supertest) with a random `JWT_SECRET` | A migration fails, or any e2e test fails                                                                  |
+| `docker-build`                                   | Builds the API, migrate and web images (`apps/api/Dockerfile`, `apps/web/Dockerfile`, no push), reusing cached layers                | An image does not build, or the Caddyfile is invalid                                                      |
+| `npm audit`                                      | `npm audit` through audit-ci: every package in `package-lock.json` against known advisories                                          | A HIGH or CRITICAL advisory that is not accepted in `audit-ci.jsonc`                                      |
+| `trivy api`, `trivy web`                         | Builds each image and scans the OS packages and binaries in it; results go to the Security tab                                       | A HIGH or CRITICAL CVE that has a fix (except the accepted ones in `.trivyignore.yaml`)                   |
+| `codeql javascript-typescript`, `codeql actions` | `codeql.yml`: reads our TypeScript and the workflow files for security bugs (also weekly)                                            | A new security finding                                                                                    |
 
 All 12 are required checks on `main`. A typical run takes about 2–2½ minutes; `docker-build` is the slowest job. The npm cache was measured to save almost nothing (see the KAN-50 learning-log entry); Docker's layer cache is the one that saves time.
 

@@ -41,7 +41,7 @@ Bullet points collected as the project goes, grouped by the report rubric. Scree
 - `npm ci` with the npm cache keyed on the lockfile; Node version from `.nvmrc`.
 - **Measured the npm cache:** same commit, no cache vs cache: `npm ci` 11 s vs 9 s, but restoring the cache costs 3 s more, so no real saving. Docker's layer cache saved 37 s on `docker-build`. Evidence: `kan-16-npm-cache-miss.png`, `kan-16-npm-cache-hit.png`.
 - Lint uses oxlint with `--deny-warnings`, because warnings alone exit 0 and would not fail CI.
-- **Coverage gate:** `test-api` fails if `src/split` drops below 90% lines or branches (currently 100%). Evidence: `kan-21-green-coverage.png`.
+- **Coverage gate:** `test-api` fails if any of `src/split`, `src/common`, `src/auth`, `src/bills`, `src/ocr`, `src/receipts` or `src/expenses` drops below 90% lines or branches (`src/split` is at 100%). Evidence: `kan-21-green-coverage.png`.
 - **Web coverage gate:** `test-web` fails if `apps/web/src` drops below 90% (98% at KAN-45).
 
 ### Protecting main (KAN-17)
