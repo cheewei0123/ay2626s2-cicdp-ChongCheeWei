@@ -2,6 +2,14 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-81: PayNow number on the Profile page
+
+- **PATCH means "only what I send":** a field left out of the body arrives as `undefined`, and Prisma leaves that column alone. `null` is different: it clears the column, which is how the PayNow number is removed.
+- **`@IsOptional()` lets `null` through:** it skips the other checks when the value is `null` or `undefined`, so `{ paynowMobile: null }` passes but `"91234567"` still fails `@Matches`. `forbidNonWhitelisted` means `{ email }` is refused, so the profile route can't change the login email.
+- **The account can disappear:** a token lasts an hour, so `prisma.user.update` might find no row. Prisma throws `P2025`, the service turns it into `null`, and the controller answers `404`, the same as `GET /me`.
+- **One place holds the user:** `saveProfile` in `AuthProvider` stores the `PATCH /me` answer, so My bills stops showing "Add your PayNow number" as soon as you go back, without loading `/me` again.
+- **Cut on purpose:** uploading and decoding a PayNow QR from the bank app was planned, but typing the number gives the same QR, so it went to future work.
+
 ## KAN-48: PayNow QR on the guest's Summary tab
 
 - **The API makes the QR text, the web app only draws it:** the share summary gives each guest a `paynowPayload` for exactly their total, built by the KAN-47 code. The page draws it with `qrcode.react` on a white square, because cameras need dark squares on white.

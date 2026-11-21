@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import type { JwtPayload } from './auth-user.js';
 import type { LoginDto } from './dto/login.dto.js';
 import type { RegisterDto } from './dto/register.dto.js';
+import type { UpdateMeDto } from './dto/update-me.dto.js';
 import { hashPassword, verifyPassword } from './password.js';
 
 // The only user fields ever sent to a client; passwordHash is never in this list
@@ -82,6 +83,27 @@ export class AuthService {
 
   findSafeUser(id: string) {
     return this.prisma.user.findUnique({ where: { id }, select: SAFE_USER });
+  }
+
+  // Only the fields that were sent change; null on paynowMobile removes it.
+  // null back means the account no longer exists.
+  async updateProfile(id: string, dto: UpdateMeDto) {
+    try {
+      return await this.prisma.user.update({
+        where: { id },
+        data: { displayName: dto.displayName, paynowMobile: dto.paynowMobile },
+        select: SAFE_USER,
+      });
+    } catch (error) {
+      // P2025 = no row to update
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   // The token proves who the user is for the next hour (expiry is set in AuthModule)

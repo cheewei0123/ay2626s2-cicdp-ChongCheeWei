@@ -7,6 +7,7 @@ import EditBill from './pages/EditBill';
 import Login from './pages/Login';
 import MyBills from './pages/MyBills';
 import NewBill from './pages/NewBill';
+import Profile from './pages/Profile';
 import Register from './pages/Register';
 import ScanReceipt from './pages/ScanReceipt';
 import Share from './pages/Share';
@@ -19,6 +20,7 @@ export const routes: RouteObject[] = [
   { path: '/login', element: <Login /> },
   { path: '/register', element: <Register /> },
   { path: '/bills', element: needsLogin(<MyBills />) },
+  { path: '/profile', element: needsLogin(<Profile />) },
   { path: '/bills/new', element: needsLogin(<NewBill />) },
   { path: '/bills/:id/scan', element: needsLogin(<ScanReceipt />) },
   { path: '/bills/:id/edit', element: needsLogin(<EditBill />) },

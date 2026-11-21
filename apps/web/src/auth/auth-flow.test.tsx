@@ -238,6 +238,8 @@ describe('Staying logged in', () => {
     const user = userEvent.setup();
     renderApp('/bills');
 
+    // Log out lives on the Profile page
+    await user.click(await screen.findByRole('link', { name: 'Profile' }));
     await user.click(await screen.findByRole('button', { name: 'Log out' }));
 
     expect(await logInButton()).toBeInTheDocument();

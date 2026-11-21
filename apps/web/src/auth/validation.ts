@@ -37,3 +37,18 @@ export function validateRegister(input: {
     errors.paynowMobile = 'A Singapore mobile like +6591234567';
   return errors;
 }
+
+// The same rules as the API's UpdateMeDto. An empty PayNow number is fine: it removes it.
+export function validateProfile(input: {
+  displayName: string;
+  paynowMobile: string;
+}): FieldErrors {
+  const errors: FieldErrors = {};
+  const name = input.displayName.trim();
+  if (name.length < 1 || name.length > 50)
+    errors.displayName = 'Enter a name (up to 50 characters)';
+  const mobile = input.paynowMobile.trim();
+  if (mobile && !SG_MOBILE.test(mobile))
+    errors.paynowMobile = 'A Singapore mobile like +6591234567';
+  return errors;
+}

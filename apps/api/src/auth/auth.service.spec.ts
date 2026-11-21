@@ -24,7 +24,9 @@ describe('AuthService (with a mocked database)', () => {
   let service: AuthService;
   let jwt: JwtService;
   // A fake PrismaService with only the two methods AuthService uses
-  const prisma = { user: { create: vi.fn(), findUnique: vi.fn() } };
+  const prisma = {
+    user: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+  };
 
   beforeEach(async () => {
     vi.resetAllMocks();
@@ -125,5 +127,39 @@ describe('AuthService (with a mocked database)', () => {
     expect(prisma.user.findUnique.mock.calls[0][0].select).not.toHaveProperty(
       'passwordHash',
     );
+  });
+
+  describe('updateProfile', () => {
+    it('changes only the fields that were sent and returns the safe user', async () => {
+      prisma.user.update.mockResolvedValue(safeUser);
+      expect(
+        await service.updateProfile('u1', { paynowMobile: '+6591234567' }),
+      ).toEqual(safeUser);
+      const call = prisma.user.update.mock.calls[0][0];
+      expect(call.where).toEqual({ id: 'u1' });
+      // undefined = Prisma leaves displayName as it is
+      expect(call.data).toEqual({
+        displayName: undefined,
+        paynowMobile: '+6591234567',
+      });
+      expect(call.select).not.toHaveProperty('passwordHash');
+    });
+
+    it('returns null when the account is gone', async () => {
+      prisma.user.update.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Record not found', {
+          code: 'P2025',
+          clientVersion: 'test',
+        }),
+      );
+      expect(await service.updateProfile('u1', {})).toBeNull();
+    });
+
+    it('passes on any other database error', async () => {
+      prisma.user.update.mockRejectedValue(new Error('database down'));
+      await expect(service.updateProfile('u1', {})).rejects.toThrow(
+        'database down',
+      );
+    });
   });
 });
