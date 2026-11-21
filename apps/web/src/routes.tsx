@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { Navigate, type RouteObject } from 'react-router';
 import { RequireAuth } from './auth/RequireAuth';
+import AddExpense from './pages/AddExpense';
+import Expenses from './pages/Expenses';
 import GuestBill from './pages/GuestBill';
 import JoinCode from './pages/JoinCode';
 import EditBill from './pages/EditBill';
@@ -21,6 +23,8 @@ export const routes: RouteObject[] = [
   { path: '/register', element: <Register /> },
   { path: '/bills', element: needsLogin(<MyBills />) },
   { path: '/profile', element: needsLogin(<Profile />) },
+  { path: '/expenses', element: needsLogin(<Expenses />) },
+  { path: '/expenses/new', element: needsLogin(<AddExpense />) },
   { path: '/bills/new', element: needsLogin(<NewBill />) },
   { path: '/bills/:id/scan', element: needsLogin(<ScanReceipt />) },
   { path: '/bills/:id/edit', element: needsLogin(<EditBill />) },

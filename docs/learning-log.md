@@ -2,6 +2,15 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-80: the Expenses screens
+
+- **A fixed sheet that wasn't fixed:** the edit sheet ran off the bottom of the phone. The page's `rise` animation keeps a `transform` on `<main>`, and `position: fixed` inside a transformed parent follows that parent, not the screen. `createPortal(sheet, document.body)` draws it outside `<main>`; React context (the router) still reaches it.
+- **Singapore days on any phone:** the API groups months in Singapore time, so the list does too. `Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Singapore' })` gives `2026-12-01` for 00:30 on 1 Dec in Singapore, even though it is still 30 Nov in UTC.
+- **The month is in the URL:** `/expenses?month=2026-11` with `useSearchParams`, so the back button and a refresh keep the month, and Add returns to the month you saved into.
+- **Chart without a library:** one bar per category is a `div` with a width in %, inside the hero card. Plain ink bars, because the UI guide keeps colour for meaning, not decoration.
+- **A bill share is half-editable:** amount, merchant and date come from the bill (the API answers `409`), so the sheet only shows category and note, plus a link back to the bill.
+- **The linter caught a render loop risk:** calling `setError('')` straight inside the effect (`react(set-state-in-effect)`); it now clears when the data arrives.
+
 ## KAN-79: my share is logged as an expense when the bill is locked
 
 - **An event instead of an import:** `ClaimsService.lock` sends `bill.locked` with `@nestjs/event-emitter`, and `BillShareListener` in the expenses code listens with `@OnEvent`. `BillsModule` never imports `ExpensesModule`; the only shared thing is the event's shape in `bill-events.ts`.

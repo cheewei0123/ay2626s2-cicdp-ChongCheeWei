@@ -5,6 +5,7 @@ import { useAuth } from '../auth/context';
 import { formatCents } from '../bills/money';
 import type { Bill } from '../bills/types';
 import { FormError } from '../components/FormError';
+import { HomeTabs } from '../components/HomeTabs';
 import {
   Initial,
   Page,
@@ -35,6 +36,7 @@ export default function MyBills() {
         </Link>
       }
     >
+      <HomeTabs />
       <Link to="/bills/new" className={primaryButton}>
         + New bill
       </Link>
