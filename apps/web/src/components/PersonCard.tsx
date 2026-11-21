@@ -8,6 +8,9 @@ export function PersonCard(props: {
   person: PersonShare;
   name: string; // "You" on your own phone
   items: string[]; // the names of what they had
+  // Owner only, once the bill is locked: tick when this person has paid them back
+  onTogglePaid?: () => void;
+  busy?: boolean;
 }) {
   const { person } = props;
   return (
@@ -23,7 +26,7 @@ export function PersonCard(props: {
             {person.isOwner ? 'Paid the bill' : 'Owes'}
           </span>
         </span>
-        {person.paid && (
+        {person.paid && !props.onTogglePaid && (
           <span className="rounded-full bg-ok/15 px-3 py-1 text-sm font-medium text-ok">
             Paid
           </span>
@@ -49,6 +52,18 @@ export function PersonCard(props: {
           <dd>{formatCents(person.gstCents)}</dd>
         </div>
       </dl>
+      {props.onTogglePaid && (
+        <button
+          type="button"
+          aria-pressed={person.paid}
+          aria-label={`${props.name} has paid`}
+          disabled={props.busy}
+          onClick={props.onTogglePaid}
+          className={`flex h-11 items-center justify-center gap-2 rounded-full text-sm font-medium transition active:scale-[0.96] disabled:opacity-50 ${person.paid ? 'bg-ok/15 text-ok' : 'bg-raised'}`}
+        >
+          {person.paid ? 'Paid ✓' : 'Mark as paid'}
+        </button>
+      )}
     </article>
   );
 }

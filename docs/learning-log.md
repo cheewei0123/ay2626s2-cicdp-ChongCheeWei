@@ -10,6 +10,14 @@ Short notes on what I learned and what went wrong, newest first. Used as evidenc
 - **One place holds the user:** `saveProfile` in `AuthProvider` stores the `PATCH /me` answer, so My bills stops showing "Add your PayNow number" as soon as you go back, without loading `/me` again.
 - **Cut on purpose:** uploading and decoding a PayNow QR from the bank app was planned, but typing the number gives the same QR, so it went to future work.
 
+## KAN-49: the owner ticks who has paid
+
+- **A new module that uses another one:** `PaymentsModule` imports `BillsModule`, which now `exports: [SummaryService]`. Nest only lets a module inject what another module exports, so the summary maths stays in one place and the payments code reuses it.
+- **Guards from another folder:** `PaymentsController` uses `@UseGuards(JwtAuthGuard, BillOwnerGuard)` from the bills code. A guest token or someone else's login gets `401` / `403` before the service runs.
+- **Snapshot, not a link:** `Payment.amountCents` stores what the person owed when ticked. If it only pointed at the bill, editing an item later would change what they had "paid".
+- **SETTLED is worked out, not set by hand:** after each tick the service checks whether everyone who owes something has paid. All ticked means `SETTLED`; untick one and it's `LOCKED` again. Unlocking is refused while anyone is ticked, so paid amounts can't move.
+- **The e2e test runs it end to end:** register, make a bill, two guests join and claim, lock, then mark payments against a real Postgres, including the `401`, `403`, `400`, `404` and `409` answers.
+
 ## KAN-48: PayNow QR on the guest's Summary tab
 
 - **The API makes the QR text, the web app only draws it:** the share summary gives each guest a `paynowPayload` for exactly their total, built by the KAN-47 code. The page draws it with `qrcode.react` on a white square, because cameras need dark squares on white.

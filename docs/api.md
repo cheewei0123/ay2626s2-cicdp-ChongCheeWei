@@ -98,7 +98,7 @@ Built in KAN-81 (slimmed):
 | POST   | `/bills/:id/lock`                    | `owner`    | none                                                                         | `200 bill` (status `LOCKED`)                                          | 401, 403, 404, 409                          |
 | POST   | `/bills/:id/unlock`                  | `owner`    | none                                                                         | `200 bill` (status `OPEN`)                                            | 401, 403, 404, 409                          |
 | GET    | `/bills/:id/summary`                 | `owner`    | none                                                                         | `200 summary` (see below)                                             | 401, 403, 404                               |
-| PATCH  | `/bills/:id/payments/:participantId` | `owner`    | `{ paid: true \| false }`                                                    | `200 payment`                                                         | 400, 401, 403, 404, 409                     |
+| PATCH  | `/bills/:id/payments/:participantId` | `owner`    | `{ paid: true \| false }`                                                    | `200 payment` + `status`                                              | 400, 401, 403, 404, 409                     |
 
 - `serviceBp` defaults to `1000` (10%) and `gstBp` to `900` (9%). A hawker bill sends `serviceBp: 0`.
 - Items can only change while the bill is `OPEN`; otherwise `409`.
@@ -114,7 +114,12 @@ Built in KAN-81 (slimmed):
   - `409` locked bill (checked before calling the AI, so no quota is used), `413` over 5 MB, `422` the AI's answer failed validation, `429` free limit reached, `503` the AI is down or took over 60 s. Every error says the items can be added by hand.
   - `POST /expenses/receipt` is part of the Expenses API (KAN-76).
 - **Lock** freezes the split and creates an `Expense` (source `BILL_SHARE`) for every participant who has a user account. **Unlock** removes those expenses.
-- Payments can only be marked while the bill is `LOCKED`. The app never moves money; this only records that someone says they paid.
+- Payments can only be marked while the bill is `LOCKED` or `SETTLED`. The app never moves money; this only records that someone says they paid.
+- Built in KAN-49: `PATCH /bills/:id/payments/:participantId` (`PaymentsModule`, owner only) answers `200 { participantId, paid, amountCents, paidCount, owingCount, status }`.
+  - `amountCents` is a snapshot of what the person owed when ticked, so later edits can't silently change what was paid.
+  - When everyone who owes something is ticked, the bill becomes `SETTLED`; unticking someone takes it back to `LOCKED`.
+  - `409` while the bill is `OPEN`; `404` for someone who isn't on the bill; `400` for the owner, who doesn't pay themselves.
+  - `POST /bills/:id/unlock` answers `409` while anyone is ticked as paid, because reopening could change what they paid.
 
 ## Share link (guests)
 
