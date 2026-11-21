@@ -2,6 +2,14 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-47: PayNow QR payload
+
+- **A PayNow QR is just text:** the SGQR (EMVCo) format is a list of fields, each written as `ID` (2 digits) + `LENGTH` (2 digits) + `VALUE`. For example `5802SG` is field 58 (country), 2 characters long, value `SG`. Field 26 holds more fields inside it: `SG.PAYNOW`, proxy type `0` (a mobile number), the number, and `0` so the amount can't be changed in the bank app.
+- **The checksum:** the payload ends with `6304` and a CRC-16/CCITT-FALSE of everything before it, including the `6304` itself. A bank app rejects a QR whose CRC doesn't match, so a typo can't send money to the wrong place. The standard test value `crc16("123456789") = 29B1` proves the function is right.
+- **Lengths count characters:** a name like "José" or an emoji would make the length field wrong for a bank app that counts bytes, so names and references are cut down to plain ASCII and 25 characters.
+- **Amounts stay integers:** 720 cents becomes `"7.20"` by dividing and padding, never `7.2` floating point, like `formatCents`.
+- **Tested by reading it back:** the tests parse the payload into fields again and check each one, instead of comparing one long string. `src/payments` now has its own 90% coverage gate.
+
 ## KAN-46: installable app (PWA)
 
 - **What makes a website installable:** a manifest (name, `display: standalone`, icons 192, 512 and a maskable one) and a service worker. `vite-plugin-pwa` writes both at build time; `pwa.config.ts` holds the settings and `pwa.config.test.ts` checks them, including that each icon file really has the size the manifest claims.
