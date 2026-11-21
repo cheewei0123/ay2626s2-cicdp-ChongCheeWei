@@ -18,6 +18,11 @@ export function formatCents(cents: number): string {
   return `$${whole}.${String(cents % 100).padStart(2, '0')}`;
 }
 
+// "+6591234567" → "+65 9123 4567", easier to read out and check
+export function formatMobile(mobile: string): string {
+  return mobile.replace(/^\+65(\d{4})(\d{4})$/, '+65 $1 $2');
+}
+
 // Rates are basis points (1000 = 10%). "10" → 1000 and "7.5" → 750: the same
 // two-decimal maths as dollars to cents. null above 100% or when not a number.
 export function parsePercent(text: string): number | null {

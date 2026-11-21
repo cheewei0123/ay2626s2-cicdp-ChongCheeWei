@@ -69,6 +69,9 @@ export type PersonShare = {
   gstCents: number;
   totalCents: number;
   paid: boolean;
+  // Share link only: the PayNow QR text for exactly this person's amount,
+  // or null when there is nothing to pay or the owner has no PayNow number
+  paynowPayload?: string | null;
 };
 
 // GET /bills/:id/summary and /share/:token/summary: what each person owes.
@@ -80,4 +83,6 @@ export type Summary = {
   totalCents: number;
   unclaimedCents: number; // nobody tapped these items, so the owner pays for them
   people: PersonShare[];
+  // Share link only: who to pay back, and their PayNow number if they set one
+  paynow?: { mobile: string | null; name: string };
 };

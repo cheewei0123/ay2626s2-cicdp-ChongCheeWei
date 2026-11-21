@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { buildPayNowPayload } from '../payments/paynow.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { billTotals, formatCents } from '../split/money.js';
 import { SplitService } from '../split/split.service.js';
@@ -12,11 +13,41 @@ export class SummaryService {
     private readonly split: SplitService,
   ) {}
 
-  async forBill(billId: string, options: { withPaynow?: boolean } = {}) {
+  // The owner's view: what everyone owes
+  async forBill(billId: string) {
+    return (await this.build(billId)).summary;
+  }
+
+  // A guest's view (share link): the same, plus the owner's PayNow details so they can
+  // pay them back. Each guest who owes something gets a QR payload for exactly their amount.
+  async forGuest(billId: string) {
+    const { bill, summary } = await this.build(billId);
+    const mobile = bill.owner.paynowMobile;
+    const reference = `SplitLah ${bill.joinCode ?? ''}`;
+    return {
+      ...summary,
+      paynow: { mobile, name: bill.owner.displayName },
+      people: summary.people.map((p) => ({
+        ...p,
+        paynowPayload:
+          mobile && !p.isOwner && p.totalCents > 0
+            ? buildPayNowPayload({
+                mobile,
+                amountCents: p.totalCents,
+                name: bill.owner.displayName,
+                reference,
+              })
+            : null,
+      })),
+    };
+  }
+
+  private async build(billId: string) {
     const bill = await this.prisma.bill.findUnique({
       where: { id: billId },
       select: {
         ownerId: true,
+        joinCode: true,
         serviceBp: true,
         gstBp: true,
         owner: { select: { displayName: true, paynowMobile: true } },
@@ -123,9 +154,6 @@ export class SummaryService {
       }),
     };
 
-    // Guests need the owner's PayNow number to pay them back; the owner doesn't
-    return options.withPaynow
-      ? { ...summary, paynow: { mobile: bill.owner.paynowMobile } }
-      : summary;
+    return { bill, summary };
   }
 }
