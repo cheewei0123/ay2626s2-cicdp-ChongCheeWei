@@ -43,6 +43,7 @@ describe('ClaimsService (with a mocked database)', () => {
       updateMany: vi.fn(),
     },
     bill: { update: vi.fn() },
+    payment: { count: vi.fn() },
     participant: { findFirst: vi.fn(), create: vi.fn() },
     user: { findUnique: vi.fn() },
     $transaction: vi.fn(),
@@ -299,6 +300,17 @@ describe('ClaimsService (with a mocked database)', () => {
       expect(prisma.bill.update.mock.calls[0][0].data).toEqual({
         status: 'OPEN',
       });
+    });
+
+    it('answers 409 to unlocking while someone is marked as paid', async () => {
+      prisma.payment.count.mockResolvedValue(1);
+      await expect(service.unlock(locked)).rejects.toThrow(
+        'Someone is marked as paid',
+      );
+      expect(prisma.payment.count.mock.calls[0][0]).toEqual({
+        where: { billId: 'b1', paidAt: { not: null } },
+      });
+      expect(prisma.bill.update).not.toHaveBeenCalled();
     });
 
     it.each([

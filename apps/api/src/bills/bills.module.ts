@@ -19,5 +19,7 @@ import { SummaryService } from './summary.service.js';
     JoinController,
   ],
   providers: [BillsService, ShareService, ClaimsService, SummaryService],
+  // PaymentsModule needs to know who owes what
+  exports: [SummaryService],
 })
 export class BillsModule {}

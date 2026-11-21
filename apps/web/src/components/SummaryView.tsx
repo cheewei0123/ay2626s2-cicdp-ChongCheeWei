@@ -1,5 +1,5 @@
 import { formatCents } from '../bills/money';
-import type { SharedItem, Summary } from '../bills/types';
+import type { PersonShare, SharedItem, Summary } from '../bills/types';
 import { SectionLabel } from './Page';
 import { PersonCard } from './PersonCard';
 
@@ -9,6 +9,9 @@ export function SummaryView(props: {
   summary: Summary;
   items: SharedItem[];
   me?: string; // my participant id, so my card says "You"
+  // Owner only: who can be ticked as paid, and what happens when they are
+  onTogglePaid?: (person: PersonShare) => void;
+  busyId?: string;
 }) {
   const { summary, items, me } = props;
   const owner = summary.people.find((p) => p.isOwner);
@@ -46,6 +49,13 @@ export function SummaryView(props: {
               person={person}
               name={nameOf(person.participantId, person.displayName)}
               items={itemsOf(person.participantId, person.isOwner)}
+              // Nobody ticks themselves, or someone who owes nothing
+              onTogglePaid={
+                props.onTogglePaid && !person.isOwner && person.totalCents > 0
+                  ? () => props.onTogglePaid!(person)
+                  : undefined
+              }
+              busy={props.busyId === person.participantId}
             />
           </li>
         ))}
