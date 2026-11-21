@@ -116,7 +116,7 @@ export class ExpensesService {
     const expense = await this.findMine(userId, id);
     if (expense.source === 'BILL_SHARE') {
       throw new ConflictException(
-        'This is your share of a locked bill. Unlock the bill to remove it.',
+        'This is your share of a bill, so it changes with the bill. Ask the owner to change your claims.',
       );
     }
     await this.prisma.expense.delete({ where: { id } });

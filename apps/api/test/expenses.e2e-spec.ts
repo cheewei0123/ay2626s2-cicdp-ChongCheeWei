@@ -313,7 +313,7 @@ describe('Expenses (e2e, real database)', () => {
   });
 
   it('a bill share can be recategorised, but not changed or deleted here (409)', async () => {
-    // Made directly in the database, the way locking a bill will (KAN-79)
+    // Made directly in the database, as locking a bill does (KAN-79)
     const share = await prisma.expense.create({
       data: {
         userId: aliceId,

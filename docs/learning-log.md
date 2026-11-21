@@ -2,6 +2,15 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-79: my share is logged as an expense when the bill is locked
+
+- **An event instead of an import:** `ClaimsService.lock` sends `bill.locked` with `@nestjs/event-emitter`, and `BillShareListener` in the expenses code listens with `@OnEvent`. `BillsModule` never imports `ExpensesModule`; the only shared thing is the event's shape in `bill-events.ts`.
+- **`emitAsync` + `suppressErrors: false`:** by default a listener's error is swallowed and `emit` doesn't wait. Waiting and letting errors through means the bill only turns `LOCKED` once the shares are saved; if saving fails, the bill stays `OPEN` and the owner can lock again.
+- **Idempotent with an upsert:** `Expense` has `@@unique([userId, billId])`, so locking twice updates one row instead of adding another. The update leaves out category and note, so a person's own changes survive.
+- **Summary first, then the bill:** the summary may create the owner's participant row the first time, so I read the participants after it, not alongside it with `Promise.all`.
+- **Guests can't sign in yet:** only participants with a `userId` get a row, which today is the owner. The e2e test links one guest to an account in the database to prove the rest works.
+- **Kept the lockfile clean:** `npm install` on Windows also dropped some unrelated Tailwind wasm entries from `package-lock.json`, so I rebuilt it from `main` and added only the two new packages.
+
 ## KAN-81: PayNow number on the Profile page
 
 - **PATCH means "only what I send":** a field left out of the body arrives as `undefined`, and Prisma leaves that column alone. `null` is different: it clears the column, which is how the PayNow number is removed.
