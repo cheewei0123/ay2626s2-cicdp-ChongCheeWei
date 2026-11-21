@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -57,11 +58,15 @@ describe('ExpensesService (mocked database)', () => {
       update: vi.fn(),
       delete: vi.fn(),
     },
+    merchantCategory: { findUnique: vi.fn(), upsert: vi.fn() },
   };
   const service = (ocr: OcrService = new FakeOcrService()) =>
     new ExpensesService(prisma as unknown as PrismaService, ocr);
 
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+  });
   afterEach(() => vi.useRealTimers());
 
   describe('list', () => {
@@ -240,6 +245,46 @@ describe('ExpensesService (mocked database)', () => {
       });
     });
 
+    it('remembers a changed category for that merchant, and logs the correction', async () => {
+      prisma.expense.findFirst.mockResolvedValue(
+        row({ merchant: 'STARBUCKS Coffee!', category: 'GIFTS' }),
+      );
+      prisma.expense.update.mockResolvedValue(
+        row({ merchant: 'STARBUCKS Coffee!', category: 'FOOD_DRINKS' }),
+      );
+
+      await service().update('u1', 'e1', { category: 'FOOD_DRINKS' });
+
+      expect(prisma.merchantCategory.upsert).toHaveBeenCalledWith({
+        where: {
+          userId_merchantKey: { userId: 'u1', merchantKey: 'starbucks coffee' },
+        },
+        create: {
+          userId: 'u1',
+          merchantKey: 'starbucks coffee',
+          category: 'FOOD_DRINKS',
+        },
+        update: { category: 'FOOD_DRINKS' },
+      });
+      expect(Logger.prototype.log).toHaveBeenCalledWith(
+        'category corrected from GIFTS to FOOD_DRINKS (MANUAL)',
+      );
+    });
+
+    it('remembers nothing when the category is unchanged or there is no merchant', async () => {
+      prisma.expense.findFirst.mockResolvedValue(row());
+      prisma.expense.update.mockResolvedValue(row());
+      await service().update('u1', 'e1', { category: 'FOOD_DRINKS' });
+
+      prisma.expense.findFirst.mockResolvedValue(row({ merchant: null }));
+      prisma.expense.update.mockResolvedValue(
+        row({ merchant: null, category: 'GIFTS' }),
+      );
+      await service().update('u1', 'e1', { category: 'GIFTS' });
+
+      expect(prisma.merchantCategory.upsert).not.toHaveBeenCalled();
+    });
+
     it.each([
       { amountCents: 1 },
       { merchant: 'Other' },
@@ -295,13 +340,14 @@ describe('ExpensesService (mocked database)', () => {
     const photo = Buffer.from('photo');
 
     it('turns the receipt into a draft expense, without saving anything', async () => {
-      const draft = await service().draftFromPhoto(photo, 'image/png');
+      const draft = await service().draftFromPhoto('u1', photo, 'image/png');
 
       expect(draft).toEqual({
         amountCents: 3537,
         amount: '$35.37',
         merchant: 'Maxwell Food Centre',
         category: 'FOOD_DRINKS',
+        categoryFrom: 'ai',
         spentAt: '2026-11-01',
         source: 'RECEIPT',
       });
@@ -316,20 +362,79 @@ describe('ExpensesService (mocked database)', () => {
         ],
       });
 
-      expect(await service(reader).draftFromPhoto(photo, 'image/png')).toEqual({
+      expect(
+        await service(reader).draftFromPhoto('u1', photo, 'image/png'),
+      ).toEqual({
         amountCents: 520,
         amount: '$5.20',
         merchant: null,
         category: 'OTHERS',
+        categoryFrom: 'none',
         spentAt: null,
         source: 'RECEIPT',
       });
     });
 
+    it('uses my remembered category for that merchant over the AI one', async () => {
+      prisma.merchantCategory.findUnique.mockResolvedValue({
+        category: 'ENTERTAINMENT',
+      });
+      expect(
+        await service().draftFromPhoto('u1', photo, 'image/png'),
+      ).toMatchObject({ category: 'ENTERTAINMENT', categoryFrom: 'memory' });
+      expect(prisma.merchantCategory.findUnique).toHaveBeenCalledWith({
+        where: {
+          userId_merchantKey: {
+            userId: 'u1',
+            merchantKey: 'maxwell food centre',
+          },
+        },
+      });
+    });
+
     it('is 422 when the receipt shows no amount at all', async () => {
       await expect(
-        service(readerOf({ items: [] })).draftFromPhoto(photo, 'image/png'),
+        service(readerOf({ items: [] })).draftFromPhoto(
+          'u1',
+          photo,
+          'image/png',
+        ),
       ).rejects.toThrow(UnprocessableEntityException);
+    });
+  });
+
+  describe('guessCategory: memory, then AI, then keyword rules', () => {
+    it('memory beats the AI', async () => {
+      prisma.merchantCategory.findUnique.mockResolvedValue({
+        category: 'FOOD_DRINKS',
+      });
+      expect(await service().guessCategory('u1', 'Starbucks', 'GIFTS')).toEqual(
+        { category: 'FOOD_DRINKS', from: 'memory' },
+      );
+    });
+
+    it('the AI beats the rules, but its OTHERS counts as no answer', async () => {
+      prisma.merchantCategory.findUnique.mockResolvedValue(null);
+      expect(await service().guessCategory('u1', 'Grab', 'TRAVEL')).toEqual({
+        category: 'TRAVEL',
+        from: 'ai',
+      });
+      expect(await service().guessCategory('u1', 'Grab', 'OTHERS')).toEqual({
+        category: 'TRANSPORT',
+        from: 'rules',
+      });
+    });
+
+    it('with no usable merchant it never looks up memory', async () => {
+      expect(await service().guessCategory('u1', undefined)).toEqual({
+        category: 'OTHERS',
+        from: 'none',
+      });
+      expect(await service().guessCategory('u1', '!!!')).toEqual({
+        category: 'OTHERS',
+        from: 'none',
+      });
+      expect(prisma.merchantCategory.findUnique).not.toHaveBeenCalled();
     });
   });
 });

@@ -119,6 +119,10 @@ describe('Locking a bill logs each share as an expense (e2e, real database)', ()
     await prisma.expense.deleteMany({
       where: { user: { email: { in: [ownerEmail, benEmail] } } },
     });
+    // Changing the share's category also remembered it for the merchant (KAN-78)
+    await prisma.merchantCategory.deleteMany({
+      where: { user: { email: { in: [ownerEmail, benEmail] } } },
+    });
     await prisma.user.deleteMany({
       where: { email: { in: [ownerEmail, benEmail] } },
     });

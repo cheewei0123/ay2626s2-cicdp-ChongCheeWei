@@ -9,6 +9,7 @@ describe('ExpensesController', () => {
     summary: vi.fn(),
     create: vi.fn(),
     draftFromPhoto: vi.fn(),
+    guessCategory: vi.fn(),
     update: vi.fn(),
     remove: vi.fn(),
   };
@@ -29,13 +30,19 @@ describe('ExpensesController', () => {
     await controller.create(me, dto);
     await controller.update(me, 'e1', { note: 'hi' });
     await controller.remove(me, 'e1');
-    await controller.scan({ buffer: photo, mimetype: 'image/png' });
+    await controller.scan(me, { buffer: photo, mimetype: 'image/png' });
+    await controller.category(me, { merchant: 'Starbucks' });
 
     expect(service.list).toHaveBeenCalledWith('u1', { month: '2026-11' });
     expect(service.summary).toHaveBeenCalledWith('u1', '2026-11');
     expect(service.create).toHaveBeenCalledWith('u1', dto);
     expect(service.update).toHaveBeenCalledWith('u1', 'e1', { note: 'hi' });
     expect(service.remove).toHaveBeenCalledWith('u1', 'e1');
-    expect(service.draftFromPhoto).toHaveBeenCalledWith(photo, 'image/png');
+    expect(service.draftFromPhoto).toHaveBeenCalledWith(
+      'u1',
+      photo,
+      'image/png',
+    );
+    expect(service.guessCategory).toHaveBeenCalledWith('u1', 'Starbucks');
   });
 });

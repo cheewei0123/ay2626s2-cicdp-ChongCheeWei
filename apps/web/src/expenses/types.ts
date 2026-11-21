@@ -45,10 +45,17 @@ export type MonthSummary = {
   byCategory: { category: Category; totalCents: number; count: number }[];
 };
 
+// GET /expenses/category?merchant=…: what you picked before, else keyword rules
+export type CategoryGuess = {
+  category: Category;
+  from: 'memory' | 'ai' | 'rules' | 'none';
+};
+
 // POST /expenses/receipt: a draft to check, nothing is saved yet
 export type ExpenseDraft = {
   amountCents: number;
   merchant: string | null;
   category: Category;
+  categoryFrom: CategoryGuess['from'];
   spentAt: string | null;
 };

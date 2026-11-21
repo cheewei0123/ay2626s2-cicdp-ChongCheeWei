@@ -2,10 +2,11 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import type { Expense } from '../generated/prisma/client.js';
+import type { Category, Expense } from '../generated/prisma/client.js';
 import { OCR_SERVICE, type OcrService } from '../ocr/ocr.interface.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { formatCents } from '../split/money.js';
@@ -14,6 +15,7 @@ import type {
   ListExpensesQueryDto,
   UpdateExpenseDto,
 } from './dto/expense.dto.js';
+import { merchantKey, ruleCategory } from './categorise.js';
 import { currentMonth, monthRange } from './month.js';
 import { summarise } from './summary.js';
 
@@ -38,8 +40,13 @@ function toView(e: Expense) {
 // "2026-11-05" or "2026-11-05T19:30:00+08:00" → Date; undefined leaves the field alone
 const toDate = (date?: string) => (date ? new Date(date) : undefined);
 
+// Where a guessed category came from, checked in this order
+export type CategorySource = 'memory' | 'ai' | 'rules' | 'none';
+
 @Injectable()
 export class ExpensesService {
+  private readonly logger = new Logger('Categorise');
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(OCR_SERVICE) private readonly ocr: OcrService,
@@ -93,6 +100,28 @@ export class ExpensesService {
     return toView(expense);
   }
 
+  // The best category for a merchant: what this user picked before, else the AI's
+  // answer, else the keyword rules. OTHERS from the AI counts as no answer.
+  async guessCategory(
+    userId: string,
+    merchant: string | undefined,
+    aiCategory?: Category,
+  ): Promise<{ category: Category; from: CategorySource }> {
+    const key = merchant ? merchantKey(merchant) : '';
+    if (key) {
+      const remembered = await this.prisma.merchantCategory.findUnique({
+        where: { userId_merchantKey: { userId, merchantKey: key } },
+      });
+      if (remembered) return { category: remembered.category, from: 'memory' };
+    }
+    if (aiCategory && aiCategory !== 'OTHERS') {
+      return { category: aiCategory, from: 'ai' };
+    }
+    const rule = key ? ruleCategory(key) : undefined;
+    if (rule) return { category: rule, from: 'rules' };
+    return { category: 'OTHERS', from: 'none' };
+  }
+
   async update(userId: string, id: string, dto: UpdateExpenseDto) {
     const expense = await this.findMine(userId, id);
     // A bill share must match the locked bill; only its category and note are personal
@@ -109,6 +138,13 @@ export class ExpensesService {
       where: { id },
       data: { ...dto, spentAt: toDate(dto.spentAt) },
     });
+    if (dto.category && dto.category !== expense.category) {
+      await this.remember(userId, updated.merchant, dto.category);
+      // One line per correction: counting them gives how often the guess was wrong
+      this.logger.log(
+        `category corrected from ${expense.category} to ${dto.category} (${expense.source})`,
+      );
+    }
     return toView(updated);
   }
 
@@ -122,8 +158,23 @@ export class ExpensesService {
     await this.prisma.expense.delete({ where: { id } });
   }
 
+  // A changed category is remembered for that merchant, so next time it is right
+  private async remember(
+    userId: string,
+    merchant: string | null,
+    category: Category,
+  ) {
+    const key = merchant ? merchantKey(merchant) : '';
+    if (!key) return;
+    await this.prisma.merchantCategory.upsert({
+      where: { userId_merchantKey: { userId, merchantKey: key } },
+      create: { userId, merchantKey: key, category },
+      update: { category },
+    });
+  }
+
   // POST /api/expenses/receipt: a draft for the user to check, nothing is saved
-  async draftFromPhoto(image: Buffer, mimeType: string) {
+  async draftFromPhoto(userId: string, image: Buffer, mimeType: string) {
     const receipt = await this.ocr.extract(image, mimeType);
     const itemsCents = receipt.items.reduce(
       (sum, item) => sum + item.unitPriceCents * item.quantity,
@@ -136,11 +187,17 @@ export class ExpensesService {
         'No amount found on this receipt. Add the expense by hand.',
       );
     }
+    const guess = await this.guessCategory(
+      userId,
+      receipt.merchant,
+      receipt.category,
+    );
     return {
       amountCents,
       amount: formatCents(amountCents),
       merchant: receipt.merchant ?? null,
-      category: receipt.category ?? 'OTHERS',
+      category: guess.category,
+      categoryFrom: guess.from,
       spentAt: receipt.date ?? null, // the app fills in today if the date wasn't read
       source: 'RECEIPT' as const,
     };

@@ -333,6 +333,7 @@ describe('Add expense', () => {
           merchant: 'Toast Box',
           category: 'FOOD_DRINKS',
           spentAt: '2026-11-18',
+          categoryFrom: 'ai',
         },
         201,
       ),
@@ -343,6 +344,7 @@ describe('Add expense', () => {
     expect(screen.getByLabelText('Amount ($)')).toHaveValue('12.90');
     expect(screen.getByLabelText('Merchant')).toHaveValue('Toast Box');
     expect(screen.getByLabelText('Date')).toHaveValue('2026-11-18');
+    expect(screen.getByText('Guessed from the receipt')).toBeVisible();
 
     await user.click(screen.getByRole('button', { name: 'Save expense' }));
     await screen.findByRole('heading', { name: 'Expenses' });
@@ -375,6 +377,71 @@ describe('Add expense', () => {
       'href',
       `/expenses?month=${sgMonth()}`,
     );
+  });
+});
+
+describe('Add expense: guessing the category (KAN-78)', () => {
+  beforeEach(() => localStorage.setItem('splitlah.token', 'jwt-1'));
+  const guessUrl = (merchant: string) =>
+    `GET /api/expenses/category?merchant=${encodeURIComponent(merchant)}`;
+
+  it('fills in what you picked last time once the merchant is typed', async () => {
+    fakeApi({
+      'GET /api/me': ok(chee),
+      [guessUrl('Starbucks')]: ok({ category: 'GIFTS', from: 'memory' }),
+      [guessUrl('Grab')]: ok({ category: 'TRANSPORT', from: 'rules' }),
+    });
+    const user = userEvent.setup();
+    renderApp('/expenses/new');
+
+    await user.type(await screen.findByLabelText('Merchant'), 'Starbucks');
+    await user.tab();
+    await waitFor(() =>
+      expect(screen.getByLabelText('Category')).toHaveValue('GIFTS'),
+    );
+    expect(screen.getByText('Same as you picked last time')).toBeVisible();
+
+    await user.clear(screen.getByLabelText('Merchant'));
+    await user.type(screen.getByLabelText('Merchant'), 'Grab');
+    await user.tab();
+    await waitFor(() =>
+      expect(screen.getByLabelText('Category')).toHaveValue('TRANSPORT'),
+    );
+    expect(screen.getByText('Guessed from the name')).toBeVisible();
+  });
+
+  it('never replaces a category you picked, and ignores no answer or an error', async () => {
+    const fetchMock = fakeApi({
+      'GET /api/me': ok(chee),
+      [guessUrl('Ah Huat')]: ok({ category: 'OTHERS', from: 'none' }),
+      [guessUrl('Kopi')]: ok({}, 500),
+    });
+    const user = userEvent.setup();
+    renderApp('/expenses/new');
+
+    const merchant = await screen.findByLabelText('Merchant');
+    await user.type(merchant, 'Ah Huat');
+    await user.tab();
+    await user.clear(merchant);
+    await user.type(merchant, 'Kopi');
+    await user.tab();
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/expenses/category?merchant=Kopi',
+        expect.anything(),
+      ),
+    );
+    expect(screen.getByLabelText('Category')).toHaveValue('FOOD_DRINKS');
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    // Picked by hand: no more guesses
+    fetchMock.mockClear();
+    await user.selectOptions(screen.getByLabelText('Category'), 'HEALTH');
+    await user.clear(merchant);
+    await user.type(merchant, 'Starbucks');
+    await user.tab();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Category')).toHaveValue('HEALTH');
   });
 });
 
