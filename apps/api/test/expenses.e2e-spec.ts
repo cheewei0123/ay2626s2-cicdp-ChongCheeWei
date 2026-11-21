@@ -7,6 +7,7 @@ import { configureApp } from './../src/app.setup.js';
 import { FakeOcrService } from './../src/ocr/fake-ocr.service.js';
 import { OCR_SERVICE } from './../src/ocr/ocr.interface.js';
 import { PrismaService } from './../src/prisma/prisma.service.js';
+import { markVerified } from './verified.js';
 
 const run = Date.now();
 const aliceEmail = `e2e-expenses-a-${run}@example.com`;
@@ -62,6 +63,7 @@ describe('Expenses (e2e, real database)', () => {
     alice = `Bearer ${a.accessToken}`;
     aliceId = a.user.id;
     bob = `Bearer ${(await register(bobEmail)).accessToken}`;
+    await markVerified(app, aliceEmail, bobEmail);
 
     // Alice's November 2026, plus one just after midnight on 1 Dec (Singapore)
     await add(alice, {

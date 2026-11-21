@@ -2,6 +2,17 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-77: verifying the email address
+
+- **Store a hash, email the token:** the link carries 32 random bytes (`randomBytes(32).toString('base64url')`); the database only has its SHA-256. Someone who reads the database still can't verify an account. A plain hash is enough here (unlike passwords) because the token is random and long, not guessable.
+- **One answer for every bad link:** unknown, used and expired tokens all get the same `400`, so the API doesn't say which tokens exist.
+- **Used and verified together:** marking the token used and setting `emailVerifiedAt` happen in one `$transaction`, so a link can't be half-used.
+- **The guard reads the database, not the JWT:** if "verified" were inside the login token, a user would have to log in again after clicking the link. `EmailVerifiedGuard` needs only `PrismaService` (global), so the bills and expenses modules use it without importing `AuthModule`.
+- **The email must not break sign-up:** if Gmail is down, the account is still made and the error is logged; the banner's "Send again" retries.
+- **The rate limit showed up in my own test:** the fourth "Send again" in the e2e test got `429` instead of the `401` I expected. The throttler runs before the login check, so I turned that into the test for the 3-an-hour limit.
+- **Old tests needed verified users:** nine e2e files create bills. A small `markVerified` helper sets `emailVerifiedAt` straight in the database for them, and one new test (`verify-email.e2e-spec.ts`) goes through the real link.
+- **React runs effects twice in development:** the `/verify` page would post the same one-time token twice and the second would fail. A `useRef` flag makes it post once.
+
 ## KAN-78: guessing the category, and remembering corrections
 
 - **Three layers, cheapest and most personal first:** the user's own past choice for that merchant, then the category Gemini read from the receipt, then keyword rules. Each answer says where it came from (`memory`, `ai`, `rules`, `none`), which the Add page shows as a hint and the tests check.

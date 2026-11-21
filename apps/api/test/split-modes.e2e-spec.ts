@@ -6,6 +6,7 @@ import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/app.setup.js';
 import { PrismaService } from './../src/prisma/prisma.service.js';
 import { SplitService, type SplitMode } from './../src/split/split.service.js';
+import { markVerified } from './verified.js';
 
 const ownerEmail = `e2e-modes-${Date.now()}@example.com`;
 
@@ -85,6 +86,7 @@ describe('Split modes (e2e, real database)', () => {
       })
       .expect(201);
     owner = `Bearer ${res.body.accessToken}`;
+    await markVerified(app, ownerEmail);
     bill = (
       await request(server())
         .post('/api/bills')

@@ -6,6 +6,7 @@ import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/app.setup.js';
 import { PrismaService } from './../src/prisma/prisma.service.js';
 import { SplitService } from './../src/split/split.service.js';
+import { markVerified } from './verified.js';
 
 const run = Date.now();
 const ownerEmail = `e2e-claims-${run}@example.com`;
@@ -74,6 +75,7 @@ describe('Claims and lock (e2e, real database)', () => {
       })
       .expect(201);
     owner = `Bearer ${res.body.accessToken}`;
+    await markVerified(app, ownerEmail);
 
     bill = await newBill('Dinner at Maxwell');
     tiger = await addItem(bill.id, 'Tiger', 800, 2);

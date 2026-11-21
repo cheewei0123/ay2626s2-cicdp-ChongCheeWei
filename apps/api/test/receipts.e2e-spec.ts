@@ -7,6 +7,7 @@ import { configureApp } from './../src/app.setup.js';
 import { FakeOcrService } from './../src/ocr/fake-ocr.service.js';
 import { OCR_SERVICE } from './../src/ocr/ocr.interface.js';
 import { PrismaService } from './../src/prisma/prisma.service.js';
+import { markVerified } from './verified.js';
 
 const run = Date.now();
 const ownerEmail = `e2e-receipts-owner-${run}@example.com`;
@@ -58,6 +59,7 @@ describe('Receipt upload (e2e, real database, Fake OCR)', () => {
     prisma = app.get(PrismaService);
     owner = await registerToken(ownerEmail);
     other = await registerToken(otherEmail);
+    await markVerified(app, ownerEmail, otherEmail);
   });
 
   afterAll(async () => {

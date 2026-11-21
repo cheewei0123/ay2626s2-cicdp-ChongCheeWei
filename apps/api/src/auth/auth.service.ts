@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -11,6 +12,7 @@ import type { LoginDto } from './dto/login.dto.js';
 import type { RegisterDto } from './dto/register.dto.js';
 import type { UpdateMeDto } from './dto/update-me.dto.js';
 import { hashPassword, verifyPassword } from './password.js';
+import { VerificationService } from './verification.service.js';
 
 // The only user fields ever sent to a client; passwordHash is never in this list
 const SAFE_USER = {
@@ -29,9 +31,12 @@ const NO_USER_HASH = `scrypt$${Buffer.alloc(16).toString('base64')}$${Buffer.all
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger('Auth');
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly verification: VerificationService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -45,6 +50,10 @@ export class AuthService {
           paynowMobile: dto.paynowMobile,
         },
         select: SAFE_USER,
+      });
+      // The account works even if the email fails: "Send again" can retry later
+      await this.verification.sendLink(user).catch((err: Error) => {
+        this.logger.warn(`verification email not sent: ${err.message}`);
       });
       return this.withToken(user);
     } catch (error) {

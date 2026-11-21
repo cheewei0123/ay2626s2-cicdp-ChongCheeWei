@@ -18,6 +18,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
 import type { AuthUser } from '../auth/auth-user.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
+import { EmailVerifiedGuard } from '../auth/email-verified.guard.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import {
   CategoryQueryDto,
@@ -30,9 +31,9 @@ import { ExpensesService } from './expenses.service.js';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
-// Every route needs a login, and works only on the logged-in user's own expenses.
-// (EmailVerifiedGuard is added in KAN-77.)
-@UseGuards(JwtAuthGuard)
+// Every route needs a login and a verified email (KAN-77), and works only on the
+// logged-in user's own expenses
+@UseGuards(JwtAuthGuard, EmailVerifiedGuard)
 @Controller('expenses')
 export class ExpensesController {
   constructor(private readonly expenses: ExpensesService) {}

@@ -8,7 +8,7 @@ Receipts are read by AI (Gemini free tier). Tests and CI must not call Gemini: i
 
 ## Decision
 
-Define one `OcrService` interface and register the implementation under the token `OCR_SERVICE`. Config (`OCR_PROVIDER`) picks **Gemini**, **Tesseract** or **Fake**. Code that needs OCR asks for `OCR_SERVICE` and never knows which one it got. Email follows the same pattern (`EMAIL_SERVICE`: Resend / SMTP / Fake).
+Define one `OcrService` interface and register the implementation under the token `OCR_SERVICE`. Config (`OCR_PROVIDER`) picks **Gemini**, **Tesseract** or **Fake**. Code that needs OCR asks for `OCR_SERVICE` and never knows which one it got. Email follows the same pattern (`EMAIL_SERVICE`: SMTP / Fake, see ADR 004).
 
 ## Alternatives
 

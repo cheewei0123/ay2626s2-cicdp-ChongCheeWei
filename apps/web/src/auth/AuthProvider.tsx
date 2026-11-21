@@ -52,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // PATCH /me answers with the saved profile, so every screen sees the change
       saveProfile: async (input: ProfileInput) =>
         setUser(await api<User>('/me', { method: 'PATCH', body: input })),
+      refreshUser: async () => setUser(await api<User>('/me')),
     };
   }, [user, loading, logout]);
 

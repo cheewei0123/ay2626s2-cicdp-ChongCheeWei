@@ -5,6 +5,7 @@ import request from 'supertest';
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/app.setup.js';
 import { PrismaService } from './../src/prisma/prisma.service.js';
+import { markVerified } from './verified.js';
 
 // Two fresh users each run: the owner, and someone who must not see the owner's bill
 const run = Date.now();
@@ -37,6 +38,7 @@ describe('Bills and items (e2e, real database)', () => {
     await app.init();
     owner = await registerToken(ownerEmail);
     other = await registerToken(otherEmail);
+    await markVerified(app, ownerEmail, otherEmail);
   });
 
   afterAll(async () => {

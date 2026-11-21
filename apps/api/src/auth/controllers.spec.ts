@@ -2,6 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { AuthController } from './auth.controller.js';
 import type { AuthService } from './auth.service.js';
 import { MeController } from './me.controller.js';
+import type { VerificationService } from './verification.service.js';
 
 // A fake AuthService: the controllers should only pass work on to it
 const auth = {
@@ -11,6 +12,8 @@ const auth = {
   updateProfile: vi.fn(),
 };
 const service = auth as unknown as AuthService;
+const verification = { verify: vi.fn(), resend: vi.fn() };
+const verifier = verification as unknown as VerificationService;
 const user = { id: 'u1', email: 'chee@example.com' };
 
 describe('AuthController', () => {
@@ -19,13 +22,21 @@ describe('AuthController', () => {
   it('passes register and login to AuthService', async () => {
     auth.register.mockResolvedValue('registered');
     auth.login.mockResolvedValue('logged in');
-    const controller = new AuthController(service);
+    const controller = new AuthController(service, verifier);
     const body = { email: 'chee@example.com', password: 'correct horse' };
 
     expect(await controller.register({ ...body, displayName: 'Chee' })).toBe(
       'registered',
     );
     expect(await controller.login(body)).toBe('logged in');
+  });
+
+  it('passes verify-email and resend to VerificationService', async () => {
+    const controller = new AuthController(service, verifier);
+    await controller.verifyEmail({ token: 'a'.repeat(43) });
+    await controller.resend(user);
+    expect(verification.verify).toHaveBeenCalledWith('a'.repeat(43));
+    expect(verification.resend).toHaveBeenCalledWith('u1');
   });
 });
 
