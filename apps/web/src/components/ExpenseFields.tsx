@@ -9,10 +9,14 @@ type Props = {
   onChange: (form: ExpenseForm) => void;
   // A bill share: amount, merchant and date come from the bill
   fromBill?: boolean;
+  // Add expense only: guess the category once the merchant is typed
+  onMerchantDone?: () => void;
+  categoryHint?: string;
 };
 
 // The fields for adding or editing an expense, shared by the Add page and the edit sheet
-export function ExpenseFields({ form, errors, onChange, fromBill }: Props) {
+export function ExpenseFields(props: Props) {
+  const { form, errors, onChange, fromBill } = props;
   const categoryId = useId();
   const set = (field: keyof ExpenseForm) => (value: string) =>
     onChange({ ...form, [field]: value });
@@ -49,6 +53,9 @@ export function ExpenseFields({ form, errors, onChange, fromBill }: Props) {
             </option>
           ))}
         </select>
+        {props.categoryHint && (
+          <span className="px-2 text-sm text-muted">{props.categoryHint}</span>
+        )}
       </div>
       {!fromBill && (
         <>
@@ -58,6 +65,7 @@ export function ExpenseFields({ form, errors, onChange, fromBill }: Props) {
             placeholder="Optional"
             value={form.merchant}
             onChange={(e) => set('merchant')(e.target.value)}
+            onBlur={props.onMerchantDone}
           />
           <Field
             label="Date"

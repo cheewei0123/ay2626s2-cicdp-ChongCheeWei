@@ -6,6 +6,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Length,
   Matches,
   Max,
   MaxLength,
@@ -93,6 +94,14 @@ export class MonthQueryDto {
   @IsOptional()
   @Matches(/^\d{4}-(0[1-9]|1[0-2])$/, MONTH)
   month?: string;
+}
+
+// GET /api/expenses/category?merchant=Starbucks
+export class CategoryQueryDto {
+  @Transform(trim)
+  @IsString({ message: 'merchant must be 1 to 80 characters' })
+  @Length(1, 80, { message: 'merchant must be 1 to 80 characters' })
+  merchant!: string;
 }
 
 // GET /api/expenses?month=2026-11&page=1&pageSize=50

@@ -20,6 +20,7 @@ import type { AuthUser } from '../auth/auth-user.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import {
+  CategoryQueryDto,
   CreateExpenseDto,
   ListExpensesQueryDto,
   MonthQueryDto,
@@ -48,6 +49,13 @@ export class ExpensesController {
     return this.expenses.summary(user.id, query.month);
   }
 
+  // GET /api/expenses/category?merchant=Starbucks → { category, from }: the guess the
+  // Add page fills in when you type a merchant
+  @Get('category')
+  category(@CurrentUser() user: AuthUser, @Query() query: CategoryQueryDto) {
+    return this.expenses.guessCategory(user.id, query.merchant);
+  }
+
   // POST /api/expenses → add an expense by hand (or save a checked receipt draft)
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateExpenseDto) {
@@ -62,6 +70,7 @@ export class ExpensesController {
     FileInterceptor('image', { limits: { fileSize: MAX_BYTES } }),
   )
   scan(
+    @CurrentUser() user: AuthUser,
     @UploadedFile(
       new ParseFilePipe({
         validators: [
@@ -74,7 +83,7 @@ export class ExpensesController {
       mimetype: string;
     },
   ) {
-    return this.expenses.draftFromPhoto(image.buffer, image.mimetype);
+    return this.expenses.draftFromPhoto(user.id, image.buffer, image.mimetype);
   }
 
   // PATCH /api/expenses/:id → change some fields

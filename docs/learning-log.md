@@ -2,6 +2,15 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-78: guessing the category, and remembering corrections
+
+- **Three layers, cheapest and most personal first:** the user's own past choice for that merchant, then the category Gemini read from the receipt, then keyword rules. Each answer says where it came from (`memory`, `ai`, `rules`, `none`), which the Add page shows as a hint and the tests check.
+- **One merchant, many spellings:** `merchantKey` lowercases and turns anything that isn't a letter or digit into one space, so "STARBUCKS Coffee!" and "Starbucks coffee" are the same row in `MerchantCategory` (unique on user + key).
+- **Whole words in the rules:** `\b(bus)\b` stops "Business Centre" being Transport. The rules are a plain list, checked top to bottom, so they are easy to read and test without Gemini.
+- **The AI's OTHERS is not an answer:** treating it as "no idea" lets the rules try, instead of locking in the least useful category.
+- **A new table broke an old test's clean-up:** the KAN-79 e2e test changes a bill share's category, which now saves a `MerchantCategory` row; deleting the user then hit its foreign key. The test now deletes those rows first.
+- **Counting corrections:** each change of category logs `category corrected from X to Y`, so how often the guess was wrong can be counted from the logs.
+
 ## KAN-80: the Expenses screens
 
 - **A fixed sheet that wasn't fixed:** the edit sheet ran off the bottom of the phone. The page's `rise` animation keeps a `transform` on `<main>`, and `position: fixed` inside a transformed parent follows that parent, not the screen. `createPortal(sheet, document.body)` draws it outside `<main>`; React context (the router) still reaches it.

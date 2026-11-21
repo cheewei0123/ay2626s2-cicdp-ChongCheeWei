@@ -214,18 +214,20 @@ Built in KAN-47 and KAN-48:
 | DELETE | `/expenses/:id`                              | `verified` | none                                                            | `204`                                                                      | 401, 403, 404, 409                |
 | POST   | `/expenses/receipt`                          | `verified` | `multipart` receipt photo (field `image`)                       | `201` draft `{ amountCents, amount, merchant, category, spentAt, source }` | 400, 401, 403, 413, 422, 429, 503 |
 | GET    | `/expenses/summary?month=YYYY-MM`            | `verified` | none                                                            | `200 { month, totalCents, total, byCategory[] }`                           | 400, 401, 403                     |
+| GET    | `/expenses/category?merchant=Starbucks`      | `verified` | none                                                            | `200 { category, from }`                                                   | 400, 401, 403                     |
 
 - `category` is one of: `FOOD_DRINKS`, `GROCERIES`, `TRANSPORT`, `SHOPPING`, `GIFTS`, `ENTERTAINMENT`, `BILLS_UTILITIES`, `HEALTH`, `TRAVEL`, `OTHERS`.
 - A `BILL_SHARE` expense comes from a locked bill. It cannot be deleted here (`409`); it changes with the bill. Its category can still be changed.
-- When the user changes a category, `MerchantCategory` remembers it, so the next receipt from the same merchant gets that category.
+- **Guessing a category (KAN-78)**, in this order: what this user picked before for the merchant (`from: "memory"`), else the category the AI read from the receipt (`"ai"`; its `OTHERS` counts as no answer), else keyword rules such as `grab` → `TRANSPORT` (`"rules"`), else `OTHERS` (`"none"`). The rules work with Gemini switched off.
+- When the user changes an expense's category, `MerchantCategory` remembers it for that merchant (lowercase, no punctuation, so "STARBUCKS!" = "Starbucks"), and the API logs one `category corrected` line, so corrections can be counted.
 - Users only ever see their own expenses (`404` for someone else's, so IDs can't be probed).
-- Built in KAN-76, with a login (`JwtAuthGuard`) for now; `EmailVerifiedGuard` comes with email verification (KAN-77). Remembering category changes (`MerchantCategory`) is KAN-78, and `BILL_SHARE` expenses are created on lock (KAN-79).
+- Built in KAN-76, with a login (`JwtAuthGuard`) for now; `EmailVerifiedGuard` comes with email verification (KAN-77). Remembering category changes (`MerchantCategory`) came in KAN-78, and `BILL_SHARE` expenses are created on lock (KAN-79).
   - **Months are Singapore time** (UTC+8): an expense at 11pm on 30 Nov is in November. `month` defaults to the current month in Singapore.
   - `expense` is `{ id, amountCents, amount, category, merchant, note, spentAt, source, billId, createdAt }`. Newest first; `pageSize` is 1 to 100 (default 50).
   - `byCategory[]` is `{ category, totalCents, total, count }`, biggest first. The category totals always add up to `totalCents`.
   - `amountCents` is 1 to 100000000 (whole cents). `source` can be `MANUAL` or `RECEIPT`; only a locked bill makes a `BILL_SHARE`.
   - A `BILL_SHARE`'s amount, merchant and date come from the bill, so changing them is `409`; `category` and `note` can change.
-  - `POST /expenses/receipt` is a draft, nothing is saved: `amountCents` is the printed total (or the items added up), `category` is `OTHERS` if the AI gave none, and `spentAt` is `null` if no date was read. No total at all → `422`. Same limits as the bill receipt route (5 a minute, 5 MB, JPEG or PNG).
+  - `POST /expenses/receipt` is a draft, nothing is saved: `amountCents` is the printed total (or the items added up), `category` is the guess above and `categoryFrom` says where it came from, and `spentAt` is `null` if no date was read. No total at all → `422`. Same limits as the bill receipt route (5 a minute, 5 MB, JPEG or PNG).
 
 ## Health
 

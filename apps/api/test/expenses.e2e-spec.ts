@@ -92,6 +92,7 @@ describe('Expenses (e2e, real database)', () => {
     // Expenses first: deleting a user does not delete their expenses by itself
     const users = { email: { in: [aliceEmail, bobEmail] } };
     await prisma.expense.deleteMany({ where: { user: users } });
+    await prisma.merchantCategory.deleteMany({ where: { user: users } });
     await prisma.user.deleteMany({ where: users });
     await app.close();
     vi.restoreAllMocks();
@@ -362,6 +363,7 @@ describe('Expenses (e2e, real database)', () => {
       amount: '$35.37',
       merchant: 'Maxwell Food Centre',
       category: 'FOOD_DRINKS',
+      categoryFrom: 'ai',
       spentAt: '2026-11-01',
       source: 'RECEIPT',
     });
@@ -378,6 +380,60 @@ describe('Expenses (e2e, real database)', () => {
         filename: 'notes.txt',
         contentType: 'text/plain',
       })
+      .expect(400);
+  });
+
+  it('remembers a corrected category: change Starbucks once and it is right next time', async () => {
+    const guess = (merchant: string, auth = alice) =>
+      api()
+        .get('/api/expenses/category')
+        .query({ merchant })
+        .set('Authorization', auth)
+        .expect(200);
+
+    // Before any correction, the keyword rules answer
+    expect((await guess('Starbucks')).body).toEqual({
+      category: 'FOOD_DRINKS',
+      from: 'rules',
+    });
+    expect((await guess('Ah Huat Trading')).body).toEqual({
+      category: 'OTHERS',
+      from: 'none',
+    });
+
+    const gift = await api()
+      .post('/api/expenses')
+      .set('Authorization', alice)
+      .send({
+        amountCents: 2500,
+        category: 'FOOD_DRINKS',
+        merchant: 'Starbucks',
+        spentAt: '2026-11-22',
+      })
+      .expect(201);
+    await api()
+      .patch(`/api/expenses/${gift.body.id}`)
+      .set('Authorization', alice)
+      .send({ category: 'GIFTS' })
+      .expect(200);
+
+    // Same merchant, written differently: now it comes from Alice's memory
+    expect((await guess('STARBUCKS!')).body).toEqual({
+      category: 'GIFTS',
+      from: 'memory',
+    });
+    // Only Alice's: Bob still gets the rules
+    expect((await guess('Starbucks', bob)).body.from).toBe('rules');
+  });
+
+  it('needs a merchant to guess a category (400)', async () => {
+    await api()
+      .get('/api/expenses/category')
+      .set('Authorization', alice)
+      .expect(400);
+    await api()
+      .get('/api/expenses/category?merchant=%20')
+      .set('Authorization', alice)
       .expect(400);
   });
 });

@@ -13,7 +13,14 @@ import {
   type ExpenseErrors,
 } from '../expenses/form';
 import { sgMonth } from '../expenses/dates';
-import type { ExpenseDraft } from '../expenses/types';
+import type { CategoryGuess, ExpenseDraft } from '../expenses/types';
+
+const HINTS: Record<CategoryGuess['from'], string> = {
+  memory: 'Same as you picked last time',
+  ai: 'Guessed from the receipt',
+  rules: 'Guessed from the name',
+  none: '',
+};
 
 // Wireframe #14: type an expense in, or scan a receipt and check what the AI read
 export default function AddExpense() {
@@ -24,6 +31,9 @@ export default function AddExpense() {
   const [errors, setErrors] = useState<ExpenseErrors>({});
   const [error, setError] = useState('');
   const [scanned, setScanned] = useState(false);
+  // Once you pick a category yourself, a guess never replaces it
+  const [picked, setPicked] = useState(false);
+  const [hint, setHint] = useState('');
   const [busy, setBusy] = useState<'' | 'reading' | 'saving'>('');
 
   async function scan(file: File | undefined) {
@@ -46,10 +56,36 @@ export default function AddExpense() {
         date: draft.spentAt?.slice(0, 10) ?? form.date,
       });
       setScanned(true);
+      setHint(HINTS[draft.categoryFrom]);
     } catch (err) {
       setError((err as Error).message);
     }
     setBusy('');
+  }
+
+  // KAN-78: the API checks what you picked before for this merchant, then keyword rules.
+  // Only a help: if it fails, the category simply stays as it is.
+  async function guessCategory() {
+    const merchant = form.merchant.trim();
+    if (picked || !merchant) return;
+    try {
+      const guess = await api<CategoryGuess>(
+        `/expenses/category?merchant=${encodeURIComponent(merchant)}`,
+      );
+      if (guess.from === 'none') return;
+      setForm((now) => ({ ...now, category: guess.category }));
+      setHint(HINTS[guess.from]);
+    } catch {
+      // keep the form as it is
+    }
+  }
+
+  function change(next: typeof form) {
+    if (next.category !== form.category) {
+      setPicked(true);
+      setHint('');
+    }
+    setForm(next);
   }
 
   async function onSubmit(event: FormEvent) {
@@ -96,7 +132,13 @@ export default function AddExpense() {
         </p>
       )}
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-        <ExpenseFields form={form} errors={errors} onChange={setForm} />
+        <ExpenseFields
+          form={form}
+          errors={errors}
+          onChange={change}
+          onMerchantDone={guessCategory}
+          categoryHint={hint}
+        />
         <FormError message={error} />
         <button type="submit" disabled={busy !== ''} className={primaryButton}>
           {busy === 'saving' ? 'Saving…' : 'Save expense'}
