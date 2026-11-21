@@ -28,6 +28,7 @@ export default defineConfig({
         'src/ocr/**': { lines: 90, branches: 90 },
         'src/receipts/**': { lines: 90, branches: 90 },
         'src/expenses/**': { lines: 90, branches: 90 },
+        'src/payments/**': { lines: 90, branches: 90 },
       },
     },
   },
