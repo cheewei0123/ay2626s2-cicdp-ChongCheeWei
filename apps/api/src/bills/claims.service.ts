@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   checkItemSplit,
@@ -12,9 +13,11 @@ import {
   type SplitClaim,
   type SplitMode,
 } from '../split/split.service.js';
+import { BILL_LOCKED, type BillLockedEvent } from './bill-events.js';
 import { assertOpen } from './bill-status.js';
 import type { SetSplitDto } from './dto/set-split.dto.js';
 import type { OwnedBill } from './guards/bill-owner.guard.js';
+import { SummaryService } from './summary.service.js';
 
 // In these modes the values only add up for the people already on the item,
 // so adding or removing someone puts the item back to an equal split
@@ -22,7 +25,11 @@ const needsReset = (mode: SplitMode) => mode === 'PERCENT' || mode === 'EXACT';
 
 @Injectable()
 export class ClaimsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly summary: SummaryService,
+    private readonly events: EventEmitter2,
+  ) {}
 
   // "I had this." Shares default to 1, so two people on one item split it 50/50.
   async claim(
@@ -181,11 +188,47 @@ export class ClaimsService {
     return created.id;
   }
 
-  // Lock = everyone is done; claims and items can't change any more
+  // Lock = everyone is done; claims and items can't change any more.
+  // Each person with an account gets their share logged as an expense (KAN-79).
   async lock(bill: OwnedBill) {
     if (bill.status !== 'OPEN') {
       throw new ConflictException('Only an OPEN bill can be locked');
     }
+    // One after the other: the summary may add the owner as a participant first
+    const summary = await this.summary.forBill(bill.id);
+    const details = await this.prisma.bill.findUniqueOrThrow({
+      where: { id: bill.id },
+      select: {
+        title: true,
+        merchant: true,
+        date: true,
+        participants: { select: { id: true, userId: true } },
+      },
+    });
+
+    // Add up per account, in case one account is on the bill twice
+    const accountOf = new Map(
+      details.participants.map((p) => [p.id, p.userId]),
+    );
+    const perUser = new Map<string, number>();
+    for (const person of summary.people) {
+      const userId = accountOf.get(person.participantId);
+      if (userId) {
+        perUser.set(userId, (perUser.get(userId) ?? 0) + person.totalCents);
+      }
+    }
+    const event: BillLockedEvent = {
+      billId: bill.id,
+      merchant: details.merchant || details.title, // merchant is optional on a bill
+      date: details.date,
+      shares: [...perUser].map(([userId, amountCents]) => ({
+        userId,
+        amountCents,
+      })),
+    };
+    // Waits for the listeners first: if logging fails, the bill stays OPEN and
+    // locking again is safe, because each share is an upsert
+    await this.events.emitAsync(BILL_LOCKED, event);
     return this.setStatus(bill.id, 'LOCKED');
   }
 

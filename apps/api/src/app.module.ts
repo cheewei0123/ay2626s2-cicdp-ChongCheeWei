@@ -1,5 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
@@ -21,6 +22,8 @@ import { PrismaModule } from './prisma/prisma.module.js';
     HealthModule,
     PaymentsModule,
     ReceiptsModule, // brings in OcrModule
+    // One event bus for the app: BillsModule sends bill.locked, ExpensesModule listens
+    EventEmitterModule.forRoot(),
     // At most 100 requests per minute from one IP; busy routes set lower limits with @Throttle
     ThrottlerModule.forRoot({ throttlers: [{ ttl: 60_000, limit: 100 }] }),
   ],

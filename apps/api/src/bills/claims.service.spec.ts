@@ -4,11 +4,13 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClaimsService } from './claims.service.js';
 import type { SetSplitDto } from './dto/set-split.dto.js';
 import type { OwnedBill } from './guards/bill-owner.guard.js';
+import { SummaryService } from './summary.service.js';
 
 const open: OwnedBill = { id: 'b1', ownerId: 'u1', status: 'OPEN' };
 const locked: OwnedBill = { ...open, status: 'LOCKED' };
@@ -42,17 +44,24 @@ describe('ClaimsService (with a mocked database)', () => {
       update: vi.fn(),
       updateMany: vi.fn(),
     },
-    bill: { update: vi.fn() },
+    bill: { update: vi.fn(), findUniqueOrThrow: vi.fn() },
     payment: { count: vi.fn() },
     participant: { findFirst: vi.fn(), create: vi.fn() },
     user: { findUnique: vi.fn() },
     $transaction: vi.fn(),
   };
+  const summary = { forBill: vi.fn() };
+  const events = { emitAsync: vi.fn() };
 
   beforeEach(async () => {
     vi.resetAllMocks();
     const moduleRef = await Test.createTestingModule({
-      providers: [ClaimsService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        ClaimsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: SummaryService, useValue: summary },
+        { provide: EventEmitter2, useValue: events },
+      ],
     }).compile();
     service = moduleRef.get(ClaimsService);
   });
@@ -285,13 +294,68 @@ describe('ClaimsService (with a mocked database)', () => {
   });
 
   describe('lock and unlock', () => {
-    it('locks an OPEN bill', async () => {
+    const date = new Date('2026-11-22');
+    // Chee (owner, account u1) owes 720, Ali (guest, no account) 899, Ben (account u2) 0
+    const lockable = (
+      merchant = 'Maxwell Food Centre',
+      participants = [
+        { id: 'chee', userId: 'u1' },
+        { id: 'ali', userId: null as string | null },
+        { id: 'ben', userId: 'u2' },
+      ],
+    ) => {
+      summary.forBill.mockResolvedValue({
+        people: [
+          { participantId: 'chee', totalCents: 720 },
+          { participantId: 'ali', totalCents: 899 },
+          { participantId: 'ben', totalCents: 0 },
+        ],
+      });
+      prisma.bill.findUniqueOrThrow.mockResolvedValue({
+        title: 'Friday dinner',
+        merchant,
+        date,
+        participants,
+      });
       prisma.bill.update.mockResolvedValue({ id: 'b1', status: 'LOCKED' });
+    };
+
+    it('locks an OPEN bill and sends bill.locked with each account holder’s share', async () => {
+      lockable();
       expect(await service.lock(open)).toEqual({ id: 'b1', status: 'LOCKED' });
       expect(prisma.bill.update.mock.calls[0][0]).toMatchObject({
         where: { id: 'b1' },
         data: { status: 'LOCKED' },
       });
+      // Ali has no account, so no expense; Ben is sent with 0 so an old row can go
+      expect(events.emitAsync).toHaveBeenCalledWith('bill.locked', {
+        billId: 'b1',
+        merchant: 'Maxwell Food Centre',
+        date,
+        shares: [
+          { userId: 'u1', amountCents: 720 },
+          { userId: 'u2', amountCents: 0 },
+        ],
+      });
+    });
+
+    it('uses the title when the bill has no merchant, and adds up one account on twice', async () => {
+      lockable('', [
+        { id: 'chee', userId: 'u1' },
+        { id: 'ali', userId: 'u1' },
+      ]);
+      await service.lock(open);
+      expect(events.emitAsync.mock.calls[0][1]).toMatchObject({
+        merchant: 'Friday dinner',
+        shares: [{ userId: 'u1', amountCents: 1619 }],
+      });
+    });
+
+    it('leaves the bill OPEN when logging the shares fails', async () => {
+      lockable();
+      events.emitAsync.mockRejectedValue(new Error('database down'));
+      await expect(service.lock(open)).rejects.toThrow('database down');
+      expect(prisma.bill.update).not.toHaveBeenCalled();
     });
 
     it('unlocks a LOCKED bill', async () => {

@@ -106,14 +106,15 @@ Built in KAN-81 (slimmed):
 - `owner` routes go through `BillOwnerGuard`: a bill that does not exist answers `404`; someone else's bill answers `403 Only the owner of this bill can do this`. Bill IDs are long random strings, so a `403` does not help anyone guess other bills.
 - Built so far (KAN-25): create, list, get and update bills; add, edit and delete items. These need a login (`JWT`) for now; the `verified` check comes with email verification.
 - Built in KAN-27: `GET /share/:token`, `POST /share/:token/participants` and `GET /join/:code`. Join and join-code lookups are limited to 20 per minute per IP. A repeated name gets a suffix: `Ben`, `Ben (2)`.
-- Built in KAN-28: `POST /share/:token/claims` (`{ itemId, shares? }`, upsert so claiming twice never duplicates), `DELETE /share/:token/claims/:itemId`, and `POST /bills/:id/lock` and `/unlock`. Claim routes need the guest token in an `X-Guest-Token` header, and it must be for this bill (`403` otherwise). Lock only works on an `OPEN` bill and unlock only on a `LOCKED` one (`409` otherwise). Creating expenses on lock comes with the Expenses API (KAN-76).
+- Built in KAN-28: `POST /share/:token/claims` (`{ itemId, shares? }`, upsert so claiming twice never duplicates), `DELETE /share/:token/claims/:itemId`, and `POST /bills/:id/lock` and `/unlock`. Claim routes need the guest token in an `X-Guest-Token` header, and it must be for this bill (`403` otherwise). Lock only works on an `OPEN` bill and unlock only on a `LOCKED` one (`409` otherwise). Logging each share as an expense on lock is KAN-79.
 - **Scanned or pasted items are never saved straight away.** `POST /receipt` and `POST /receipt-text` return a draft for the owner to check and edit, then each item is saved with `POST /items`.
 - Built in KAN-33: `POST /bills/:id/receipt` reads the photo with the provider in `OCR_PROVIDER` (Gemini in production, the Fake in tests and CI). Only the AI's answer is kept (`ReceiptImage.rawJson`), not the photo. 5 uploads per minute, the same as Gemini's free limit.
   - `serviceBp` and `gstBp` are suggestions: `0` when the receipt shows no service charge, and `0` GST when the printed total equals the items' sum (GST already included, as at fast food and food courts).
   - `check` helps the owner spot mistakes: `subtotalMatches` (items vs the printed subtotal) and `totalMatches` (our total vs the printed total); `null` when the receipt doesn't show that number.
   - `409` locked bill (checked before calling the AI, so no quota is used), `413` over 5 MB, `422` the AI's answer failed validation, `429` free limit reached, `503` the AI is down or took over 60 s. Every error says the items can be added by hand.
   - `POST /expenses/receipt` is part of the Expenses API (KAN-76).
-- **Lock** freezes the split and creates an `Expense` (source `BILL_SHARE`) for every participant who has a user account. **Unlock** removes those expenses.
+- **Lock** freezes the split and saves an `Expense` (source `BILL_SHARE`, category Food & Drinks, the bill's merchant or else its title, and its date) for every participant who has a user account and owes more than $0. Guests without an account are skipped. Built in KAN-79: `ClaimsService.lock` sends a `bill.locked` event with each account's total, and `BillShareListener` in the expenses code saves them, so the bills code never imports the expenses code. The bill only becomes `LOCKED` after the shares are saved.
+- **Unlock** keeps those expenses. Locking again updates the amount, merchant and date in the same row (unique `userId` + `billId`) and keeps the person's own category and note. Someone who owes $0 by then loses their row.
 - Payments can only be marked while the bill is `LOCKED` or `SETTLED`. The app never moves money; this only records that someone says they paid.
 - Built in KAN-49: `PATCH /bills/:id/payments/:participantId` (`PaymentsModule`, owner only) answers `200 { participantId, paid, amountCents, paidCount, owingCount, status }`.
   - `amountCents` is a snapshot of what the person owed when ticked, so later edits can't silently change what was paid.
@@ -215,10 +216,10 @@ Built in KAN-47 and KAN-48:
 | GET    | `/expenses/summary?month=YYYY-MM`            | `verified` | none                                                            | `200 { month, totalCents, total, byCategory[] }`                           | 400, 401, 403                     |
 
 - `category` is one of: `FOOD_DRINKS`, `GROCERIES`, `TRANSPORT`, `SHOPPING`, `GIFTS`, `ENTERTAINMENT`, `BILLS_UTILITIES`, `HEALTH`, `TRAVEL`, `OTHERS`.
-- A `BILL_SHARE` expense comes from a locked bill. It cannot be deleted here (`409`); unlock the bill instead. Its category can still be changed.
+- A `BILL_SHARE` expense comes from a locked bill. It cannot be deleted here (`409`); it changes with the bill. Its category can still be changed.
 - When the user changes a category, `MerchantCategory` remembers it, so the next receipt from the same merchant gets that category.
 - Users only ever see their own expenses (`404` for someone else's, so IDs can't be probed).
-- Built in KAN-76, with a login (`JwtAuthGuard`) for now; `EmailVerifiedGuard` comes with email verification (KAN-77). Remembering category changes (`MerchantCategory`) is KAN-78, and creating `BILL_SHARE` expenses on lock is KAN-79.
+- Built in KAN-76, with a login (`JwtAuthGuard`) for now; `EmailVerifiedGuard` comes with email verification (KAN-77). Remembering category changes (`MerchantCategory`) is KAN-78, and `BILL_SHARE` expenses are created on lock (KAN-79).
   - **Months are Singapore time** (UTC+8): an expense at 11pm on 30 Nov is in November. `month` defaults to the current month in Singapore.
   - `expense` is `{ id, amountCents, amount, category, merchant, note, spentAt, source, billId, createdAt }`. Newest first; `pageSize` is 1 to 100 (default 50).
   - `byCategory[]` is `{ category, totalCents, total, count }`, biggest first. The category totals always add up to `totalCents`.
