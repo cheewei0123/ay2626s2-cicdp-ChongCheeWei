@@ -64,3 +64,5 @@ Screenshots used in the report, named `kan-<ticket>-<what>.png`.
 | `kan-39-iphone-https.png`                 | KAN-39 | iPhone Safari opening `https://splitlah.duckdns.org` with no "Not Secure" warning                                              |
 | `kan-39-restart-keeps-certificate.png`    | KAN-39 | `docker compose restart` on the server: same certificate afterwards; only `web` publishes 80 and 443 (my IP blacked out)       |
 | `kan-40-deploy-disk-full.png`             | KAN-40 | Deploy step failing on the server with `no space left on device` while pulling the new images                                  |
+| `kan-46-iphone-home-screen.png`           | KAN-46 | SplitLah installed on the iPhone home screen with its own icon and name (cropped to the top row)                               |
+| `kan-46-iphone-standalone.png`            | KAN-46 | SplitLah opened from the home screen: full-screen, no Safari address bar                                                       |
