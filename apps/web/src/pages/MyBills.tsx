@@ -16,7 +16,7 @@ import {
 
 // Wireframe #5: my bills, newest first, and a button to start a new one
 export default function MyBills() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [bills, setBills] = useState<Bill[] | null>(null);
   const [error, setError] = useState('');
 
@@ -30,14 +30,20 @@ export default function MyBills() {
     <Page
       title="My bills"
       action={
-        <button type="button" onClick={logout} className={smallButton}>
-          Log out
-        </button>
+        <Link to="/profile" className={smallButton}>
+          Profile
+        </Link>
       }
     >
       <Link to="/bills/new" className={primaryButton}>
         + New bill
       </Link>
+      {/* Without a number, friends get no PayNow QR (KAN-48) */}
+      {user && !user.paynowMobile && (
+        <Link to="/profile" className="rounded-[28px] bg-warn/10 p-4 text-warn">
+          Add your PayNow number so friends can pay you back ›
+        </Link>
+      )}
       <FormError message={error} />
       {bills?.length === 0 && (
         <p className="text-muted">

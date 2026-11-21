@@ -69,13 +69,18 @@ Every endpoint can also return `500` for unexpected errors (same format).
 
 ## Profile
 
-| Method | Path            | Who   | Request body                              | Response                                  | Errors        |
-| ------ | --------------- | ----- | ----------------------------------------- | ----------------------------------------- | ------------- |
-| GET    | `/me`           | `JWT` | none                                      | `200 user`                                | 401           |
-| PATCH  | `/me`           | `JWT` | `{ displayName?, phone?, paynowMobile? }` | `200 user`                                | 400, 401      |
-| POST   | `/me/paynow-qr` | `JWT` | `multipart` image of the user's PayNow QR | `200 { paynowMobile }` (read from the QR) | 400, 401, 413 |
+| Method | Path  | Who   | Request body                      | Response   | Errors        |
+| ------ | ----- | ----- | --------------------------------- | ---------- | ------------- |
+| GET    | `/me` | `JWT` | none                              | `200 user` | 401           |
+| PATCH  | `/me` | `JWT` | `{ displayName?, paynowMobile? }` | `200 user` | 400, 401, 404 |
 
 `paynowMobile` must be a Singapore mobile number (`+65` and 8 digits starting with 8 or 9).
+
+Built in KAN-81 (slimmed):
+
+- `PATCH /me` changes only the fields that are sent. `paynowMobile: null` removes the number; `displayName` is trimmed and must be 1 to 50 characters. Any other field (such as `email`) gives `400`.
+- The response is the same safe user as `GET /me`, never the password hash. `404` if the account behind the token no longer exists.
+- Cut to fit the deadline: uploading and decoding a PayNow QR (`POST /me/paynow-qr`) and the phone field. The number alone is enough to build each friend's QR (KAN-48).
 
 ## Bills (owner)
 

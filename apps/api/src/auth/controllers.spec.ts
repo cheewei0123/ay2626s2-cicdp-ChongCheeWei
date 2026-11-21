@@ -8,6 +8,7 @@ const auth = {
   register: vi.fn(),
   login: vi.fn(),
   findSafeUser: vi.fn(),
+  updateProfile: vi.fn(),
 };
 const service = auth as unknown as AuthService;
 const user = { id: 'u1', email: 'chee@example.com' };
@@ -44,5 +45,21 @@ describe('MeController', () => {
     await expect(new MeController(service).me(user)).rejects.toThrow(
       NotFoundException,
     );
+  });
+
+  it('saves profile changes for the logged-in user', async () => {
+    auth.updateProfile.mockResolvedValue({ ...user, paynowMobile: null });
+    const dto = { paynowMobile: null };
+    expect(await new MeController(service).update(user, dto)).toMatchObject({
+      paynowMobile: null,
+    });
+    expect(auth.updateProfile).toHaveBeenCalledWith('u1', dto);
+  });
+
+  it('answers 404 when updating an account that no longer exists', async () => {
+    auth.updateProfile.mockResolvedValue(null);
+    await expect(
+      new MeController(service).update(user, { displayName: 'Chee' }),
+    ).rejects.toThrow(NotFoundException);
   });
 });

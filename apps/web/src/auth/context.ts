@@ -16,11 +16,17 @@ export type RegisterInput = {
   paynowMobile?: string;
 };
 
+export type ProfileInput = {
+  displayName: string;
+  paynowMobile: string | null; // null removes the number
+};
+
 export type Auth = {
   user: User | null;
   loading: boolean; // true while a saved token is being checked
   login: (email: string, password: string) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
+  saveProfile: (input: ProfileInput) => Promise<void>;
   logout: () => void;
 };
 

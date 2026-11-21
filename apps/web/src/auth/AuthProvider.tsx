@@ -6,7 +6,12 @@ import {
   type ReactNode,
 } from 'react';
 import { api, setUnauthorizedHandler, tokenStore } from '../api/client';
-import { AuthContext, type RegisterInput, type User } from './context';
+import {
+  AuthContext,
+  type ProfileInput,
+  type RegisterInput,
+  type User,
+} from './context';
 
 type AuthResponse = { user: User; accessToken: string };
 
@@ -44,6 +49,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login: (email: string, password: string) =>
         signIn('/auth/login', { email, password }),
       register: (input: RegisterInput) => signIn('/auth/register', input),
+      // PATCH /me answers with the saved profile, so every screen sees the change
+      saveProfile: async (input: ProfileInput) =>
+        setUser(await api<User>('/me', { method: 'PATCH', body: input })),
     };
   }, [user, loading, logout]);
 
