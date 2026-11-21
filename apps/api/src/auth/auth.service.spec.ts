@@ -5,6 +5,7 @@ import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthService } from './auth.service.js';
 import { hashPassword } from './password.js';
+import { VerificationService } from './verification.service.js';
 
 const safeUser = {
   id: 'u1',
@@ -27,13 +28,19 @@ describe('AuthService (with a mocked database)', () => {
   const prisma = {
     user: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
   };
+  const verification = { sendLink: vi.fn() };
 
   beforeEach(async () => {
     vi.resetAllMocks();
+    verification.sendLink.mockResolvedValue(undefined);
     // Dependency injection: Nest builds the real AuthService but hands it the fake database
     const moduleRef = await Test.createTestingModule({
       imports: [JwtModule.register({ secret: 'test-secret' })],
-      providers: [AuthService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        AuthService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: VerificationService, useValue: verification },
+      ],
     }).compile();
     service = moduleRef.get(AuthService);
     jwt = moduleRef.get(JwtService);
@@ -58,6 +65,27 @@ describe('AuthService (with a mocked database)', () => {
       expect(await jwt.verifyAsync(result.accessToken)).toMatchObject({
         sub: 'u1',
       });
+    });
+
+    it('emails a verify link to the new user', async () => {
+      prisma.user.create.mockResolvedValue(safeUser);
+      await service.register({
+        email: 'chee@example.com',
+        password: 'correct horse',
+        displayName: 'Chee',
+      });
+      expect(verification.sendLink).toHaveBeenCalledWith(safeUser);
+    });
+
+    it('still creates the account when the email cannot be sent', async () => {
+      prisma.user.create.mockResolvedValue(safeUser);
+      verification.sendLink.mockRejectedValue(new Error('smtp down'));
+      const result = await service.register({
+        email: 'chee@example.com',
+        password: 'correct horse',
+        displayName: 'Chee',
+      });
+      expect(result.user).toEqual(safeUser);
     });
 
     it('answers 409 when the email is already registered', async () => {

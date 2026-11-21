@@ -5,6 +5,7 @@ import request from 'supertest';
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/app.setup.js';
 import { PrismaService } from './../src/prisma/prisma.service.js';
+import { markVerified } from './verified.js';
 
 const stamp = Date.now();
 const ownerEmail = `e2e-payments-${stamp}@example.com`;
@@ -57,6 +58,7 @@ describe('Marking payments (e2e, real database)', () => {
       }`;
     owner = await register(ownerEmail, 'Chee');
     other = await register(otherEmail, 'Mallory');
+    await markVerified(app, ownerEmail, otherEmail);
 
     bill = (
       await request(server())

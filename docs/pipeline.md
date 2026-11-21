@@ -110,17 +110,17 @@ The IAM role can only be used by this repository's `production` environment (its
 
 None of these are ever committed. `.env` files are gitignored; only `.env.example` files with placeholder values are in git.
 
-| Secret           | Lives in                   | Used for                                     |
-| ---------------- | -------------------------- | -------------------------------------------- |
-| `EC2_HOST`       | GitHub Secrets             | Address the deploy job connects to           |
-| `EC2_USER`       | GitHub Secrets             | SSH user on the server                       |
-| `EC2_SSH_KEY`    | GitHub Secrets             | Private key for the SSH deploy               |
-| `DATABASE_URL`   | Server `.env`              | API connection to RDS                        |
-| `JWT_SECRET`     | Server `.env`              | Signing login tokens                         |
-| `GEMINI_API_KEY` | Server `.env`              | Receipt reading                              |
-| `OCR_PROVIDER`   | Server `.env`              | Chooses Gemini / Tesseract / Fake            |
-| `EMAIL_*`        | Server `.env`              | Sending verification emails                  |
-| `GITHUB_TOKEN`   | Provided by GitHub Actions | Pushing images to GHCR, Gitleaks PR comments |
+| Secret                   | Lives in                   | Used for                                               |
+| ------------------------ | -------------------------- | ------------------------------------------------------ |
+| `EC2_HOST`               | GitHub Secrets             | Address the deploy job connects to                     |
+| `EC2_USER`               | GitHub Secrets             | SSH user on the server                                 |
+| `EC2_SSH_KEY`            | GitHub Secrets             | Private key for the SSH deploy                         |
+| `DATABASE_URL`           | Server `.env`              | API connection to RDS                                  |
+| `JWT_SECRET`             | Server `.env`              | Signing login tokens                                   |
+| `GEMINI_API_KEY`         | Server `.env`              | Receipt reading                                        |
+| `OCR_PROVIDER`           | Server `.env`              | Chooses Gemini / Tesseract / Fake                      |
+| `SMTP_USER`, `SMTP_PASS` | Server `.env`              | Gmail address and app password for verification emails |
+| `GITHUB_TOKEN`           | Provided by GitHub Actions | Pushing images to GHCR, Gitleaks PR comments           |
 
 The Jira ticket also listed `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. They are not needed: the deploy uses SSH, and the API reaches RDS through `DATABASE_URL`, so no AWS API keys are stored anywhere.
 

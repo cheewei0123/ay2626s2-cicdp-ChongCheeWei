@@ -6,6 +6,7 @@ import { formatCents } from '../bills/money';
 import type { Bill } from '../bills/types';
 import { FormError } from '../components/FormError';
 import { HomeTabs } from '../components/HomeTabs';
+import { VerifyBanner } from '../components/VerifyBanner';
 import {
   Initial,
   Page,
@@ -37,6 +38,7 @@ export default function MyBills() {
       }
     >
       <HomeTabs />
+      <VerifyBanner />
       <Link to="/bills/new" className={primaryButton}>
         + New bill
       </Link>

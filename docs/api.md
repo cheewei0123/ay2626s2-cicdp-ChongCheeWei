@@ -17,7 +17,7 @@ Every endpoint the PWA calls, agreed before building, so the backend (Sprint 2) 
 | `public`   | Anyone                                                      | nothing                                      |
 | `JWT`      | Logged in                                                   | `Authorization: Bearer <token>`              |
 | `verified` | Logged in **and** email verified (`EmailVerifiedGuard`)     | same                                         |
-| `owner`    | Verified **and** owns this bill (`BillOwnerGuard`)          | same                                         |
+| `owner`    | Logged in **and** owns this bill (`BillOwnerGuard`)         | same                                         |
 | `guest`    | Has the bill's share link, plus a guest token after joining | `:token` in the URL + `X-Guest-Token` header |
 
 A guest gets the guest token when they join (`POST /share/:token/participants`). It identifies which participant they are, so they can only change their own claims. No sign-up needed.
@@ -57,7 +57,7 @@ Every endpoint can also return `500` for unexpected errors (same format).
 | ------ | --------------------------- | -------- | ------------------------------------------------- | --------------------------- | ------------- |
 | POST   | `/auth/register`            | `public` | `{ email, password, displayName, paynowMobile? }` | `201 { user, accessToken }` | 400, 409, 429 |
 | POST   | `/auth/login`               | `public` | `{ email, password }`                             | `200 { user, accessToken }` | 400, 401, 429 |
-| POST   | `/auth/verify-email`        | `public` | `{ token }` (from the email link)                 | `200 { emailVerifiedAt }`   | 400, 404, 409 |
+| POST   | `/auth/verify-email`        | `public` | `{ token }` (from the email link)                 | `204`                       | 400, 429      |
 | POST   | `/auth/resend-verification` | `JWT`    | none                                              | `204`                       | 401, 409, 429 |
 
 - Emails are trimmed and lower-cased, so `Chee@Example.com` and `chee@example.com` are one account.
@@ -65,7 +65,11 @@ Every endpoint can also return `500` for unexpected errors (same format).
 - A wrong password and an unknown email get the same `401 Invalid email or password`, so nobody can find out which emails have accounts.
 - The `accessToken` is a JWT that lasts 1 hour. Send it as `Authorization: Bearer <token>`.
 - Auth routes are limited to 10 requests per minute per IP.
-- Verification token: only its hash is stored; it expires after 24 hours and works once.
+- **Email verification (KAN-77):** registering emails a link to `APP_URL/verify?token=…`. The token is 32 random bytes; only its SHA-256 hash is stored. It expires after 24 hours and works once. Unknown, used and expired tokens all get the same `400`.
+- Until verified, `POST /bills` and every `/expenses` route answer `403 Verify your email first…`. Reading your bills, guests and share links are not affected. Verifying takes effect at once: `EmailVerifiedGuard` reads the database, not the login token.
+- `resend-verification` is limited to 3 an hour, so it can't flood an inbox, and answers `409` once verified.
+- If the email fails to send, the account is still created (the error is logged) and "Send again" can retry.
+- `EMAIL_PROVIDER=fake` (tests, CI, local) logs the link instead of sending it; `smtp` sends through Gmail with an app password.
 
 ## Profile
 
@@ -87,7 +91,7 @@ Built in KAN-81 (slimmed):
 | Method | Path                                 | Who        | Request body                                                                 | Response                                                              | Errors                                      |
 | ------ | ------------------------------------ | ---------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------- |
 | POST   | `/bills`                             | `verified` | `{ title, merchant?, date?, serviceBp?, gstBp? }`                            | `201 bill` (with `shareToken` and `joinCode`)                         | 400, 401, 403                               |
-| GET    | `/bills`                             | `verified` | none                                                                         | `200 bill[]` (mine, newest first)                                     | 401, 403                                    |
+| GET    | `/bills`                             | `JWT`      | none                                                                         | `200 bill[]` (mine, newest first)                                     | 401                                         |
 | GET    | `/bills/:id`                         | `owner`    | none                                                                         | `200 bill` with items, participants, claims                           | 401, 403, 404                               |
 | PATCH  | `/bills/:id`                         | `owner`    | `{ title?, merchant?, date?, serviceBp?, gstBp? }`                           | `200 bill`                                                            | 400, 401, 403, 404, 409                     |
 | POST   | `/bills/:id/items`                   | `owner`    | `{ name, unitPriceCents, quantity }`                                         | `201 item`                                                            | 400, 401, 403, 404, 409                     |
@@ -221,7 +225,7 @@ Built in KAN-47 and KAN-48:
 - **Guessing a category (KAN-78)**, in this order: what this user picked before for the merchant (`from: "memory"`), else the category the AI read from the receipt (`"ai"`; its `OTHERS` counts as no answer), else keyword rules such as `grab` → `TRANSPORT` (`"rules"`), else `OTHERS` (`"none"`). The rules work with Gemini switched off.
 - When the user changes an expense's category, `MerchantCategory` remembers it for that merchant (lowercase, no punctuation, so "STARBUCKS!" = "Starbucks"), and the API logs one `category corrected` line, so corrections can be counted.
 - Users only ever see their own expenses (`404` for someone else's, so IDs can't be probed).
-- Built in KAN-76, with a login (`JwtAuthGuard`) for now; `EmailVerifiedGuard` comes with email verification (KAN-77). Remembering category changes (`MerchantCategory`) came in KAN-78, and `BILL_SHARE` expenses are created on lock (KAN-79).
+- Built in KAN-76; `EmailVerifiedGuard` added in KAN-77. Remembering category changes (`MerchantCategory`) came in KAN-78, and `BILL_SHARE` expenses are created on lock (KAN-79).
   - **Months are Singapore time** (UTC+8): an expense at 11pm on 30 Nov is in November. `month` defaults to the current month in Singapore.
   - `expense` is `{ id, amountCents, amount, category, merchant, note, spentAt, source, billId, createdAt }`. Newest first; `pageSize` is 1 to 100 (default 50).
   - `byCategory[]` is `{ category, totalCents, total, count }`, biggest first. The category totals always add up to `totalCents`.

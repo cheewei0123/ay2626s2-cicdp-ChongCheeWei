@@ -43,7 +43,7 @@ Each feature is its own NestJS module. Built so far: `PrismaModule`, `AuthModule
 | `SplitModule`    | **Pure** money maths: charges and per-person split | `SplitService`, `billTotals()` (built)                            | none (no DB, no HTTP) |
 | `ExpensesModule` | Monthly expenses, categories (built)               | `ExpensesService`                                                 | Ocr, Prisma           |
 | `PaymentsModule` | PayNow QR payload, mark paid                       | `PaymentsService`                                                 | Prisma                |
-| `EmailModule`    | Send emails                                        | `EMAIL_SERVICE` token → Resend / SMTP / Fake                      | none                  |
+| `EmailModule`    | Send emails                                        | `EMAIL_SERVICE` token → SMTP / Fake                               | none                  |
 | `PrismaModule`   | Database access, **global** (built)                | `PrismaService`                                                   | none                  |
 | `HealthModule`   | `GET /health` for the deploy check                 | Health controller                                                 | Prisma                |
 

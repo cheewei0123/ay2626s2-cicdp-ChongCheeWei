@@ -5,6 +5,7 @@ import request from 'supertest';
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/app.setup.js';
 import { PrismaService } from './../src/prisma/prisma.service.js';
+import { markVerified } from './verified.js';
 
 const ownerEmail = `e2e-share-${Date.now()}@example.com`;
 
@@ -35,6 +36,7 @@ describe('Share link and guest join (e2e, real database)', () => {
       })
       .expect(201);
     owner = `Bearer ${res.body.accessToken}`;
+    await markVerified(app, ownerEmail);
     bill = (
       await request(server)
         .post('/api/bills')

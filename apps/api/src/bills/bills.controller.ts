@@ -12,6 +12,7 @@ import {
 import type { AuthUser } from '../auth/auth-user.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { EmailVerifiedGuard } from '../auth/email-verified.guard.js';
 import { BillsService } from './bills.service.js';
 import { ClaimsService } from './claims.service.js';
 import { CreateBillDto, UpdateBillDto } from './dto/bill.dto.js';
@@ -61,7 +62,9 @@ export class BillsController {
     return this.claims.unclaim(bill, me, itemId);
   }
 
+  // Only a verified email can start a bill (KAN-77); guests joining by link are not affected
   @Post()
+  @UseGuards(EmailVerifiedGuard)
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateBillDto) {
     return this.bills.create(user.id, dto);
   }

@@ -1,14 +1,22 @@
-import { Body, Controller, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import type { AuthUser } from './auth-user.js';
 import { AuthService } from './auth.service.js';
+import { CurrentUser } from './current-user.decorator.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
+import { VerifyEmailDto } from './dto/verify-email.dto.js';
+import { JwtAuthGuard } from './jwt-auth.guard.js';
+import { VerificationService } from './verification.service.js';
 
 // Stricter rate limit than the global 100/min, to slow down password guessing
 @Throttle({ default: { limit: 10, ttl: 60_000 } })
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly verification: VerificationService,
+  ) {}
 
   // POST /api/auth/register → 201 { user, accessToken }
   @Post('register')
@@ -21,5 +29,22 @@ export class AuthController {
   @HttpCode(200)
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto);
+  }
+
+  // POST /api/auth/verify-email { token } → 204. No login needed: the token is the proof.
+  @Post('verify-email')
+  @HttpCode(204)
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.verification.verify(dto.token);
+  }
+
+  // POST /api/auth/resend-verification → 204, a new link by email.
+  // 3 an hour, so it can't be used to flood someone's inbox.
+  @Post('resend-verification')
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 3, ttl: 60 * 60_000 } })
+  resend(@CurrentUser() user: AuthUser) {
+    return this.verification.resend(user.id);
   }
 }

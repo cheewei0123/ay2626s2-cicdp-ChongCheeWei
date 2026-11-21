@@ -27,6 +27,7 @@ export type Auth = {
   login: (email: string, password: string) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   saveProfile: (input: ProfileInput) => Promise<void>;
+  refreshUser: () => Promise<void>; // asks GET /me again, e.g. after verifying the email
   logout: () => void;
 };
 

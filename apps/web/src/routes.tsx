@@ -14,6 +14,7 @@ import Register from './pages/Register';
 import ScanReceipt from './pages/ScanReceipt';
 import Share from './pages/Share';
 import Summary from './pages/Summary';
+import Verify from './pages/Verify';
 
 const needsLogin = (page: ReactNode) => <RequireAuth>{page}</RequireAuth>;
 
@@ -32,5 +33,6 @@ export const routes: RouteObject[] = [
   { path: '/bills/:id/summary', element: needsLogin(<Summary />) },
   { path: '/s/:token', element: <GuestBill /> }, // public: friends open the share link
   { path: '/join', element: <JoinCode /> }, // public: or type the 5-character code
+  { path: '/verify', element: <Verify /> }, // public: the link in the verify email
   { path: '*', element: <Navigate to="/bills" replace /> },
 ];

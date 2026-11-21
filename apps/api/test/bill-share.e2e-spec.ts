@@ -5,6 +5,7 @@ import request from 'supertest';
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/app.setup.js';
 import { PrismaService } from './../src/prisma/prisma.service.js';
+import { markVerified } from './verified.js';
 
 const stamp = Date.now();
 const ownerEmail = `e2e-share-log-${stamp}@example.com`;
@@ -63,6 +64,7 @@ describe('Locking a bill logs each share as an expense (e2e, real database)', ()
     owner = (await register(ownerEmail, 'Chee')).auth;
     const benAccount = await register(benEmail, 'Ben');
     ben = benAccount.auth;
+    await markVerified(app, ownerEmail, benEmail);
 
     // The brief's bill
     bill = (

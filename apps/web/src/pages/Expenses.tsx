@@ -6,6 +6,7 @@ import { CategoryBars } from '../components/CategoryBars';
 import { EditExpense } from '../components/EditExpense';
 import { FormError } from '../components/FormError';
 import { HomeTabs } from '../components/HomeTabs';
+import { VerifyBanner } from '../components/VerifyBanner';
 import {
   Page,
   primaryButton,
@@ -72,6 +73,7 @@ export default function Expenses() {
       }
     >
       <HomeTabs />
+      <VerifyBanner />
       <div className="flex items-center justify-between">
         <button
           type="button"
