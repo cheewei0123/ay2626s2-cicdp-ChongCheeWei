@@ -17,3 +17,7 @@ apps/api/src/generated
 !.vscode/extensions.json
 .idea
 .DS_Store
+
+# Playwright (KAN-53)
+test-results
+playwright-report
