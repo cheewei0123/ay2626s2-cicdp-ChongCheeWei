@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { BillsModule } from './bills/bills.module.js';
 import { ExpensesModule } from './expenses/expenses.module.js';
 import { HealthModule } from './health/health.module.js';
+import { PaymentsModule } from './payments/payments.module.js';
 import { ReceiptsModule } from './receipts/receipts.module.js';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -18,6 +19,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     BillsModule,
     ExpensesModule,
     HealthModule,
+    PaymentsModule,
     ReceiptsModule, // brings in OcrModule
     // At most 100 requests per minute from one IP; busy routes set lower limits with @Throttle
     ThrottlerModule.forRoot({ throttlers: [{ ttl: 60_000, limit: 100 }] }),

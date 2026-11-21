@@ -194,6 +194,15 @@ export class ClaimsService {
     if (bill.status !== 'LOCKED') {
       throw new ConflictException('Only a LOCKED bill can be unlocked');
     }
+    // Reopening could change amounts someone has already paid
+    const paid = await this.prisma.payment.count({
+      where: { billId: bill.id, paidAt: { not: null } },
+    });
+    if (paid > 0) {
+      throw new ConflictException(
+        'Someone is marked as paid; untick them before unlocking',
+      );
+    }
     return this.setStatus(bill.id, 'OPEN');
   }
 

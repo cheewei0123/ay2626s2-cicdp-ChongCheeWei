@@ -289,3 +289,88 @@ describe('Summary tab (guest)', () => {
     );
   });
 });
+
+describe('Marking who has paid (owner)', () => {
+  beforeEach(() => localStorage.setItem('splitlah.token', 'jwt-1'));
+
+  it('ticks a person as paid once the bill is locked and shows the progress', async () => {
+    const replies = {
+      ...owner('LOCKED'),
+      'PATCH /api/bills/b1/payments/p-ben': ok({ paid: true }),
+    };
+    const fetchMock = fakeApi(replies);
+    const user = userEvent.setup();
+    renderApp('/bills/b1/summary');
+
+    // Ali already paid; Ben and Dan haven't. Nobody ticks the owner.
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      '1 / 3 paid you back',
+    );
+    expect(
+      card('Ali').getByRole('button', { name: 'Ali has paid' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(card('You').queryByRole('button')).toBeNull();
+
+    replies['GET /api/bills/b1/summary'] = ok({
+      ...briefSummary,
+      people: briefSummary.people.map((p) =>
+        p.participantId === 'p-ben' ? { ...p, paid: true } : p,
+      ),
+    });
+    await user.click(card('Ben').getByRole('button', { name: 'Ben has paid' }));
+
+    const patch = fetchMock.mock.calls.find(
+      ([url]) => url === '/api/bills/b1/payments/p-ben',
+    )!;
+    expect((patch[1] as RequestInit).method).toBe('PATCH');
+    expect(JSON.parse((patch[1] as RequestInit).body as string)).toEqual({
+      paid: true,
+    });
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      '2 / 3 paid you back',
+    );
+    expect(
+      card('Ben').getByRole('button', { name: 'Ben has paid' }),
+    ).toHaveTextContent('Paid ✓');
+  });
+
+  it('has no paid buttons while the bill is open', async () => {
+    fakeApi(owner('OPEN'));
+    renderApp('/bills/b1/summary');
+    await screen.findByRole('button', { name: 'Lock bill' });
+    expect(screen.queryByRole('button', { name: /has paid/ })).toBeNull();
+  });
+
+  it('shows a settled bill, with no unlock button', async () => {
+    fakeApi({
+      ...owner('SETTLED'),
+      'GET /api/bills/b1/summary': ok({
+        ...briefSummary,
+        people: briefSummary.people.map((p) => ({ ...p, paid: !p.isOwner })),
+      }),
+    });
+    renderApp('/bills/b1/summary');
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Settled. Everyone has paid you ✓',
+    );
+    expect(screen.queryByRole('button', { name: /Unlock/ })).toBeNull();
+  });
+
+  it("shows why a payment couldn't be saved", async () => {
+    fakeApi({
+      ...owner('LOCKED'),
+      'PATCH /api/bills/b1/payments/p-dan': ok(
+        { message: 'Lock the bill before marking payments' },
+        409,
+      ),
+    });
+    const user = userEvent.setup();
+    renderApp('/bills/b1/summary');
+    await user.click(
+      await screen.findByRole('button', { name: 'Dan has paid' }),
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Lock the bill before marking payments',
+    );
+  });
+});

@@ -1,7 +1,12 @@
 import { useCallback, useState } from 'react';
 import { useParams } from 'react-router';
 import { api } from '../api/client';
-import type { Bill, SharedItem, Summary as SummaryData } from '../bills/types';
+import type {
+  Bill,
+  PersonShare,
+  SharedItem,
+  Summary as SummaryData,
+} from '../bills/types';
 import { usePolling } from '../bills/usePolling';
 import { FormError } from '../components/FormError';
 import { Page, plainButton, primaryButton } from '../components/Page';
@@ -17,6 +22,7 @@ export default function Summary() {
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [paying, setPaying] = useState(''); // the person being ticked
 
   const load = useCallback(async () => {
     try {
@@ -45,6 +51,22 @@ export default function Summary() {
     setBusy(false);
   }
 
+  // Tick or untick "has paid me back". The API settles the bill when everyone has paid.
+  async function togglePaid(person: PersonShare) {
+    setPaying(person.participantId);
+    setError('');
+    try {
+      await api(`/bills/${id}/payments/${person.participantId}`, {
+        method: 'PATCH',
+        body: { paid: !person.paid },
+      });
+      await load();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+    setPaying('');
+  }
+
   if (!bill || !summary)
     return (
       <Page title="Summary" back={`/bills/${id}/share`}>
@@ -54,18 +76,39 @@ export default function Summary() {
 
   const me = summary.people.find((p) => p.isOwner)?.participantId;
   const locked = bill.status !== 'OPEN';
+  const settled = bill.status === 'SETTLED';
+  const owing = summary.people.filter((p) => !p.isOwner && p.totalCents > 0);
+  const paidCount = owing.filter((p) => p.paid).length;
 
   return (
     <Page title="Summary" back={`/bills/${id}/share`}>
       <p className="text-muted">{bill.title}</p>
-      {locked && (
-        <p role="status" className="rounded-[28px] bg-raised p-4">
-          Locked. Nobody can change their items now.
+      {settled ? (
+        <p role="status" className="rounded-[28px] bg-ok/15 p-4 text-ok">
+          Settled. Everyone has paid you ✓
         </p>
+      ) : (
+        locked && (
+          <p role="status" className="rounded-[28px] bg-raised p-4">
+            Locked. Nobody can change their items now.
+            {owing.length > 0 && (
+              <span className="block text-sm text-muted">
+                {paidCount} / {owing.length} paid you back. Tick each person
+                once their PayNow arrives.
+              </span>
+            )}
+          </p>
+        )
       )}
-      <SummaryView summary={summary} items={bill.items} me={me} />
+      <SummaryView
+        summary={summary}
+        items={bill.items}
+        me={me}
+        onTogglePaid={locked ? togglePaid : undefined}
+        busyId={paying}
+      />
       <FormError message={error} />
-      {locked ? (
+      {settled ? null : locked ? (
         <button
           type="button"
           disabled={busy}
