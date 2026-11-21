@@ -126,7 +126,7 @@ A guest reaches a bill in one of two ways: open the share link (contains `shareT
 | POST   | `/share/:token/claims`         | `guest`  | `{ itemId }` (joins with 1 share, mode stays as the item's) | `201 claim`                                               | 400, 403, 404, 409 |
 | PATCH  | `/share/:token/claims/:itemId` | `guest`  | `{ splitMode?, shares?, percentBp?, exactCents? }`          | `200` all claims on that item                             | 400, 403, 404, 409 |
 | DELETE | `/share/:token/claims/:itemId` | `guest`  | none                                                        | `204`                                                     | 403, 404, 409      |
-| GET    | `/share/:token/summary`        | `public` | none                                                        | `200 summary` + the owner's PayNow details                | 404                |
+| GET    | `/share/:token/summary`        | `public` | none                                                        | `200 summary` + PayNow details and a QR payload per guest | 404                |
 
 **Split mode rules** (checked by a custom validator, `400` if broken):
 
@@ -170,21 +170,28 @@ Returned by `GET /bills/:id/summary` and `GET /share/:token/summary`. Per-person
       "gstCents": 60,
       "totalCents": 720,
       "total": "$7.20",
-      "paid": false
+      "paid": false,
+      "paynowPayload": null
     }
   ],
-  "paynow": { "mobile": "+6591234567", "qrPayload": "000201…" }
+  "paynow": { "mobile": "+6591234567", "name": "Chee" }
 }
 ```
 
-`people` has one entry per participant (only Chee is shown here). The share summary includes `paynow` so a guest can pay the owner; the owner's summary does not need it.
+`people` has one entry per participant (only Chee is shown here). Only the share summary has `paynow` and `paynowPayload`, so a guest can pay the owner; the owner's summary does not need them.
 
 Built in KAN-29:
 
 - The owner is listed first, then guests in the order they joined. Someone who claimed nothing still appears, owing `0`.
 - The owner is a participant on their own bill, created the first time it is needed (linked by `userId`), so unclaimed items have someone to go to.
 - The owner claims their own items with `POST /bills/:id/claims` `{ itemId, shares? }` and `DELETE /bills/:id/claims/:itemId` (login, owner only).
-- `paynow` currently has only `mobile`; `qrPayload` comes with the PayNow QR ticket. `paid` is `false` until payments are tracked.
+- `paid` is `false` until payments are tracked.
+
+Built in KAN-47 and KAN-48:
+
+- `paynowPayload` is the text of a PayNow QR (SGQR/EMVCo, CRC-16/CCITT-FALSE) for exactly that person's `totalCents`, made by `src/payments/paynow.ts`. The amount can't be changed in the bank app, and the reference is `SplitLah <joinCode>`.
+- It is `null` for the owner, for anyone who owes `0`, and when the owner has no PayNow number (`paynow.mobile` is `null`).
+- The web app only shows the QR once the bill is `LOCKED`, because the amounts can still change while it is open.
 
 ## Expenses
 

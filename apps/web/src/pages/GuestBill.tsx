@@ -9,6 +9,7 @@ import { AdjustSplit } from '../components/AdjustSplit';
 import { Field } from '../components/Field';
 import { FormError } from '../components/FormError';
 import { Page, primaryButton, row } from '../components/Page';
+import { PayNowCard } from '../components/PayNowCard';
 import { SummaryView } from '../components/SummaryView';
 
 // What a friend sees after opening the share link (/s/:token). No account needed:
@@ -66,8 +67,8 @@ export default function GuestBill() {
   const me = guest.participantId;
   const locked = bill.status !== 'OPEN';
   const names = new Map(bill.participants.map((p) => [p.id, p.displayName]));
-  const myTotal =
-    summary?.people.find((p) => p.participantId === me)?.totalCents ?? 0;
+  const myShare = summary?.people.find((p) => p.participantId === me);
+  const myTotal = myShare?.totalCents ?? 0;
 
   const adjustItem = bill.items.find((i) => i.id === adjusting);
 
@@ -137,6 +138,9 @@ export default function GuestBill() {
       <Page title="Summary">
         {intro}
         {/* The bill and its summary always arrive together */}
+        {summary && myShare && summary.paynow && (
+          <PayNowCard me={myShare} paynow={summary.paynow} locked={locked} />
+        )}
         {summary && (
           <SummaryView summary={summary} items={bill.items} me={me} />
         )}

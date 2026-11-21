@@ -142,12 +142,49 @@ describe('SummaryService (mocked database, real SplitService)', () => {
     expect(summary.people.reduce((a, p) => a + p.totalCents, 0)).toBe(3537);
   });
 
-  it("adds the owner's PayNow number only when asked (guest view)", async () => {
+  it("adds the owner's PayNow details only to the guest view", async () => {
     prisma.bill.findUnique.mockResolvedValue(briefBill);
     expect(await service.forBill('b1')).not.toHaveProperty('paynow');
-    expect(await service.forBill('b1', { withPaynow: true })).toMatchObject({
-      paynow: { mobile: '+6591234567' },
+    expect(await service.forGuest('b1')).toMatchObject({
+      paynow: { mobile: '+6591234567', name: 'Chee' },
     });
+  });
+
+  it('gives each guest who owes something a PayNow QR for their exact amount', async () => {
+    prisma.bill.findUnique.mockResolvedValue({
+      ...briefBill,
+      joinCode: 'K7P2Q',
+    });
+
+    const { people } = await service.forGuest('b1');
+    const payload = (name: string) =>
+      people.find((p) => p.displayName === name)!.paynowPayload;
+
+    // Ali owes 899: tag 54 is the amount, tag 62 the reference
+    expect(payload('Ali')).toContain('54048.99');
+    expect(payload('Ali')).toContain('0114SplitLah K7P2Q');
+    expect(payload('Ali')).toContain('+6591234567');
+    expect(payload('Ben')).toContain('54049.59');
+    // The owner doesn't pay themselves
+    expect(payload('Chee')).toBeNull();
+  });
+
+  it('gives no QR when the owner has no PayNow number or the guest owes nothing', async () => {
+    prisma.bill.findUnique.mockResolvedValue({
+      ...briefBill,
+      owner: { displayName: 'Chee', paynowMobile: null },
+    });
+    const noNumber = await service.forGuest('b1');
+    expect(noNumber.people.every((p) => p.paynowPayload === null)).toBe(true);
+
+    prisma.bill.findUnique.mockResolvedValue({
+      ...briefBill,
+      items: [briefBill.items[0]], // only Chee's chicken rice
+    });
+    const owesNothing = await service.forGuest('b1');
+    expect(
+      owesNothing.people.find((p) => p.displayName === 'Ali')!.paynowPayload,
+    ).toBeNull();
   });
 
   it('creates the owner as a participant if they are not one yet', async () => {

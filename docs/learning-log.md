@@ -2,6 +2,14 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-48: PayNow QR on the guest's Summary tab
+
+- **The API makes the QR text, the web app only draws it:** the share summary gives each guest a `paynowPayload` for exactly their total, built by the KAN-47 code. The page draws it with `qrcode.react` on a white square, because cameras need dark squares on white.
+- **One method per view:** `SummaryService.forBill` (owner) and `forGuest` (share link) replaced one method with a `{ withPaynow }` flag. With the flag, TypeScript could only say "it might have PayNow fields", so code using them didn't compile; two methods give each caller an exact type.
+- **No QR until the bill is locked:** while friends are still tapping, an amount can change, so someone could pay the wrong amount. The card says "Your PayNow QR appears here once Chee locks the bill" until then.
+- **Paying from the same phone:** you can't scan your own screen, so there are Copy number and Copy amount buttons (`navigator.clipboard`), which show what was copied.
+- **Checked the checksum a second way:** Python's `binascii.crc_hqx(data, 0xFFFF)` is the same CRC-16/CCITT-FALSE, and it agreed with ours on a generated payload.
+
 ## KAN-47: PayNow QR payload
 
 - **A PayNow QR is just text:** the SGQR (EMVCo) format is a list of fields, each written as `ID` (2 digits) + `LENGTH` (2 digits) + `VALUE`. For example `5802SG` is field 58 (country), 2 characters long, value `SG`. Field 26 holds more fields inside it: `SG.PAYNOW`, proxy type `0` (a mobile number), the number, and `0` so the amount can't be changed in the bank app.

@@ -74,10 +74,10 @@ export class ShareController {
     return this.share.view(bill.id);
   }
 
-  // GET /api/share/:token/summary → what everyone owes, plus the owner's PayNow number
+  // GET /api/share/:token/summary → what everyone owes, plus PayNow details and a QR payload per guest
   @Get('summary')
   getSummary(@SharedBill() bill: OwnedBill) {
-    return this.summary.forBill(bill.id, { withPaynow: true });
+    return this.summary.forGuest(bill.id);
   }
 
   // POST /api/share/:token/participants → 201 { participant, guestToken }

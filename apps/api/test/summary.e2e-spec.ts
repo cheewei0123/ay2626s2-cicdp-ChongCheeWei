@@ -159,7 +159,16 @@ describe('Summary (e2e, real database)', () => {
       Ben: 959,
       Dan: 959,
     });
-    expect(res.body.paynow).toEqual({ mobile: '+6591234567' });
+    expect(res.body.paynow).toEqual({ mobile: '+6591234567', name: 'Chee' });
+    // Each guest gets a PayNow QR payload for their own amount; the owner none
+    const byName = Object.fromEntries(
+      res.body.people.map((p: Person & { paynowPayload: string | null }) => [
+        p.displayName,
+        p.paynowPayload,
+      ]),
+    );
+    expect(byName.Chee).toBeNull();
+    expect(byName.Ali).toMatch(/^000201010212.*54048\.99.*6304[0-9A-F]{4}$/);
     // Still no private data for guests
     expect(JSON.stringify(res.body)).not.toContain(ownerEmail);
   });

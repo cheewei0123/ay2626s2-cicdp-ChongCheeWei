@@ -7,7 +7,7 @@ import type { SummaryService } from './summary.service.js';
 // Fake services: the controllers should only pass work on to them
 const share = { view: vi.fn(), join: vi.fn(), shareTokenFor: vi.fn() };
 const claims = { claim: vi.fn(), unclaim: vi.fn(), setSplit: vi.fn() };
-const summary = { forBill: vi.fn() };
+const summary = { forGuest: vi.fn() };
 const controller = new ShareController(
   share as unknown as ShareService,
   claims as unknown as ClaimsService,
@@ -24,9 +24,9 @@ describe('ShareController', () => {
     expect(share.view).toHaveBeenCalledWith('b1');
   });
 
-  it("gives guests the summary with the owner's PayNow number", async () => {
+  it("gives guests the summary with the owner's PayNow details", async () => {
     await controller.getSummary(bill);
-    expect(summary.forBill).toHaveBeenCalledWith('b1', { withPaynow: true });
+    expect(summary.forGuest).toHaveBeenCalledWith('b1');
   });
 
   it('joins with the name from the body', async () => {
