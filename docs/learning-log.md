@@ -9,6 +9,9 @@ Short notes on what I learned and what went wrong, newest first. Used as evidenc
 - **The cause:** all three image builds used `type=gha` with no scope, so they shared one cache record. The API build saved its record, the migrate build replaced it, and the web build then found no Caddy layer. Each build "used the cache" and still missed.
 - **The fix:** one scope per Dockerfile (`api`, `web`), in both `ci.yml` and `deploy.yml`; the migrate image only reads the `api` scope, since its layers are the API build stage.
 - **Lesson:** "cache enabled" is not the same as "cache hit". The log line to check is `CACHED` on the slow step.
+- **Measured after the fix:** the first deploy (#46) still took 8 min 16 s, because it filled the new, empty scopes. The next one (#47, started by hand on the same commit) took 2 min 29 s, and the image build went from 4–6½ minutes to 64 s. A real code change rebuilds a few more layers, so I don't claim 2½ minutes for every merge.
+- **A better failure screenshot:** my old one was a single very wide log line, unreadable in the report. A narrower browser window wraps the log, and the same view shows the steps after the failure: "Close SSH again" still ran and "Check it is live" was skipped.
+- **The report's onboarding story** (section 3.5) came straight from this log: the interface token (KAN-31), module exports (KAN-49), `reflect-metadata` in a DTO test (KAN-76) and the Express 5 parameter type that only the build caught (KAN-26).
 
 ## KAN-57: explaining the architecture
 
