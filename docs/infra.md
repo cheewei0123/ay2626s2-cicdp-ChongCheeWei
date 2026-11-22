@@ -95,15 +95,15 @@ What the script does:
 
 ## Keys and accounts
 
-| Key / account                     | Where it lives                                           | Used for                                                  |
-| --------------------------------- | -------------------------------------------------------- | --------------------------------------------------------- |
-| AWS root account                  | Me only, **MFA on**                                      | Billing and account settings                              |
-| `splitlah-chee.pem`               | My laptop only (`~/.ssh`, readable only by me)           | My SSH logins as `ubuntu`                                 |
-| `splitlah-actions` (private)      | GitHub Secret `EC2_SSH_KEY` (`production`) and my laptop | The deploy job's SSH login                                |
-| `splitlah-actions.pub` (public)   | `/home/deploy/.ssh/authorized_keys` on the server        | Lets that key in as `deploy`                              |
-| IAM role `splitlah-github-deploy` | AWS; used by GitHub Actions through OIDC (no keys)       | Opening and closing port 22 for one deploy                |
-| `/opt/splitlah/.env`              | The server only, readable only by `deploy`               | `DATABASE_URL` (RDS `app` user), `JWT_SECRET`, Gemini key |
-| RDS master password (`postgres`)  | My password manager only                                 | Creating the `app` user                                   |
+| Key / account                     | Where it lives                                           | Used for                                                                                    |
+| --------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| AWS root account                  | Me only, **MFA on**                                      | Billing and account settings                                                                |
+| `splitlah-chee.pem`               | My laptop only (`~/.ssh`, readable only by me)           | My SSH logins as `ubuntu`                                                                   |
+| `splitlah-actions` (private)      | GitHub Secret `EC2_SSH_KEY` (`production`) and my laptop | The deploy job's SSH login                                                                  |
+| `splitlah-actions.pub` (public)   | `/home/deploy/.ssh/authorized_keys` on the server        | Lets that key in as `deploy`                                                                |
+| IAM role `splitlah-github-deploy` | AWS; used by GitHub Actions through OIDC (no keys)       | Opening and closing port 22 for one deploy                                                  |
+| `/opt/splitlah/.env`              | The server only, readable only by `deploy`               | `DATABASE_URL` (RDS `app` user), `JWT_SECRET`, Gemini key, Gmail app password (`SMTP_PASS`) |
+| RDS master password (`postgres`)  | My password manager only                                 | Creating the `app` user                                                                     |
 
 No key is in git. If the Actions key leaks, removing one line from `authorized_keys` cuts it off without touching my own access.
 
@@ -122,6 +122,14 @@ Options I did not choose: opening SSH to the whole internet (simplest, but bots 
 ## What runs on the server
 
 `/opt/splitlah/` holds `docker-compose.yml` and `deploy.sh` (copied in by every deploy), `.env`, `rds-ca.pem` (Amazon's public RDS certificates) and `.deployed-tag` (the last release that passed its health check).
+
+**Changing a setting in `.env` by hand** (done for the SMTP settings, KAN-77):
+
+1. SSH in as `ubuntu`, then `sudo -iu deploy`: `/opt/splitlah` is readable only by `deploy`, so `ubuntu` gets "permission denied" even for `cd`.
+2. `cd /opt/splitlah`, edit `.env` with `nano`.
+3. `export TAG=$(cat .deployed-tag)`: the Compose file needs `TAG`, which `deploy.sh` normally sets. Without it every `docker compose` command fails with "required variable TAG is missing".
+4. `docker compose up -d api`: recreating the container reloads `.env`; `docker compose restart` would keep the old values.
+5. `curl -s https://splitlah.duckdns.org/api/health`.
 
 | Service   | Image                                        | Reachable from                          |
 | --------- | -------------------------------------------- | --------------------------------------- |

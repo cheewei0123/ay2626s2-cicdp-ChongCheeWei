@@ -76,3 +76,9 @@ Screenshots used in the report, named `kan-<ticket>-<what>.png`.
 | `kan-57-lifecycle-diagram.png`            | KAN-57 | One request through middleware, guards, interceptor, pipes, controller and service                                             |
 | `kan-57-sequence-diagram.png`             | KAN-57 | Sequence from scanning a receipt to friends paying by PayNow                                                                   |
 | `kan-58-deploy-times-before-after.png`    | KAN-58 | Deploy runs before and after the one-cache-scope-per-image fix (7 min 24 s median down to 2 min 29 s)                          |
+| `kan-77-verify-banner.png`                | KAN-77 | Live site after registering: bills and expenses wait until the emailed link is opened (email address blurred)                  |
+| `kan-77-verification-email.png`           | KAN-77 | The real verification email from Gmail SMTP in the inbox, with the 24-hour, one-use link (token blurred)                       |
+| `kan-80-add-expense.png`                  | KAN-80 | Add expense on the iPhone: amount, category guessed from the name ("Cafe" → Food & drinks), merchant, date                     |
+| `kan-80-reading-receipt.png`              | KAN-80 | Scanning a receipt photo: "Reading receipt…", Save disabled until it finishes                                                  |
+| `kan-80-receipt-filled.png`               | KAN-80 | Form filled from a sample hotel receipt: total 54.50, merchant, date, category guessed from the receipt                        |
+| `kan-80-month-view.png`                   | KAN-80 | Expenses month view: total spent, category bar and the saved receipt expense                                                   |

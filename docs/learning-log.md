@@ -2,6 +2,15 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-77, KAN-80: switching real email on, and the phone checks
+
+- **Gmail needs an app password:** SMTP login with the normal Google password is refused, and app passwords only exist once 2-Step Verification is on. The 16-character password went straight into the server's `.env`, never into git or chat.
+- **Two surprises on the server:** `/opt/splitlah` belongs to `deploy` (mode 750), so the `ubuntu` login can't even `cd` into it, and the Compose file needs `TAG`, which only `deploy.sh` sets. `sudo -iu deploy` and `export TAG=$(cat .deployed-tag)` fixed both; the steps are now in [infra.md](infra.md) so the next change to `.env` doesn't hit them again.
+- **`up -d`, not `restart`:** `env_file` is read when a container is created, so only recreating it loads the new settings.
+- **It worked first time on the phone:** the email arrived within a minute and the link verified the account. The fake sender kept CI free of real email the whole time, and switching was one setting (`EMAIL_PROVIDER=smtp`), the same pattern as the receipt reader.
+- **Expenses on the iPhone:** a typed expense guessed "Food & drinks" from the name "Cafe", and a receipt photo filled in the total (54.50), merchant and date. The receipt was a sample from 2007, so the month view jumped to Jul 2007: it follows the expense's date, not today's.
+- **Evidence from a public repo:** my email address and the verification token are blurred in the screenshots before they were committed.
+
 ## KAN-50, KAN-51: evidence and diagrams that match the code
 
 - **Diagrams go stale like numbers do:** the ER diagram from Sprint 1 still showed `Group`, `Friendship` and `Budget` (never built) and was missing three tables that were (`EmailVerificationToken`, `ReceiptImage`, `MerchantCategory`). I redrew it from `schema.prisma` itself, not from memory, and marked the four columns no code uses yet as "unused" instead of hiding them.
