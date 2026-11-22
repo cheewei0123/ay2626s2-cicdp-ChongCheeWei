@@ -2,6 +2,12 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-60: a Gantt chart from what actually happened
+
+- **Plan and reality side by side:** the chart shows each sprint as planned in Jira and as it ran. Sprints 1 and 2 closed 3 and 5 days early; Sprint 3 ran its full 13 days.
+- **Epic bars come from git, not memory:** each ticket key in a squash-merge title was mapped to its epic through Jira's parent field, and the bar runs from the epic's first merge to its last. That showed PayNow was merged in a single day (22 Nov), and that pipeline work never stopped, from 3 to 22 Nov.
+- **Same tooling as the other diagrams:** a Mermaid `gantt` in `docs/diagrams/gantt.mmd`, rendered locally, so it can be redrawn after Sprint 4.
+
 ## KAN-77, KAN-80: switching real email on, and the phone checks
 
 - **Gmail needs an app password:** SMTP login with the normal Google password is refused, and app passwords only exist once 2-Step Verification is on. The 16-character password went straight into the server's `.env`, never into git or chat.

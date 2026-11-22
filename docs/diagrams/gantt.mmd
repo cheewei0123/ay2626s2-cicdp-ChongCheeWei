@@ -1,0 +1,37 @@
+gantt
+    title SplitLah: sprints planned and actual, and when each epic's work was merged
+    dateFormat YYYY-MM-DD
+    axisFormat %d %b
+    tickInterval 2day
+    todayMarker off
+
+    section Sprints (planned)
+    Setup and backlog            :p0, 2026-10-29, 2026-11-03
+    Sprint 1 Pipeline + Split    :p1, 2026-11-03, 2026-11-09
+    Sprint 2 API + OCR           :p2, 2026-11-05, 2026-11-16
+    Sprint 3 PWA + PayNow        :p3, 2026-11-10, 2026-11-23
+    Sprint 4 Report + Submit     :p4, 2026-11-23, 2026-11-28
+
+    section Sprints (actual)
+    Sprint 1, closed 5 Nov       :done, a1, 2026-11-03, 2026-11-06
+    Sprint 2, closed 10 Nov      :done, a2, 2026-11-05, 2026-11-11
+    Sprint 3, closed 22 Nov      :done, a3, 2026-11-10, 2026-11-23
+    Sprint 4                     :active, a4, 2026-11-23, 2026-11-28
+
+    section Milestones
+    M1 CI + split engine         :milestone, m1, 2026-11-05, 0d
+    M2 API deployed              :milestone, m2, 2026-11-10, 0d
+    M3 PWA + PayNow              :milestone, m3, 2026-11-22, 0d
+    Feature freeze               :crit, milestone, ff, 2026-11-24, 0d
+    Submission                   :crit, milestone, sub, 2026-11-27, 0d
+
+    section Epics (first to last merge)
+    Pipeline and infrastructure  :done, 2026-11-03, 2026-11-23
+    Design and architecture      :done, 2026-11-03, 2026-11-06
+    Split engine                 :done, 2026-11-03, 2026-11-09
+    Accounts, bills, sharing API :done, 2026-11-03, 2026-11-23
+    Receipt scanning (AI)        :done, 2026-11-08, 2026-11-10
+    PWA frontend                 :done, 2026-11-10, 2026-11-23
+    Personal expenses            :done, 2026-11-10, 2026-11-23
+    Payments (PayNow)            :done, 2026-11-22, 2026-11-23
+    Report, learning and demo    :active, 2026-11-03, 2026-11-28
