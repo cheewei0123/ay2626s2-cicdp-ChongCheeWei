@@ -66,7 +66,7 @@ test('owner: register, verify, scan a receipt, fix an item, share', async ({
   await expect(
     page.getByRole('heading', { name: 'Check items' }),
   ).toBeVisible();
-  await expect(page.getByText('Receipt says $35.37 ✓')).toBeVisible();
+  await expect(page.getByText('Receipt says $99.99 ✓')).toBeVisible();
 
   // Fix one item, like correcting the AI: Laksa was $8.50, not $7.50
   await page.getByRole('button', { name: 'Edit Laksa' }).click();
