@@ -4,117 +4,110 @@ The tables, relations and rules that `apps/api/prisma/schema.prisma` (KAN-18) is
 
 ## ER diagram
 
-Solid lines are the MVP. Dashed lines are stretch goals.
+Drawn from the current `schema.prisma` (source: [diagrams/er.mmd](diagrams/er.mmd), image: [kan-51-er-diagram.png](evidence/kan-51-er-diagram.png)). Fields marked "unused" are in the schema but no code reads or writes them yet.
 
 ```mermaid
 erDiagram
-    USER ||--o{ EMAIL_VERIFICATION_TOKEN : "verifies with"
-    USER ||--o{ BILL : owns
-    USER |o--o{ PARTICIPANT : "joins as (optional)"
-    USER ||--o{ EXPENSE : logs
-    USER ||--o{ MERCHANT_CATEGORY : remembers
+  USER ||--o{ EMAIL_VERIFICATION_TOKEN : "verifies with"
+  USER ||--o{ BILL : owns
+  USER |o--o{ PARTICIPANT : "joins as (guests have none)"
+  USER ||--o{ EXPENSE : logs
+  USER ||--o{ MERCHANT_CATEGORY : remembers
+  BILL ||--o{ ITEM : contains
+  BILL ||--o{ PARTICIPANT : has
+  BILL ||--o{ PAYMENT : "is paid by"
+  BILL |o--o{ EXPENSE : "becomes (BILL_SHARE)"
+  BILL |o--o{ RECEIPT_IMAGE : "read from"
+  ITEM ||--o{ CLAIM : "claimed in"
+  PARTICIPANT ||--o{ CLAIM : makes
+  PARTICIPANT ||--o| PAYMENT : "pays once"
+  EXPENSE |o--o{ RECEIPT_IMAGE : "scanned from"
 
-    BILL ||--o{ ITEM : contains
-    BILL ||--o{ PARTICIPANT : has
-    BILL ||--o{ PAYMENT : "is paid by"
-    BILL |o--o{ RECEIPT_IMAGE : "scanned from"
-    BILL |o--o{ EXPENSE : "creates (BILL_SHARE)"
-
-    ITEM ||--o{ CLAIM : "claimed in"
-    PARTICIPANT ||--o{ CLAIM : makes
-    PARTICIPANT ||--o| PAYMENT : "pays once"
-    EXPENSE |o--o{ RECEIPT_IMAGE : "scanned from"
-
-    USER }o..o{ FRIENDSHIP : "stretch"
-    USER ||..o{ BUDGET : "stretch"
-    GROUP ||..o{ GROUP_MEMBER : "stretch"
-    USER ||..o{ GROUP_MEMBER : "stretch"
-
-    USER {
-        string id PK
-        string email UK
-        datetime emailVerifiedAt "nullable"
-        string passwordHash
-        string displayName
-        string phone "nullable"
-        datetime phoneVerifiedAt "nullable"
-        string paynowMobile "nullable, +65..."
-        string paynowQrPayload "nullable"
-        string paynowQrImagePath "nullable"
-    }
-    EMAIL_VERIFICATION_TOKEN {
-        string id PK
-        string userId FK
-        string tokenHash UK
-        datetime expiresAt
-        datetime usedAt "nullable"
-    }
-    BILL {
-        string id PK
-        string ownerId FK
-        string title
-        string merchant
-        datetime date
-        int serviceBp "1000 = 10%"
-        int gstBp "900 = 9%"
-        string shareToken UK
-        string joinCode UK "nullable, 5 chars"
-        BillStatus status "OPEN | LOCKED | SETTLED"
-    }
-    ITEM {
-        string id PK
-        string billId FK
-        string name
-        int unitPriceCents
-        int quantity
-        SplitMode splitMode "EQUAL | PERCENT | SHARES | EXACT"
-    }
-    PARTICIPANT {
-        string id PK
-        string billId FK
-        string displayName
-        string userId FK "nullable, guests have none"
-    }
-    CLAIM {
-        string id PK
-        string itemId FK
-        string participantId FK
-        int shares "default 1"
-        int percentBp "nullable, PERCENT mode"
-        int exactCents "nullable, EXACT mode"
-    }
-    PAYMENT {
-        string id PK
-        string billId FK
-        string participantId FK
-        int amountCents
-        datetime paidAt "nullable"
-    }
-    RECEIPT_IMAGE {
-        string id PK
-        string billId FK "nullable"
-        string expenseId FK "nullable"
-        string storagePath "nullable, photo not kept"
-        string ocrProvider "gemini | tesseract | fake"
-        json rawJson
-    }
-    EXPENSE {
-        string id PK
-        string userId FK
-        int amountCents
-        Category category
-        string merchant "nullable"
-        string note "nullable"
-        datetime spentAt
-        ExpenseSource source "BILL_SHARE | MANUAL | RECEIPT"
-        string billId FK "nullable"
-    }
-    MERCHANT_CATEGORY {
-        string id PK
-        string userId FK
-        string merchantKey
-        Category category
-    }
+  USER {
+    string id PK
+    string email UK
+    datetime emailVerifiedAt "null until verified"
+    string passwordHash
+    string displayName
+    string phone "unused"
+    datetime phoneVerifiedAt "unused"
+    string paynowMobile "for the PayNow QR"
+    string paynowQrPayload "unused"
+    string paynowQrImagePath "unused"
+  }
+  EMAIL_VERIFICATION_TOKEN {
+    string id PK
+    string userId FK
+    string tokenHash UK "SHA-256, not the token"
+    datetime expiresAt
+    datetime usedAt "null until used"
+  }
+  BILL {
+    string id PK
+    string ownerId FK
+    string title
+    string merchant
+    date date
+    int serviceBp "1000 = 10%"
+    int gstBp "900 = 9%"
+    string shareToken UK
+    string joinCode UK "5 characters"
+    BillStatus status "OPEN, LOCKED, SETTLED"
+  }
+  ITEM {
+    string id PK
+    string billId FK
+    string name
+    int unitPriceCents
+    int quantity
+    SplitMode splitMode "EQUAL, PERCENT, SHARES, EXACT"
+  }
+  PARTICIPANT {
+    string id PK
+    string billId FK
+    string displayName
+    string userId FK "null for guests"
+  }
+  CLAIM {
+    string id PK
+    string itemId FK
+    string participantId FK
+    int shares "default 1"
+    int percentBp "PERCENT mode"
+    int exactCents "EXACT mode"
+  }
+  PAYMENT {
+    string id PK
+    string billId FK
+    string participantId FK,UK
+    int amountCents
+    datetime paidAt "null until paid"
+  }
+  RECEIPT_IMAGE {
+    string id PK
+    string billId FK "or"
+    string expenseId FK "or"
+    string storagePath "null: photo not kept"
+    string ocrProvider "gemini or fake"
+    json rawJson
+  }
+  EXPENSE {
+    string id PK
+    string userId FK
+    int amountCents
+    Category category
+    string merchant
+    string note
+    datetime spentAt
+    ExpenseSource source "BILL_SHARE, MANUAL, RECEIPT"
+    string billId FK "BILL_SHARE only"
+  }
+  MERCHANT_CATEGORY {
+    string id PK
+    string userId FK
+    string merchantKey
+    Category category "the user's correction"
+  }
 ```
 
 Every table also gets `createdAt` and `updatedAt`. They are left out of the diagram to keep it readable.

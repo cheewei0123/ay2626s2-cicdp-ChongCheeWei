@@ -1,0 +1,101 @@
+erDiagram
+  USER ||--o{ EMAIL_VERIFICATION_TOKEN : "verifies with"
+  USER ||--o{ BILL : owns
+  USER |o--o{ PARTICIPANT : "joins as (guests have none)"
+  USER ||--o{ EXPENSE : logs
+  USER ||--o{ MERCHANT_CATEGORY : remembers
+  BILL ||--o{ ITEM : contains
+  BILL ||--o{ PARTICIPANT : has
+  BILL ||--o{ PAYMENT : "is paid by"
+  BILL |o--o{ EXPENSE : "becomes (BILL_SHARE)"
+  BILL |o--o{ RECEIPT_IMAGE : "read from"
+  ITEM ||--o{ CLAIM : "claimed in"
+  PARTICIPANT ||--o{ CLAIM : makes
+  PARTICIPANT ||--o| PAYMENT : "pays once"
+  EXPENSE |o--o{ RECEIPT_IMAGE : "scanned from"
+
+  USER {
+    string id PK
+    string email UK
+    datetime emailVerifiedAt "null until verified"
+    string passwordHash
+    string displayName
+    string phone "unused"
+    datetime phoneVerifiedAt "unused"
+    string paynowMobile "for the PayNow QR"
+    string paynowQrPayload "unused"
+    string paynowQrImagePath "unused"
+  }
+  EMAIL_VERIFICATION_TOKEN {
+    string id PK
+    string userId FK
+    string tokenHash UK "SHA-256, not the token"
+    datetime expiresAt
+    datetime usedAt "null until used"
+  }
+  BILL {
+    string id PK
+    string ownerId FK
+    string title
+    string merchant
+    date date
+    int serviceBp "1000 = 10%"
+    int gstBp "900 = 9%"
+    string shareToken UK
+    string joinCode UK "5 characters"
+    BillStatus status "OPEN, LOCKED, SETTLED"
+  }
+  ITEM {
+    string id PK
+    string billId FK
+    string name
+    int unitPriceCents
+    int quantity
+    SplitMode splitMode "EQUAL, PERCENT, SHARES, EXACT"
+  }
+  PARTICIPANT {
+    string id PK
+    string billId FK
+    string displayName
+    string userId FK "null for guests"
+  }
+  CLAIM {
+    string id PK
+    string itemId FK
+    string participantId FK
+    int shares "default 1"
+    int percentBp "PERCENT mode"
+    int exactCents "EXACT mode"
+  }
+  PAYMENT {
+    string id PK
+    string billId FK
+    string participantId FK,UK
+    int amountCents
+    datetime paidAt "null until paid"
+  }
+  RECEIPT_IMAGE {
+    string id PK
+    string billId FK "or"
+    string expenseId FK "or"
+    string storagePath "null: photo not kept"
+    string ocrProvider "gemini or fake"
+    json rawJson
+  }
+  EXPENSE {
+    string id PK
+    string userId FK
+    int amountCents
+    Category category
+    string merchant
+    string note
+    datetime spentAt
+    ExpenseSource source "BILL_SHARE, MANUAL, RECEIPT"
+    string billId FK "BILL_SHARE only"
+  }
+  MERCHANT_CATEGORY {
+    string id PK
+    string userId FK
+    string merchantKey
+    Category category "the user's correction"
+  }

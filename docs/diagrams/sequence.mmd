@@ -1,0 +1,32 @@
+sequenceDiagram
+  autonumber
+  actor O as Owner (phone)
+  actor F as Friend (phone)
+  participant A as NestJS API
+  participant G as Gemini
+  participant D as PostgreSQL
+  O->>A: POST /bills/:id/receipt (photo)
+  A->>G: read items, service, GST, total
+  G-->>A: JSON, checked against a schema
+  A-->>O: draft items + "Receipt says $35.37 ✓"
+  O->>A: POST /bills/:id/items (after checking)
+  A->>D: save items
+  O-->>F: share link or join code
+  F->>A: GET /join/:code
+  A-->>F: shareToken
+  F->>A: POST /share/:token/participants {displayName}
+  A->>D: add participant
+  A-->>F: guestToken
+  F->>A: POST /share/:token/claims {itemId} + X-Guest-Token
+  A->>D: save claim
+  loop every 5 seconds
+    F->>A: GET /share/:token/summary
+    A->>A: SplitService.split() in integer cents
+    A-->>F: my items, service, GST and total
+  end
+  O->>A: POST /bills/:id/lock
+  A->>D: status LOCKED, bill.locked → each account's expense
+  F->>A: GET /share/:token/summary
+  A-->>F: total + PayNow QR payload (amount fixed)
+  F->>F: bank app scans the QR and pays the owner
+  O->>A: PATCH /bills/:id/payments/:participantId {paid: true}

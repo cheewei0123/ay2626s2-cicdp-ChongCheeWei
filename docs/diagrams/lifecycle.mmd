@@ -1,0 +1,12 @@
+flowchart TD
+  R["Request, e.g. PATCH /api/bills/:id"] --> M["Middleware<br/>RequestIdMiddleware: request ID"]
+  M --> GU["Guards<br/>JwtAuthGuard, then BillOwnerGuard"]
+  GU -->|"no token: 401, not owner: 403"| F
+  GU --> I1["Interceptor<br/>LoggingInterceptor wraps the call"]
+  I1 --> P["Pipe<br/>ValidationPipe checks the DTO"]
+  P -->|"invalid body: 400"| F
+  P --> CT["Controller<br/>HTTP only"]
+  CT --> S["Service<br/>business rules, Prisma"]
+  S --> I2["Interceptor logs method, path, status, time"]
+  I2 --> OK["JSON response"]
+  S -->|throws| F["Exception filter<br/>AllExceptionsFilter: one error format"]

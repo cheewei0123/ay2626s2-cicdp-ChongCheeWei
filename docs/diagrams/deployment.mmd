@@ -1,0 +1,27 @@
+flowchart TB
+  PWA["iPhone: Safari or home-screen PWA"]
+  subgraph AWS["AWS, Singapore"]
+    subgraph EC2["EC2 t3.micro"]
+      Web["web: Caddy<br/>443 HTTPS, 80 redirect"]
+      Api["api: NestJS<br/>no public port"]
+      Mig["migrate<br/>once per deploy"]
+    end
+    RDS[("RDS PostgreSQL 18<br/>db.t4g.micro, private")]
+  end
+  subgraph OUT["Outside services"]
+    Gem["Google Gemini API"]
+    Smtp["Gmail SMTP"]
+  end
+  subgraph GH["GitHub"]
+    GA["GitHub Actions"]
+    GHCR[("GHCR images<br/>tag = commit SHA")]
+  end
+  PWA -->|HTTPS| Web
+  Web -->|/api| Api
+  Api -->|TLS| RDS
+  Mig -->|migrations| RDS
+  Api -->|HTTPS| Gem
+  Api -.->|"SMTPS, if EMAIL_PROVIDER=smtp"| Smtp
+  GA -->|push| GHCR
+  GA ==>|"SSH, port 22 opened by OIDC"| EC2
+  GHCR -->|"docker pull"| EC2

@@ -15,7 +15,7 @@ Screenshots used in the report, named `kan-<ticket>-<what>.png`.
 | `kan-17-direct-push-rejected.png`         | KAN-17 | `git push origin main` rejected with `GH013`: PR required, 7 of 7 required checks expected                                     |
 | `kan-16-npm-cache-miss.png`               | KAN-16 | First CI run after a lockfile change: `npm cache is not found`                                                                 |
 | `kan-16-npm-cache-hit.png`                | KAN-16 | Same commit re-run: the 151 MB npm cache restored from the lockfile key                                                        |
-| `kan-70-er-diagram.png`                   | KAN-70 | The Mermaid ER diagram rendered on GitHub                                                                                      |
+| `kan-70-er-diagram.png`                   | KAN-70 | The Sprint 1 draft ER diagram rendered on GitHub (out of date; see `kan-51-er-diagram.png`)                                    |
 | `kan-18-studio-bill.png`                  | KAN-18 | Prisma Studio: the seeded bill (service 1000 bp, GST 900 bp)                                                                   |
 | `kan-18-studio-item.png`                  | KAN-18 | Prisma Studio: Chicken Rice 600, Laksa 750, Tiger 800 × 2                                                                      |
 | `kan-18-studio-claim.png`                 | KAN-18 | Prisma Studio: the 4 claims (Ben and Dan share Tiger)                                                                          |
@@ -66,3 +66,13 @@ Screenshots used in the report, named `kan-<ticket>-<what>.png`.
 | `kan-40-deploy-disk-full.png`             | KAN-40 | Deploy step failing on the server with `no space left on device` while pulling the new images                                  |
 | `kan-46-iphone-home-screen.png`           | KAN-46 | SplitLah installed on the iPhone home screen with its own icon and name (cropped to the top row)                               |
 | `kan-46-iphone-standalone.png`            | KAN-46 | SplitLah opened from the home screen: full-screen, no Safari address bar                                                       |
+| `kan-40-deploy-disk-full-steps.png`       | KAN-40 | Same failed deploy, job steps: the error, "Close SSH again" still runs, "Check it is live" skipped                             |
+| `kan-50-api-coverage-2026-11-22.txt`      | KAN-50 | `npm run test:cov -w apps/api` on `main`: 404 tests pass, 97.91% lines and 95.02% branches                                     |
+| `kan-51-er-diagram.png`                   | KAN-51 | ER diagram of all 10 tables, drawn from the current `schema.prisma` (replaces `kan-70-er-diagram.png`)                         |
+| `kan-51-pipeline-diagram.png`             | KAN-51 | The pipeline: 13 PR checks in parallel, then build, OIDC, deploy, health check and rollback                                    |
+| `k6-2026-11-22.txt`                       | KAN-55 | k6 load test output and server stats from the run on 22 Nov                                                                    |
+| `kan-57-deployment-diagram.png`           | KAN-57 | Deployment: one EC2 running Caddy, the web and API containers, RDS in private subnets                                          |
+| `kan-57-modules-diagram.png`              | KAN-57 | NestJS module map and what each module depends on                                                                              |
+| `kan-57-lifecycle-diagram.png`            | KAN-57 | One request through middleware, guards, interceptor, pipes, controller and service                                             |
+| `kan-57-sequence-diagram.png`             | KAN-57 | Sequence from scanning a receipt to friends paying by PayNow                                                                   |
+| `kan-58-deploy-times-before-after.png`    | KAN-58 | Deploy runs before and after the one-cache-scope-per-image fix (7 min 24 s median down to 2 min 29 s)                          |
