@@ -82,3 +82,5 @@ Screenshots used in the report, named `kan-<ticket>-<what>.png`.
 | `kan-80-reading-receipt.png`              | KAN-80 | Scanning a receipt photo: "Reading receipt…", Save disabled until it finishes                                                  |
 | `kan-80-receipt-filled.png`               | KAN-80 | Form filled from a sample hotel receipt: total 54.50, merchant, date, category guessed from the receipt                        |
 | `kan-80-month-view.png`                   | KAN-80 | Expenses month view: total spent, category bar and the saved receipt expense                                                   |
+| `kan-60-sprint-3-burndown.png`            | KAN-60 | Sprint 3 burndown: 52 points, above the guideline from 11 Nov, down to 37 on 17 Nov and 9 on 22 Nov                            |
+| `kan-50-codeql-alert-dismissed.png`       | KAN-50 | Code scanning on `main`: 0 open, alert #5 closed as a false positive                                                           |
