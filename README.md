@@ -159,19 +159,21 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the details, and [docs/sprints/](docs
 
 ## Documentation
 
-| Doc                                  | What's in it                                         |
-| ------------------------------------ | ---------------------------------------------------- |
-| [Architecture](docs/architecture.md) | Containers, NestJS modules, one request step by step |
-| [API](docs/api.md)                   | Every endpoint, who can call it, errors              |
-| [Data model](docs/data-model.md)     | Tables, relations, money as integer cents            |
-| [ADRs](docs/adr/)                    | Why NestJS, integer cents, OCR and email interfaces  |
-| [User flows](docs/user-flows.md)     | Owner and guest journeys                             |
-| [UI design](docs/ui-design.md)       | Colours, glass components, layout rules              |
-| [Pipeline](docs/pipeline.md)         | Every CI job, the deploy, secrets, browser tests     |
-| [Security](docs/security.md)         | Scans, findings and accepted risks                   |
-| [Infrastructure](docs/infra.md)      | EC2, RDS, Caddy, OIDC setup                          |
-| [Learning log](docs/learning-log.md) | What I learned and what went wrong, per ticket       |
-| [Evidence](docs/evidence/)           | Screenshots used in the report                       |
+| Doc                                  | What's in it                                           |
+| ------------------------------------ | ------------------------------------------------------ |
+| [Diagrams](docs/diagrams/)           | Mermaid sources for every diagram                      |
+| [Architecture](docs/architecture.md) | Containers, NestJS modules, one request step by step   |
+| [API](docs/api.md)                   | Every endpoint, who can call it, errors                |
+| [Data model](docs/data-model.md)     | Tables, relations, money as integer cents              |
+| [ADRs](docs/adr/)                    | Why NestJS, integer cents, OCR and email interfaces    |
+| [User flows](docs/user-flows.md)     | Owner and guest journeys                               |
+| [UI design](docs/ui-design.md)       | Colours, glass components, layout rules                |
+| [Pipeline](docs/pipeline.md)         | Every CI job, the deploy, secrets, browser tests       |
+| [Security](docs/security.md)         | Scans, findings and accepted risks                     |
+| [Infrastructure](docs/infra.md)      | EC2, RDS, Caddy, OIDC setup                            |
+| [Evaluation](docs/evaluation.md)     | Strengths, limits, bottlenecks, trade-offs, next steps |
+| [Learning log](docs/learning-log.md) | What I learned and what went wrong, per ticket         |
+| [Evidence](docs/evidence/)           | Screenshots used in the report                         |
 
 ## Repository structure
 
