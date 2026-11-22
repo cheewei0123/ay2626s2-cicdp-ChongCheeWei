@@ -2,6 +2,14 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-55: load testing with k6
+
+- **My own rate limits shape the test:** 10 users from one machine on a share link would mostly get `429` (100 a minute per IP), and that measures the limiter, not the server. So the load goes to the app page and `/api/health`, which have no limit but still go through Caddy, NestJS and RDS.
+- **Testing the limit on purpose:** a second scenario sends 25 join-code guesses and checks that the first 20 get `404` and the rest `429`. It proves the brute-force protection works on the live server, where the real client IP comes through Caddy (`trust proxy`).
+- **Thresholds only for the load:** `http_req_failed{scenario:load}` leaves out the expected 404s and 429s, which would otherwise count as failures.
+- **Manual on purpose:** `workflow_dispatch` only, so PRs never load production. It has to be on `main` before the Run button appears, so the results come in a second PR.
+- **Inputs are not safe to paste into a script:** `${{ inputs.base_url }}` directly in `run:` would let a crafted input run shell commands. It goes through `env:` instead, which CodeQL's actions check looks for.
+
 ## KAN-54: a README a stranger can follow
 
 - **Write it for someone who has never seen the repo:** the setup section is the exact commands in order (clone → `npm ci` → Postgres in Docker → copy `.env.example` → `JWT_SECRET` → migrate → seed → start). I checked every command against the repo, not from memory: Postgres listens on 5433 (not 5432), and Vite's proxy passes `/api` to `:3000`.
