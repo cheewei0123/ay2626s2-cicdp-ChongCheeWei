@@ -1,13 +1,17 @@
 # SplitLah 🧾
 
-> Snap a receipt, share a link, and everyone pays exactly their share via PayNow — with service charge and GST split fairly to the cent.
+> Snap a receipt, share a link, and everyone pays exactly their share by PayNow, with service charge and GST split fairly to the cent.
 
 [![CI](https://github.com/cheewei0123/ay2626s2-cicdp-ChongCheeWei/actions/workflows/ci.yml/badge.svg)](https://github.com/cheewei0123/ay2626s2-cicdp-ChongCheeWei/actions/workflows/ci.yml)
-![Deploy](https://img.shields.io/badge/deploy-coming%20soon-lightgrey)
+[![Deploy](https://github.com/cheewei0123/ay2626s2-cicdp-ChongCheeWei/actions/workflows/deploy.yml/badge.svg)](https://github.com/cheewei0123/ay2626s2-cicdp-ChongCheeWei/actions/workflows/deploy.yml)
+[![CodeQL](https://github.com/cheewei0123/ay2626s2-cicdp-ChongCheeWei/actions/workflows/codeql.yml/badge.svg)](https://github.com/cheewei0123/ay2626s2-cicdp-ChongCheeWei/actions/workflows/codeql.yml)
 
-**Live app:** _coming soon_ · **Jira board:** _link_ · **Module:** ST0529 CI/CD (CA1)
+**Live app:** [splitlah.duckdns.org](https://splitlah.duckdns.org) · **Jira board:** [KAN](https://cheewei0123.atlassian.net/jira/software/projects/KAN/boards) · **Module:** ST0529 CI/CD (CA1)
 
----
+<p>
+  <img src="docs/evidence/kan-46-iphone-standalone.png" alt="SplitLah opened from the iPhone home screen" width="240">
+  <img src="docs/evidence/kan-46-iphone-home-screen.png" alt="SplitLah icon on the iPhone home screen" width="240">
+</p>
 
 ## The problem
 
@@ -20,73 +24,173 @@ Splitting a restaurant bill in Singapore is awkward:
 
 ## What SplitLah does
 
-- 📸 **AI receipt scanning:** take a photo; the items, prices, service charge and GST are filled in automatically
-- 🔗 **Invite by link or QR:** friends join with just a name, no sign-up needed
-- ✋ **Claim your items:** tap what you ate; shared items split equally by default, adjustable by %, shares or exact amount
-- 🧮 **Fair to the cent:** integer-cent maths with largest-remainder rounding, so everyone's shares add up to the receipt total
-- 💸 **PayNow QR:** each friend gets a QR for their exact amount, plus tap-to-copy number and amount
-- 📊 **Personal expenses:** your share is logged to your monthly expense history automatically, with AI categorisation and manual entry
-- 📱 **Installable PWA:** add it to your iPhone home screen, no App Store needed
+- 📸 **AI receipt scanning:** take a photo; Gemini fills in the items, prices, service charge and GST, and you check them against the printed total
+- 🔗 **Invite by link, QR or a 5-character code:** friends join with just a name, no sign-up
+- ✋ **Claim your items:** tap what you had; a shared item splits equally, or by %, shares or exact amounts
+- 🧮 **Fair to the cent:** integer-cent maths with largest-remainder rounding, so the shares always add up to the receipt total
+- 💸 **PayNow QR:** each friend gets a QR for their exact amount; the owner ticks who has paid
+- 📊 **Personal expenses:** your share is logged to your monthly expenses when the bill is locked; add your own expenses by hand or by photo, with the category guessed and your corrections remembered
+- ✉️ **Email verification:** a one-time link before you can start bills or log expenses
+- 📱 **Installable PWA:** add it to the iPhone home screen, no App Store needed
+
+## Architecture
+
+```mermaid
+flowchart LR
+  U[iPhone PWA<br/>React]
+  subgraph EC2["EC2 (Docker Compose)"]
+    C[Web container<br/>Caddy: HTTPS + React files]
+    A[NestJS API]
+  end
+  DB[(PostgreSQL<br/>Amazon RDS)]
+  G[Gemini<br/>receipt OCR]
+  E[Gmail SMTP<br/>verify emails]
+
+  U -->|HTTPS| C
+  C -->|/api| A
+  A --> DB
+  A --> G
+  A --> E
+```
+
+Caddy serves the React app and passes `/api/*` to the API; only Caddy faces the internet. Receipt reading and email sit behind interfaces (`OCR_SERVICE`, `EMAIL_SERVICE`), so tests and CI use fakes and never call Gemini or send email. More in [docs/architecture.md](docs/architecture.md).
 
 ## Tech stack
 
-| Layer    | Technology                                           |
-| -------- | ---------------------------------------------------- |
-| Backend  | NestJS (TypeScript), Prisma ORM                      |
-| Database | PostgreSQL (Amazon RDS in production)                |
-| Frontend | React + Vite + Tailwind CSS (PWA)                    |
-| AI       | Google Gemini (receipt reading + categorisation)     |
-| CI/CD    | GitHub Actions → GitHub Container Registry → AWS EC2 |
-| Hosting  | Docker Compose + Caddy (HTTPS) on EC2                |
-| Security | Gitleaks, Dependabot, CodeQL, Trivy, npm audit       |
+| Layer      | Technology                                                                     |
+| ---------- | ------------------------------------------------------------------------------ |
+| Backend    | NestJS 12 (TypeScript), Prisma 7                                               |
+| Database   | PostgreSQL 18 (Docker locally, Amazon RDS in production)                       |
+| Frontend   | React 19, Vite 8, Tailwind CSS 4, PWA (vite-plugin-pwa)                        |
+| AI / email | Google Gemini (receipt reading), Gmail SMTP with nodemailer (verify emails)    |
+| Testing    | Vitest, Supertest, Testing Library, fast-check, Playwright (WebKit, iPhone 14) |
+| CI/CD      | GitHub Actions → GitHub Container Registry → AWS EC2 over SSH, AWS OIDC        |
+| Hosting    | Docker Compose + Caddy (automatic HTTPS) on EC2, `splitlah.duckdns.org`        |
+| Security   | Gitleaks, Dependabot, CodeQL, Trivy, npm audit (audit-ci)                      |
+
+## Run it locally
+
+**You need:** Node.js 24 (the version is in [`.nvmrc`](.nvmrc)), npm, Docker Desktop and Git.
+
+```bash
+git clone https://github.com/cheewei0123/ay2626s2-cicdp-ChongCheeWei.git
+cd ay2626s2-cicdp-ChongCheeWei
+npm ci                                                  # both apps; also runs prisma generate
+docker compose -f infra/docker-compose.dev.yml up -d   # Postgres 18 on localhost:5433
+cp apps/api/.env.example apps/api/.env
+```
+
+Open `apps/api/.env` and set `JWT_SECRET` to any long random string, for example the output of:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
+```
+
+Then create the tables, add the demo bill and start both apps (two terminals):
+
+```bash
+cd apps/api
+npx prisma migrate deploy   # apply every migration
+npx prisma db seed          # the brief's example bill (join code SEED2)
+npm run start:dev           # API on http://localhost:3000
+```
+
+```bash
+npm run dev -w apps/web     # from the repo root: the app on http://localhost:5173
+```
+
+Open <http://localhost:5173> and **Register**. With the default `EMAIL_PROVIDER=fake`, nothing is emailed: the verify link is printed in the API terminal (`(fake) to you@…: … /verify?token=…`). Open it to verify, then start a bill. With `OCR_PROVIDER=fake`, any photo "reads" as the brief's receipt ($35.37). To try the guest side, open **Have a code? Join a bill** and enter `SEED2`.
+
+### Environment variables (`apps/api/.env`)
+
+| Name                                   | What it's for                                                 | Example / default                                        |
+| -------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------- |
+| `PORT`                                 | Port the API listens on                                       | `3000`                                                   |
+| `DATABASE_URL`                         | PostgreSQL connection                                         | `postgresql://splitlah:splitlah@localhost:5433/splitlah` |
+| `WEB_ORIGIN`                           | The only browser origin allowed to call the API (CORS)        | `http://localhost:5173`                                  |
+| `JWT_SECRET`                           | Signs login and guest tokens; 32+ random characters           | _(generate one)_                                         |
+| `OCR_PROVIDER`                         | Receipt reader: `fake` or `gemini`                            | `fake`                                                   |
+| `GEMINI_API_KEY`                       | Only with `gemini`; free key from Google AI Studio            | _(empty)_                                                |
+| `GEMINI_MODEL`                         | Gemini model name                                             | `gemini-3.5-flash-lite`                                  |
+| `EMAIL_PROVIDER`                       | Verify emails: `fake` (logged) or `smtp`                      | `fake`                                                   |
+| `SMTP_USER`, `SMTP_PASS`               | Only with `smtp`: Gmail address and a Google **app password** | _(empty)_                                                |
+| `APP_URL`                              | Where the link in the verify email points                     | `http://localhost:5173`                                  |
+| `SMTP_HOST`, `SMTP_PORT`, `EMAIL_FROM` | Optional SMTP overrides                                       | `smtp.gmail.com`, `465`                                  |
+
+Real values live only in the server's `/opt/splitlah/.env` and in GitHub Secrets, never in git. See [docs/pipeline.md](docs/pipeline.md#secrets).
+
+## Scripts
+
+From the repo root:
+
+| Command                                   | What it does                                                   |
+| ----------------------------------------- | -------------------------------------------------------------- |
+| `npm run lint`                            | oxlint on both apps, warnings fail                             |
+| `npm run typecheck`                       | TypeScript check on both apps                                  |
+| `npm run format:check` / `npm run format` | Prettier check / fix                                           |
+| `npm test`                                | Unit and component tests for both apps                         |
+| `npm run build`                           | Builds both apps                                               |
+| `npm run test:cov -w apps/api`            | API unit tests with the 90% coverage gate                      |
+| `npm run test:e2e -w apps/api`            | API end-to-end tests against the local Postgres                |
+| `npm test -w apps/web`                    | Web component tests with the 90% coverage gate                 |
+| `npm run test:browser -w apps/web`        | Playwright browser tests (start the Docker stack first, below) |
+
+The browser tests run against the real images in Docker. How to start them is in [docs/pipeline.md](docs/pipeline.md#browser-tests-playwright-kan-53).
+
+## CI/CD pipeline
+
+**On every pull request**, 13 required checks run in parallel (about 4 minutes): Gitleaks, lint + format + typecheck + build for each app, API and web unit tests with 90% coverage gates, API end-to-end tests against Postgres 18, Playwright browser tests as an iPhone 14, the Docker builds, npm audit, Trivy image scans and CodeQL. `main` is protected: nothing merges until every check is green, and there is no bypass.
+
+**On merge to `main`**: build and push the images to GHCR (tagged with the commit SHA) → SSH to EC2 using AWS OIDC (no stored AWS keys) → `prisma migrate deploy` on RDS → start → health check → automatic rollback to the previous image if it fails. Merge to live takes about 2½ minutes.
+
+Details: [docs/pipeline.md](docs/pipeline.md) · security: [docs/security.md](docs/security.md) · infrastructure: [docs/infra.md](docs/infra.md)
+
+## Project management and conventions
+
+Work is planned in [Jira (KAN)](https://cheewei0123.atlassian.net/jira/software/projects/KAN/boards) in sprints; every branch, commit and PR carries the Jira key, so it shows on the ticket.
+
+- **Branches:** `feature/KAN-<n>-short-name`, `fix/…`, `test/…`, `ci/…`, `docs/…`, `chore/…`
+- **Commits:** `KAN-<n> <type>(<scope>): <summary>`, e.g. `KAN-19 feat(split): add GST calculation`
+- **PRs:** title starts with the Jira key; uses the PR template; squash-merge only
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the details, and [docs/sprints/](docs/sprints/) for the sprint reviews.
+
+## Documentation
+
+| Doc                                  | What's in it                                         |
+| ------------------------------------ | ---------------------------------------------------- |
+| [Architecture](docs/architecture.md) | Containers, NestJS modules, one request step by step |
+| [API](docs/api.md)                   | Every endpoint, who can call it, errors              |
+| [Data model](docs/data-model.md)     | Tables, relations, money as integer cents            |
+| [ADRs](docs/adr/)                    | Why NestJS, integer cents, OCR and email interfaces  |
+| [User flows](docs/user-flows.md)     | Owner and guest journeys                             |
+| [UI design](docs/ui-design.md)       | Colours, glass components, layout rules              |
+| [Pipeline](docs/pipeline.md)         | Every CI job, the deploy, secrets, browser tests     |
+| [Security](docs/security.md)         | Scans, findings and accepted risks                   |
+| [Infrastructure](docs/infra.md)      | EC2, RDS, Caddy, OIDC setup                          |
+| [Learning log](docs/learning-log.md) | What I learned and what went wrong, per ticket       |
+| [Evidence](docs/evidence/)           | Screenshots used in the report                       |
 
 ## Repository structure
 
 ```
-splitlah/
 ├── apps/
-│   ├── api/        # NestJS backend
-│   └── web/        # React PWA frontend
-├── infra/          # Docker Compose, deploy and server setup scripts
-├── docs/           # Architecture, API, data model, ADRs, evidence
-└── .github/        # CI/CD workflows, PR template, Dependabot
+│   ├── api/        # NestJS API, Prisma schema and migrations, unit + e2e tests
+│   └── web/        # React PWA, component tests, Playwright tests (e2e/)
+├── infra/          # Docker Compose files (dev, CI, production), deploy and server scripts
+├── docs/           # Architecture, API, data model, ADRs, sprints, evidence
+└── .github/        # Workflows (CI, CodeQL, deploy), PR template, Dependabot
 ```
-
-## Getting started
-
-> 🚧 Setup instructions will be added once the monorepo is in place (KAN-15).
-
-```bash
-git clone https://github.com/<your-username>/splitlah.git
-cd splitlah
-npm ci
-```
-
-## CI/CD pipeline
-
-> 🚧 Pipeline details will be added in KAN-16 / KAN-37. See `docs/pipeline.md`.
-
-**On every pull request:** lint → unit tests + coverage → API e2e → security scans → Docker build
-**On merge to `main`:** push image → deploy to EC2 → DB migration → health check → auto-rollback on failure
-
-## Contributing conventions
-
-- **Branches:** `feature/KAN-<n>-short-name`, `fix/…`, `ci/…`, `docs/…`, `chore/…`
-- **Commits:** `KAN-<n> <type>(<scope>): <summary>`
-  e.g. `KAN-19 feat(split): add GST calculation`
-- **PRs:** title starts with the Jira key; squash-merge only; all checks must pass
-
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for details.
 
 ## Project status
 
-| Milestone               | Target | Status         |
-| ----------------------- | ------ | -------------- |
-| M1: CI + split engine   | 8 Nov  | 🟡 In progress |
-| M2: API deployed to AWS | 15 Nov | ⚪ Not started |
-| M3: PWA live on iPhone  | 22 Nov | ⚪ Not started |
-| M4: Feature freeze      | 24 Nov | ⚪ Not started |
-| M5: Report submitted    | 26 Nov | ⚪ Not started |
+| Milestone                         | Target | Status         |
+| --------------------------------- | ------ | -------------- |
+| M1: CI + split engine             | 8 Nov  | ✅ Met         |
+| M2: API deployed to AWS           | 15 Nov | ✅ Met         |
+| M3: PWA live on iPhone over HTTPS | 22 Nov | ✅ Met         |
+| M4: Feature freeze                | 24 Nov | 🟡 In progress |
+| M5: Report submitted              | 27 Nov | ⚪ Not started |
 
 ---
 
