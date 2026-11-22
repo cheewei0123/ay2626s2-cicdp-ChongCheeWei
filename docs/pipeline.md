@@ -154,7 +154,7 @@ A failed test keeps `trace.zip` and `video.webm` in `apps/web/test-results/`; CI
 - **Thresholds (the job fails if missed):** 95% of requests under 500 ms, and under 1% failed.
 - **ratelimit:** after the load, 25 quick guesses at a join code from one IP. The first 20 must get `404` and the rest `429`, which proves the 20-a-minute limit on `/api/join` works on the live server, behind Caddy.
 
-Health and the app page are used because they have no rate limit; a share link allows 100 requests a minute per IP, so 10 users from one runner would mostly measure the limiter. The summary is uploaded as the `k6-summary` artifact (30 days). The runner is in the US, so its times include the trip to Singapore that a local user wouldn't have.
+Health and the app page are used because they have no rate limit; a share link allows 100 requests a minute per IP, so 10 users from one runner would mostly measure the limiter. While k6 runs, the job also samples `docker stats` on the server about every 10 seconds over SSH (CPU and memory of each container, plus `free -m` once). It gets in the same way as the deploy job: the `production` environment, OIDC, and port 22 opened for the runner's IP only, then closed again even if a step fails. The summary and `server-stats.txt` are uploaded as the `k6-summary` artifact (30 days). The runner is in the US, so its times include the trip to Singapore that a local user wouldn't have.
 
 Run it from a laptop with k6 installed:
 
