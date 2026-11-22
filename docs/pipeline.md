@@ -74,6 +74,19 @@ Only one deploy runs at a time (`concurrency`), and only `main` can deploy to `p
 
 **Build cache (one scope per Dockerfile).** Docker layers are kept in GitHub's cache (`type=gha`) between runs. Each Dockerfile has its own scope (`scope=api`, `scope=web`): with one shared scope, every build replaced the cache record of the one before, so the web build never found its Caddy layer and rebuilt Caddy from source (about 75 s) on every run. The migrate image only reads the `api` scope, because its layers are the API build stage that the API build already saves. Before this fix, merge to live had grown from about 2½ minutes (Sprint 2) to a median of about 7½ minutes (21–22 Nov).
 
+**Measured deploy times** (from the deploy runs' own timings in the GitHub API):
+
+| When                  | What was built                       | Deploys | Merge to live (median) |
+| --------------------- | ------------------------------------ | ------- | ---------------------- |
+| 8–10 Nov              | API and migrate images               | 15      | 2 min 14 s             |
+| 10–16 Nov             | API, migrate and web (Caddy) images  | 8       | 5 min 1 s              |
+| 20–22 Nov             | Same, one shared cache record        | 19      | 7 min 24 s             |
+| 22 Nov, after the fix | Same, one cache scope per Dockerfile | 1       | 2 min 29 s             |
+
+The first deploy after the fix (#46, 8 min 16 s) filled the new cache scopes; the next one (#47, run by hand on the same commit) took 2 min 29 s, with the image build down from 4–6½ minutes to 64 s. A merge that changes app code rebuilds a few more layers, so it takes somewhat longer. Screenshot: [kan-58-deploy-times-before-after.png](evidence/kan-58-deploy-times-before-after.png).
+
+**Image sizes** (current release, compressed as stored in GHCR): `splitlah-api` 123 MB, `splitlah-web` 43 MB, `splitlah-migrate` 429 MB (it carries the Prisma CLI and only runs once per deploy). All three run as a non-root user.
+
 ## Secrets and settings for the deploy
 
 | Name                  | Kind                      | What                                                                                  |
