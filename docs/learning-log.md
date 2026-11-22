@@ -2,6 +2,14 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-54: a README a stranger can follow
+
+- **Write it for someone who has never seen the repo:** the setup section is the exact commands in order (clone → `npm ci` → Postgres in Docker → copy `.env.example` → `JWT_SECRET` → migrate → seed → start). I checked every command against the repo, not from memory: Postgres listens on 5433 (not 5432), and Vite's proxy passes `/api` to `:3000`.
+- **What a newcomer gets stuck on:** with the Fake email nothing arrives in an inbox, so the README says the verify link is in the API terminal. The seeded user can't log in (its password is a placeholder), so it says to Register and use join code `SEED2` for the guest side.
+- **No real values, ever:** the environment table gives each variable's purpose and a safe example, and says the real ones live only in GitHub Secrets and the server's `.env`.
+- **Links checked by a script:** a short Python check that every relative link and image in both READMEs exists, so a moved doc doesn't leave a dead link.
+- **The web app's README was still the Vite template**, which talks about ESLint (this repo uses oxlint). I replaced it with a short page that points back to the root README.
+
 ## KAN-53: browser tests with Playwright
 
 - **The top of the pyramid tests the real images:** `docker-compose.ci.yml` starts the same API and Caddy images as production, with a throwaway Postgres in memory (`tmpfs`) and Fake OCR and email. So the browser test also proves the Caddyfile, the `/api` proxy and the migrations work together, which no unit or API test can.
