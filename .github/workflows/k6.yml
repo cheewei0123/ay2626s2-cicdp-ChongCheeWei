@@ -54,8 +54,8 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
 
-      # Server CPU/RAM is sampled in the background about every 10 s (the first sample is
-      # before any load), while k6 runs in front. tee keeps the summary for the report;
+      # Server CPU/RAM is sampled in the background about every 10 s (both start together,
+      # so the first sample is a few seconds into the load), while k6 runs in front. tee keeps the summary for the report;
       # pipefail keeps a failed threshold failing the job.
       - name: Run k6 and sample the server
         env:

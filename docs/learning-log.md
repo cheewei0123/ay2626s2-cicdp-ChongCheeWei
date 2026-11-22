@@ -8,6 +8,9 @@ Short notes on what I learned and what went wrong, newest first. Used as evidenc
 - **Testing the limit on purpose:** a second scenario sends 25 join-code guesses and checks that the first 20 get `404` and the rest `429`. It proves the brute-force protection works on the live server, where the real client IP comes through Caddy (`trust proxy`).
 - **Thresholds only for the load:** `http_req_failed{scenario:load}` leaves out the expected 404s and 429s, which would otherwise count as failures.
 - **Manual on purpose:** `workflow_dispatch` only, so PRs never load production. It has to be on `main` before the Run button appears, so the results come in a second PR.
+- **Collecting server stats without my laptop:** SSH from my laptop only works from my home IP, and it had changed. Instead the workflow gets in like the deploy does (the `production` environment, OIDC, port 22 opened for the runner only and always closed) and samples `docker stats` in the background while k6 runs.
+- **Reading the numbers honestly:** p50 and p95 were only 5 ms apart and the API used 2–3% CPU, so the ~200 ms is mostly the trip from GitHub's US runner to Singapore, not my server. The tightest resource turned out to be memory (about 500 of 909 MiB used, swap already in use), not CPU.
+- **Background jobs start together:** I wrote that the first sample was "before any load", but the SSH sampler and k6 start at the same moment, so it is a few seconds in. The run's timestamps showed it, and I fixed the comment.
 - **Inputs are not safe to paste into a script:** `${{ inputs.base_url }}` directly in `run:` would let a crafted input run shell commands. It goes through `env:` instead, which CodeQL's actions check looks for.
 
 ## KAN-54: a README a stranger can follow

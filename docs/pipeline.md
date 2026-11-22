@@ -156,6 +156,19 @@ A failed test keeps `trace.zip` and `video.webm` in `apps/web/test-results/`; CI
 
 Health and the app page are used because they have no rate limit; a share link allows 100 requests a minute per IP, so 10 users from one runner would mostly measure the limiter. While k6 runs, the job also samples `docker stats` on the server about every 10 seconds over SSH (CPU and memory of each container, plus `free -m` once). It gets in the same way as the deploy job: the `production` environment, OIDC, and port 22 opened for the runner's IP only, then closed again even if a step fails. The summary and `server-stats.txt` are uploaded as the `k6-summary` artifact (30 days). The runner is in the US, so its times include the trip to Singapore that a local user wouldn't have.
 
+### Results (22 Nov 2026)
+
+Two runs from GitHub's US runner against the live site; the second also sampled the server. Full output: [evidence/k6-2026-11-22.txt](evidence/k6-2026-11-22.txt).
+
+| Run                        | p50    | p95    | Max    | Errors     | Requests/s | Server CPU (API / Caddy) | API memory  |
+| -------------------------- | ------ | ------ | ------ | ---------- | ---------- | ------------------------ | ----------- |
+| k6 #1                      | 199 ms | 202 ms | 261 ms | 0% (0/860) | 14.3       | not sampled              | not sampled |
+| k6 #2 (with server sample) | 224 ms | 230 ms | 439 ms | 0% (0/820) | 13.7       | 2–3% / 1–4%              | 92–119 MiB  |
+
+Requests/s is the load scenario only (requests ÷ 60 s). The rate-limit check passed both times: 20 guesses got `404`, the next 5 got `429`.
+
+**What this shows, and what limits the system.** At 10 users the server is almost idle: the API used 2–3% CPU and Caddy 1–4%, and the response time hardly changes from p50 to p95 (5 ms apart). So nearly all of the ~200 ms is the trip from the US runner to Singapore, not work on the server; a user in Singapore would see much less. One API sample read 23% for a second just after the load ended (2% before, 0% after), which I can't tie to one request. The tightest resource is **memory**, not CPU: the t3.micro has 909 MiB, about 500 MiB was in use and 108 MiB was already in swap at the start of the test, with the API at about 92–119 MiB and Caddy at 58 MiB. The real limits are: **one small server** (no second copy, so a crash or a slow deploy is downtime, and a t3.micro has CPU credits that run out under long heavy load); **memory** (more traffic or more containers would push it further into swap and slow down); **receipt scanning**, which waits seconds for Gemini, is rate-limited to 5 a minute per IP and bounded by Gemini's free-tier quota, so the AI is the bottleneck there, not my CPU; and **the rate limit counters**, which live in each API's memory, so running a second copy would need a shared store such as Redis or each copy would allow its own 20 guesses. I did not push for the breaking point on purpose: it is the only production server, on the free tier.
+
 Run it from a laptop with k6 installed:
 
 ```sh

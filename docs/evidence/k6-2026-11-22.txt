@@ -1,0 +1,101 @@
+k6 load test of https://splitlah.duckdns.org (KAN-55)
+Workflow k6 #2, run 44990331343, commit 30234ec, 22 Nov 2026, k6 step 05:39:28-05:40:52 UTC
+(load 05:39:29-05:40:29, ratelimit from about 05:40:34)
+Runner: GitHub-hosted ubuntu-latest (US). Server: EC2 t3.micro (2 vCPU, 1 GB) + RDS db.t4g.micro, ap-southeast-1.
+https://github.com/cheewei0123/ay2626s2-cicdp-ChongCheeWei/actions/runs/44990331343
+Earlier run k6 #1 (44988863169, no server sampling): p50 199 ms, p95 202 ms, 0 of 860 failed.
+
+     scenarios: (100.00%) 2 scenarios, 11 max VUs, 11m35s max duration (incl. graceful stop):
+              * load: 10 looping VUs for 1m0s (exec: browse, gracefulStop: 30s)
+              * ratelimit: 25 iterations shared among 1 VUs (maxDuration: 10m0s, exec: guessCodes, startTime: 1m5s, gracefulStop: 30s)
+
+  █ THRESHOLDS
+
+    checks{scenario:ratelimit}
+    ✓ 'rate==1' rate=100.00%
+
+    http_req_duration{scenario:load}
+    ✓ 'p(95)<500' p(95)=229.71ms
+
+    http_req_failed{scenario:load}
+    ✓ 'rate<0.01' rate=0.00%
+
+
+  █ TOTAL RESULTS
+
+    checks_total.......: 870     12.197824/s
+    checks_succeeded...: 100.00% 870 out of 870
+    checks_failed......: 0.00%   0 out of 870
+
+    ✓ app page is 200
+    ✓ health says db up
+    ✓ first 20 guesses answered (404)
+    ✓ later guesses blocked (429)
+
+    HTTP
+    http_req_duration..............: avg=227.51ms med=224.19ms p(90)=228.71ms p(95)=232.5ms  max=439.38ms
+      { expected_response:true }...: avg=227.51ms med=224.19ms p(90)=228.71ms p(95)=232.5ms  max=439.38ms
+      { scenario:load }............: avg=227.3ms  med=224.15ms p(90)=227.98ms p(95)=229.71ms max=439.38ms
+    http_req_failed................: 0.00%  0 out of 845
+      { scenario:load }............: 0.00%  0 out of 820
+    http_reqs......................: 845    11.847312/s
+
+    EXECUTION
+    iteration_duration.............: avg=1.4s     med=1.45s    p(90)=1.45s    p(95)=1.46s    max=2.19s
+    iterations.....................: 435    6.098912/s
+    vus............................: 1      min=0        max=10
+    vus_max........................: 11     min=11       max=11
+
+    NETWORK
+    data_received..................: 663 kB 9.3 kB/s
+    data_sent......................: 53 kB  747 B/s
+
+running (01m11.3s), 00/11 VUs, 435 complete and 0 interrupted iterations
+load      ✓ [ 100% ] 10 VUs  1m0s
+ratelimit ✓ [ 100% ] 1 VUs   00m06.3s/10m0s  25/25 shared iters
+
+----- server-stats.txt (docker stats on EC2, sampled during the run; MiB) -----
+
+               total        used        free      shared  buff/cache   available
+Mem:             909         503         106           2         421         406
+Swap:           1023         108         915
+
+05:39:31
+NAME             CPU %     MEM USAGE / LIMIT
+splitlah-web-1   1.62%     55.24MiB / 909.5MiB
+splitlah-api-1   2.45%     111.2MiB / 909.5MiB
+
+05:39:42
+NAME             CPU %     MEM USAGE / LIMIT
+splitlah-web-1   1.59%     56.94MiB / 909.5MiB
+splitlah-api-1   2.14%     117.5MiB / 909.5MiB
+
+05:39:52
+NAME             CPU %     MEM USAGE / LIMIT
+splitlah-web-1   2.41%     57.85MiB / 909.5MiB
+splitlah-api-1   2.06%     118.5MiB / 909.5MiB
+
+05:40:02
+NAME             CPU %     MEM USAGE / LIMIT
+splitlah-web-1   3.92%     57.96MiB / 909.5MiB
+splitlah-api-1   2.55%     91.99MiB / 909.5MiB
+
+05:40:12
+NAME             CPU %     MEM USAGE / LIMIT
+splitlah-web-1   1.99%     58.34MiB / 909.5MiB
+splitlah-api-1   1.92%     92.09MiB / 909.5MiB
+
+05:40:22
+NAME             CPU %     MEM USAGE / LIMIT
+splitlah-web-1   1.56%     58.39MiB / 909.5MiB
+splitlah-api-1   1.85%     92.38MiB / 909.5MiB
+
+05:40:32
+NAME             CPU %     MEM USAGE / LIMIT
+splitlah-web-1   0.58%     58.38MiB / 909.5MiB
+splitlah-api-1   23.25%    92.23MiB / 909.5MiB
+
+05:40:42
+NAME             CPU %     MEM USAGE / LIMIT
+splitlah-web-1   0.00%     58.19MiB / 909.5MiB
+splitlah-api-1   0.00%     94.4MiB / 909.5MiB
