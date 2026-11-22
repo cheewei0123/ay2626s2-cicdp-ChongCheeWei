@@ -1,0 +1,19 @@
+flowchart LR
+  subgraph API["NestJS API (AppModule)"]
+    Auth["AuthModule<br/>register, login, verify email"]
+    Bills["BillsModule<br/>bills, items, share link,<br/>claims, lock, summary"]
+    Pay["PaymentsModule<br/>PayNow QR, who has paid"]
+    Rec["ReceiptsModule<br/>photo → draft items"]
+    Exp["ExpensesModule<br/>monthly expenses"]
+    Split["SplitModule<br/>pure money maths<br/>(no database, no HTTP)"]
+    Ocr["OcrModule<br/>OCR_SERVICE token<br/>Gemini or Fake"]
+    Email["EmailModule<br/>EMAIL_SERVICE token<br/>SMTP or Fake"]
+    Health["HealthModule<br/>GET /health"]
+    Prisma[("PrismaModule (global)<br/>PrismaService")]
+  end
+  Auth -->|imports| Email
+  Bills -->|imports| Split
+  Pay -->|imports| Bills
+  Rec -->|imports| Ocr
+  Exp -->|imports| Ocr
+  Bills -. "bill.locked event<br/>(no import)" .-> Exp

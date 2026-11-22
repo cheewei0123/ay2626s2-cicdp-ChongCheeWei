@@ -2,6 +2,14 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-50, KAN-51: evidence and diagrams that match the code
+
+- **Diagrams go stale like numbers do:** the ER diagram from Sprint 1 still showed `Group`, `Friendship` and `Budget` (never built) and was missing three tables that were (`EmailVerificationToken`, `ReceiptImage`, `MerchantCategory`). I redrew it from `schema.prisma` itself, not from memory, and marked the four columns no code uses yet as "unused" instead of hiding them.
+- **The pipeline diagram was wrong too:** it drew the PR checks as a chain (lint → tests → security → build), but `ci.yml` has no `needs:` between them, so all 13 start together. The new diagram groups them into four boxes that run side by side, which is also why a PR waits for the slowest check, not the sum.
+- **One place for every diagram:** the Mermaid sources now live in `docs/diagrams/`, so a change to the code means editing one `.mmd` file and rendering it again. They are rendered locally (a headless browser), so the project's schema is never pasted into an online tool.
+- **A scanner finding is not always a bug:** CodeQL flagged `<img src={preview}>` as XSS through the DOM. `preview` can only be a `blob:` URL of the user's own photo, and an image can't run script, so it is a false positive. Dismissing it with a written reason keeps the Security tab honest; rewriting safe code just to quiet the scanner would hide the reasoning.
+- **Coverage, measured again on `main`:** 404 API tests, 97.91% lines and 95.02% branches, saved as a text file so the number in the report can be checked.
+
 ## KAN-58: the deploy had become three times slower
 
 - **Found while writing the report, not by watching:** the report said "merge to live in about 2½ minutes". The deploy runs' own timings (GitHub API) said otherwise: a median of about 7½ minutes on 21–22 Nov, over the 5-minute target. A number written once goes stale unless it is measured again.

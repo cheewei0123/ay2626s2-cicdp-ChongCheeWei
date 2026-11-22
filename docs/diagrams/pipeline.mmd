@@ -1,0 +1,25 @@
+flowchart LR
+  PR(["Pull request<br/>opened or updated"])
+  subgraph CI["13 PR checks, in parallel"]
+    Q["<b>Code quality</b><br/>lint api, lint web:<br/>oxlint, Prettier,<br/>type check, build"]
+    T["<b>Tests</b><br/>test-api, test-web:<br/>90% coverage gates<br/>test-e2e: API + Postgres<br/>e2e-browser: iPhone 14"]
+    S["<b>Security</b><br/>gitleaks, npm audit,<br/>codeql (code, workflows),<br/>trivy api, trivy web"]
+    B["<b>Build</b><br/>docker-build:<br/>api, migrate, web images"]
+  end
+  G{"All 13<br/>green?"}
+  X["Merge<br/>blocked"]
+  subgraph CD["Merge to main (deploy.yml)"]
+    P["build-image<br/>push to GHCR,<br/>tag = commit SHA"]
+    O["OIDC login to AWS,<br/>open port 22<br/>for this runner"]
+    D["deploy.sh on EC2:<br/>pull, migrate, start"]
+    H{"Health<br/>check"}
+    OK["Live: close port 22,<br/>check HTTPS"]
+    R["Roll back to the last<br/>good release, job red"]
+  end
+  PR --> Q & T & S & B
+  Q & T & S & B --> G
+  G -->|no| X
+  G -->|"yes: squash-merge"| P
+  P --> O --> D --> H
+  H -->|ok| OK
+  H -->|fails| R

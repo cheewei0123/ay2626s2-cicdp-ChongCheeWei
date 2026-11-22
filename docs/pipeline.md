@@ -4,34 +4,37 @@ The plan for the whole pipeline, and which parts exist today. The workflows live
 
 ## Stages
 
-Every box is built.
+Every box is built. The 13 PR checks start together, not one after another, so a PR waits only for the slowest one (source: [diagrams/pipeline.mmd](diagrams/pipeline.mmd), image: [kan-51-pipeline-diagram.png](evidence/kan-51-pipeline-diagram.png)).
 
 ```mermaid
 flowchart LR
-  subgraph PR["On every pull request"]
-    direction LR
-    A[Install<br/>npm ci + cache] --> B[Lint + format<br/>oxlint, Prettier]
-    B --> C[Unit tests + coverage<br/>gate 90% on API business code]
-    C --> D[API e2e<br/>Supertest + Postgres]
-    D --> E[Security<br/>Gitleaks, CodeQL, npm audit]
-    E --> F[Docker build]
-    F --> G[Trivy image scan]
-    G --> H[Playwright<br/>iPhone preset]
+  PR(["Pull request<br/>opened or updated"])
+  subgraph CI["13 PR checks, in parallel"]
+    Q["<b>Code quality</b><br/>lint api, lint web:<br/>oxlint, Prettier,<br/>type check, build"]
+    T["<b>Tests</b><br/>test-api, test-web:<br/>90% coverage gates<br/>test-e2e: API + Postgres<br/>e2e-browser: iPhone 14"]
+    S["<b>Security</b><br/>gitleaks, npm audit,<br/>codeql (code, workflows),<br/>trivy api, trivy web"]
+    B["<b>Build</b><br/>docker-build:<br/>api, migrate, web images"]
   end
-
-  subgraph MAIN["On merge to main only"]
-    direction LR
-    I[Push images to GHCR<br/>tags: SHA + latest] --> J[SSH deploy to EC2]
-    J --> K[prisma migrate deploy<br/>on RDS]
-    K --> L{Health check}
-    L -->|pass| M[Live]
-    L -->|fail| N[Roll back to<br/>previous image]
+  G{"All 13<br/>green?"}
+  X["Merge<br/>blocked"]
+  subgraph CD["Merge to main (deploy.yml)"]
+    P["build-image<br/>push to GHCR,<br/>tag = commit SHA"]
+    O["OIDC login to AWS,<br/>open port 22<br/>for this runner"]
+    D["deploy.sh on EC2:<br/>pull, migrate, start"]
+    H{"Health<br/>check"}
+    OK["Live: close port 22,<br/>check HTTPS"]
+    R["Roll back to the last<br/>good release, job red"]
   end
-
-  H -.->|merge| I
+  PR --> Q & T & S & B
+  Q & T & S & B --> G
+  G -->|no| X
+  G -->|"yes: squash-merge"| P
+  P --> O --> D --> H
+  H -->|ok| OK
+  H -->|fails| R
 ```
 
-Stage H, the browser tests, came last (KAN-53). Stages E and G are built (KAN-41): Gitleaks, CodeQL, `npm audit` and Trivy. What they found and the accepted risks are in [security.md](security.md).
+The browser tests came last (KAN-53). The security checks were added in KAN-41: what they found and the accepted risks are in [security.md](security.md).
 
 ## What runs today
 
@@ -76,14 +79,14 @@ Only one deploy runs at a time (`concurrency`), and only `main` can deploy to `p
 
 **Measured deploy times** (from the deploy runs' own timings in the GitHub API):
 
-| When                  | What was built                       | Deploys | Merge to live (median) |
-| --------------------- | ------------------------------------ | ------- | ---------------------- |
-| 8–10 Nov              | API and migrate images               | 15      | 2 min 14 s             |
-| 10–16 Nov             | API, migrate and web (Caddy) images  | 8       | 5 min 1 s              |
-| 20–22 Nov             | Same, one shared cache record        | 19      | 7 min 24 s             |
-| 22 Nov, after the fix | Same, one cache scope per Dockerfile | 1       | 2 min 29 s             |
+| When                  | What was built                       | Deploys | Merge to live (median)                 |
+| --------------------- | ------------------------------------ | ------- | -------------------------------------- |
+| 8–10 Nov              | API and migrate images               | 15      | 2 min 14 s                             |
+| 10–16 Nov             | API, migrate and web (Caddy) images  | 8       | 5 min 1 s                              |
+| 20–22 Nov             | Same, one shared cache record        | 19      | 7 min 24 s                             |
+| 22 Nov, after the fix | Same, one cache scope per Dockerfile | 2       | 2 min 29 s (re-run), 3 min 4 s (merge) |
 
-The first deploy after the fix (#46, 8 min 16 s) filled the new cache scopes; the next one (#47, run by hand on the same commit) took 2 min 29 s, with the image build down from 4–6½ minutes to 64 s. A merge that changes app code rebuilds a few more layers, so it takes somewhat longer. Screenshot: [kan-58-deploy-times-before-after.png](evidence/kan-58-deploy-times-before-after.png).
+The first deploy after the fix (#46, 8 min 16 s) filled the new cache scopes; the next one (#47, run by hand on the same commit) took 2 min 29 s, with the image build down from 4–6½ minutes to 64 s. The next real merge (KAN-58 docs, #99) went live in 3 min 4 s, because a new commit rebuilds a few more layers. Screenshot: [kan-58-deploy-times-before-after.png](evidence/kan-58-deploy-times-before-after.png).
 
 **Image sizes** (current release, compressed as stored in GHCR): `splitlah-api` 123 MB, `splitlah-web` 43 MB, `splitlah-migrate` 429 MB (it carries the Prisma CLI and only runs once per deploy). All three run as a non-root user.
 

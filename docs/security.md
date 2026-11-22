@@ -36,6 +36,8 @@ Trivy's would be listed in `.trivyignore.yaml` with an expiry date, so they can'
 
 **Fixing instead of accepting (Caddy).** The Caddy CVE was first accepted until 31 Dec 2026. Three days later the PR's `trivy web` check failed on a second one in the same binary (Go's standard library), published after my local scan. No Caddy release has either fix, but Caddy's official builder image already has the fixed Go (1.27.4), so `apps/web/Dockerfile` now rebuilds the **same** Caddy release (v2.11.9) with `xcaddy`, Go 1.27.4 and `x/net` v0.62.0. The image scans clean with no ignore file, so `.trivyignore.yaml` is empty again. The rebuilt binary is copied over the official one, and `setcap cap_net_bind_service` is set again so the non-root `caddy` user can still use ports 80 and 443. Remove that stage once an official Caddy release includes the fixes.
 
+**False positive (CodeQL alert #5, reviewed 22 Nov 2026, KAN-50).** CodeQL reports `js/xss-through-dom` (High) on `apps/web/src/pages/ScanReceipt.tsx`, `<img src={preview}>`. `preview` is always `URL.createObjectURL(file)`: a `blob:` URL of the photo the user just picked on their own device, used only as an image source. An image can't run script and no text is parsed as HTML, so there is no XSS path. It is dismissed as a false positive in the Security tab with this reason, instead of changing safe code to quiet the scanner.
+
 `ignore-unfixed` is on: a CVE with no fix anywhere can't be acted on, so it is shown but doesn't fail the build.
 
 ## Securing the scanners themselves

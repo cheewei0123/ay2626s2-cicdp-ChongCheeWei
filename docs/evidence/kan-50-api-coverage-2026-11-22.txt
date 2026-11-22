@@ -1,0 +1,54 @@
+npm run test:cov -w apps/api on main at e99b875, 22 Nov 2026: 44 test files, 404 tests passed.
+The gate fails below 90% lines or branches in each business folder (vitest.config.ts).
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   97.84 |    95.02 |    95.7 |   97.91 |                   
+ src               |      50 |       25 |      75 |      50 |                   
+  ...controller.ts |     100 |       50 |     100 |     100 | 4                 
+  app.setup.ts     |       0 |        0 |       0 |       0 | 9-22              
+ src/auth          |   99.02 |       96 |   96.29 |   98.97 |                   
+  ....decorator.ts |      50 |      100 |       0 |      50 | 7                 
+  ...fied.guard.ts |     100 |    83.33 |     100 |     100 | 13                
+  ...auth.guard.ts |     100 |       90 |     100 |     100 | 12                
+ src/bills         |   99.56 |    96.15 |     100 |   99.51 |                   
+  bills.service.ts |     100 |    93.75 |     100 |     100 | 22                
+  ...ms.service.ts |   98.73 |    97.95 |     100 |   98.59 | 133               
+  share.service.ts |     100 |    91.66 |     100 |     100 | 13                
+  ...ry.service.ts |     100 |    95.23 |     100 |     100 | 8                 
+ src/bills/dto     |   96.96 |    77.77 |     100 |     100 |                   
+  set-split.dto.ts |   96.29 |    77.77 |     100 |     100 | 61-72,78,85       
+ src/bills/guards  |   93.87 |    89.28 |   66.66 |   93.47 |                   
+  ...wner.guard.ts |     100 |    91.66 |     100 |     100 | 28                
+  ....decorator.ts |      50 |      100 |       0 |      50 | 7                 
+  ...oken.guard.ts |     100 |       90 |     100 |     100 | 28                
+  ....decorator.ts |      50 |      100 |       0 |      50 | 7                 
+  ...oken.guard.ts |     100 |    83.33 |     100 |     100 | 12                
+  ....decorator.ts |      50 |      100 |       0 |      50 | 7                 
+ ...common/filters |     100 |    94.73 |     100 |     100 |                   
+  ...ons.filter.ts |     100 |    94.73 |     100 |     100 | 60                
+ src/email         |   95.65 |      100 |      80 |   95.45 |                   
+  email.factory.ts |   91.66 |      100 |      50 |    90.9 | 37                
+ src/expenses      |     100 |     98.3 |     100 |     100 |                   
+  ...e.listener.ts |     100 |       50 |     100 |     100 | 8                 
+ src/expenses/dto  |     100 |       50 |     100 |     100 |                   
+  expense.dto.ts   |     100 |       50 |     100 |     100 | 39                
+ src/ocr           |   97.67 |    97.05 |   85.71 |   97.61 |                   
+  ...cr.service.ts |     100 |    95.45 |     100 |     100 | 93                
+  ocr.factory.ts   |   92.85 |      100 |      50 |    92.3 | 29                
+ src/payments      |     100 |    97.05 |     100 |     100 |                   
+  ...ts.service.ts |     100 |       95 |     100 |     100 | 13                
+ src/prisma        |      40 |      100 |       0 |      40 |                   
+  ...ma.service.ts |      40 |      100 |       0 |      40 | 12-22             
+ src/split         |   99.26 |    98.14 |     100 |     100 |                   
+  split.service.ts |   99.16 |       98 |     100 |     100 | 254               
+-------------------|---------|----------|---------|---------|-------------------
+
+=============================== Coverage summary ===============================
+Statements   : 97.84% ( 861/880 )
+Branches     : 95.02% ( 420/442 )
+Functions    : 95.7% ( 223/233 )
+Lines        : 97.91% ( 800/817 )
+================================================================================
