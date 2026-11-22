@@ -84,3 +84,4 @@ Screenshots used in the report, named `kan-<ticket>-<what>.png`.
 | `kan-80-month-view.png`                   | KAN-80 | Expenses month view: total spent, category bar and the saved receipt expense                                                   |
 | `kan-60-sprint-3-burndown.png`            | KAN-60 | Sprint 3 burndown: 52 points, above the guideline from 11 Nov, down to 37 on 17 Nov and 9 on 22 Nov                            |
 | `kan-50-codeql-alert-dismissed.png`       | KAN-50 | Code scanning on `main`: 0 open, alert #5 closed as a false positive                                                           |
+| `kan-60-gantt.png`                        | KAN-60 | Gantt: sprints planned vs actual, milestones, and first to last merge per epic (Jira sprint dates, git merge dates)            |
