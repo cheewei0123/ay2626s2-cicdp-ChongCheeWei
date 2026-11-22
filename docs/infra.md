@@ -113,7 +113,7 @@ Port 22 normally only allows my home IP. GitHub Actions runners use thousands of
 
 1. IAM **identity provider** `token.actions.githubusercontent.com` (audience `sts.amazonaws.com`): AWS trusts tokens signed by GitHub Actions.
 2. IAM **policy** `splitlah-deploy-ssh-rule`: only `ec2:AuthorizeSecurityGroupIngress` and `ec2:RevokeSecurityGroupIngress`, only on this server's security group.
-3. IAM **role** `splitlah-github-deploy`: has that policy, and its trust policy only accepts a token whose `sub` is exactly `repo:cheewei0123@210798904/ay2626s2-cicdp-ChongCheeWei@1437996139:environment:production`. A pull request or any other job gets a different `sub` and is refused.
+3. IAM **role** `splitlah-github-deploy`: has that policy, and its trust policy only accepts a token whose `sub` is exactly `repo:cheewei0123@210798904/ay2626s2-cicdp-ChongCheeWei@1437996139:environment:production`. Only jobs that use the `production` environment get that `sub`: the deploy, and the manual k6 load test (to read `docker stats`). A pull request gets a different `sub` and is refused.
 
 GitHub puts the account and repository **numeric IDs** (`@210798904`, `@1437996139`) in the `sub`. Most guides show the older format without them; the deploy job prints its token's claims (never the token) so the trust policy can be matched exactly. The IDs never change, so even if someone later took over the name `cheewei0123`, their tokens would not match.
 
