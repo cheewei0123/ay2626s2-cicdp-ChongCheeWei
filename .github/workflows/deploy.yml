@@ -40,8 +40,9 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/splitlah-api:latest
           # Links the image to this repository on GitHub
           labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # One cache scope per Dockerfile, so the builds don't replace each other's cache
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
       # The migration runner (has the Prisma CLI); same commit, same tag
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -53,8 +54,7 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/splitlah-migrate:${{ github.sha }}
             ghcr.io/${{ github.repository_owner }}/splitlah-migrate:latest
           labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=api # its layers are the api build stage, saved above
       # The web app served by Caddy with HTTPS; same commit, same tag
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -65,8 +65,8 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/splitlah-web:${{ github.sha }}
             ghcr.io/${{ github.repository_owner }}/splitlah-web:latest
           labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
 
   # Ship the new images to the EC2 server
   deploy:

@@ -72,6 +72,8 @@ The deploy job, step by step:
 
 Only one deploy runs at a time (`concurrency`), and only `main` can deploy to `production`.
 
+**Build cache (one scope per Dockerfile).** Docker layers are kept in GitHub's cache (`type=gha`) between runs. Each Dockerfile has its own scope (`scope=api`, `scope=web`): with one shared scope, every build replaced the cache record of the one before, so the web build never found its Caddy layer and rebuilt Caddy from source (about 75 s) on every run. The migrate image only reads the `api` scope, because its layers are the API build stage that the API build already saves. Before this fix, merge to live had grown from about 2½ minutes (Sprint 2) to a median of about 7½ minutes (21–22 Nov).
+
 ## Secrets and settings for the deploy
 
 | Name                  | Kind                      | What                                                                                  |
