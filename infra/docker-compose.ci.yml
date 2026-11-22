@@ -1,0 +1,49 @@
+# The whole app in Docker for the Playwright browser tests (KAN-53): the same images as
+# production, but with a throwaway Postgres, Fake OCR and Fake email, and plain HTTP.
+# Used by the e2e-browser job in CI and on my laptop:
+#   docker compose -f infra/docker-compose.ci.yml up -d --wait db
+#   docker compose -f infra/docker-compose.ci.yml run --rm migrate
+#   docker compose -f infra/docker-compose.ci.yml up -d --wait api web
+# The app is then on http://localhost:8080. Nothing here is a real secret.
+name: splitlah-ci
+
+x-api-env: &api-env
+  DATABASE_URL: postgresql://splitlah:splitlah@db:5432/splitlah?schema=public
+  JWT_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
+  OCR_PROVIDER: fake
+  EMAIL_PROVIDER: fake # the verify link is written to the API log; the test reads it there
+  APP_URL: http://localhost:8080
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: splitlah
+      POSTGRES_PASSWORD: splitlah
+      POSTGRES_DB: splitlah
+    tmpfs: /var/lib/postgresql # in memory: fast, and gone when the run ends
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U splitlah -d splitlah']
+      interval: 2s
+      retries: 30
+
+  # Applies every migration once, like the deploy does before starting a new API
+  migrate:
+    build: { context: .., dockerfile: apps/api/Dockerfile, target: migrate }
+    environment: *api-env
+    depends_on: { db: { condition: service_healthy } }
+    profiles: ['tools']
+
+  api:
+    build: { context: .., dockerfile: apps/api/Dockerfile }
+    environment: *api-env
+    depends_on: { db: { condition: service_healthy } }
+
+  # Caddy with the real Caddyfile; ":80" turns off HTTPS for this local copy
+  web:
+    build: { context: .., dockerfile: apps/web/Dockerfile }
+    environment:
+      SITE_ADDRESS: ':80'
+    ports:
+      - '127.0.0.1:8080:80'
+    depends_on: { api: { condition: service_healthy } }

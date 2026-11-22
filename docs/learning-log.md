@@ -2,6 +2,15 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-53: browser tests with Playwright
+
+- **The top of the pyramid tests the real images:** `docker-compose.ci.yml` starts the same API and Caddy images as production, with a throwaway Postgres in memory (`tmpfs`) and Fake OCR and email. So the browser test also proves the Caddyfile, the `/api` proxy and the migrations work together, which no unit or API test can.
+- **iPhone 14 means WebKit:** Playwright's `devices['iPhone 14']` uses WebKit (Safari's engine) at 390 px with touch, which every browser on an iPhone uses, so the test checks what my users actually run, not Chrome.
+- **Reading the email without an inbox:** the Fake email writes the verify link to the API log, and the test reads it with `docker compose logs api`. That way it opens the same link a person would click.
+- **Asserting without hard-coding sums:** after changing Laksa to $8.50, the test reads "Our total" from the owner's screen, then the guest claims every item, so their total must be the same. If the split engine changes, the test still knows the right answer.
+- **No video for my own page:** my first guest test made its own page with `browser.newPage()`, so a failure saved an empty trace and no video. Playwright only records the `page` it creates for each test, and each test already gets a fresh context, which is like a separate phone. I forced a failure once to check both files appear.
+- **Keeping Vitest out of `e2e/`:** Vitest's default pattern also matches `*.spec.ts`, so it would try to run the Playwright files. My first fix (`src/**` only) quietly dropped `pwa.config.test.ts`; I caught it because the web test count fell from 168 to 164. The pattern now includes root `*.test.ts` too.
+
 ## KAN-77: verifying the email address
 
 - **Store a hash, email the token:** the link carries 32 random bytes (`randomBytes(32).toString('base64url')`); the database only has its SHA-256. Someone who reads the database still can't verify an account. A plain hash is enough here (unlike passwords) because the token is random and long, not guessable.

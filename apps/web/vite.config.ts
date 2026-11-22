@@ -13,6 +13,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom', // a fake browser (DOM, localStorage) for component tests
     setupFiles: ['./src/test-setup.ts'],
+    include: ['src/**/*.test.{ts,tsx}', '*.test.ts'], // not e2e/: Playwright runs those
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,tsx}'],

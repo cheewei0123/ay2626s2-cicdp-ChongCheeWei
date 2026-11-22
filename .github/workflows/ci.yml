@@ -142,6 +142,39 @@ jobs:
         working-directory: apps/api
       - run: npm run test:e2e -w apps/api
 
+  # The top of the test pyramid (KAN-53): the real images (Caddy, API, Postgres) in Docker,
+  # driven by a real WebKit browser sized like an iPhone 14
+  e2e-browser:
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE: docker compose -f infra/docker-compose.ci.yml
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # Same order as a deploy: database, then migrations, then the app
+      - name: Start the app on http://localhost:8080
+        run: |
+          $COMPOSE up -d --wait db
+          $COMPOSE run --rm migrate
+          $COMPOSE up -d --wait api web
+      - run: npx playwright install --with-deps webkit
+        working-directory: apps/web
+      - run: npx playwright test
+        working-directory: apps/web
+      # On failure: the trace (open it at trace.playwright.dev) and the video
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-trace
+          path: apps/web/test-results
+          retention-days: 7
+      - if: failure()
+        run: $COMPOSE logs api
+
   # Known vulnerabilities in our npm packages (the lockfile), fails on HIGH or CRITICAL
   npm-audit:
     name: npm audit
