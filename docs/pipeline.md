@@ -1,6 +1,6 @@
 # CI/CD pipeline
 
-The plan for the whole pipeline, and which parts exist today. The workflows live in `.github/workflows/`: `ci.yml` (checks), `codeql.yml` (code scanning) and `deploy.yml` (release).
+The plan for the whole pipeline, and which parts exist today. The workflows live in `.github/workflows/`: `ci.yml` (checks), `codeql.yml` (code scanning), `deploy.yml` (release) and `k6.yml` (load test, manual only).
 
 ## Stages
 
@@ -145,3 +145,20 @@ docker compose -f infra/docker-compose.ci.yml down
 ```
 
 A failed test keeps `trace.zip` and `video.webm` in `apps/web/test-results/`; CI uploads them as the `playwright-trace` artifact. Open a trace at [trace.playwright.dev](https://trace.playwright.dev) to step through every click, network call and screen.
+
+## Load test (k6, KAN-55)
+
+`infra/k6/smoke.js` runs from `.github/workflows/k6.yml`, which only starts by hand (Actions → k6 → Run workflow), so normal PRs and merges never put load on production. k6 is installed by Grafana's action, pinned to a commit.
+
+- **load:** 10 virtual users for 1 minute. Each opens the app page (Caddy) and calls `/api/health` (NestJS → a query on RDS), then waits 1 second, like a person between screens.
+- **Thresholds (the job fails if missed):** 95% of requests under 500 ms, and under 1% failed.
+- **ratelimit:** after the load, 25 quick guesses at a join code from one IP. The first 20 must get `404` and the rest `429`, which proves the 20-a-minute limit on `/api/join` works on the live server, behind Caddy.
+
+Health and the app page are used because they have no rate limit; a share link allows 100 requests a minute per IP, so 10 users from one runner would mostly measure the limiter. The summary is uploaded as the `k6-summary` artifact (30 days). The runner is in the US, so its times include the trip to Singapore that a local user wouldn't have.
+
+Run it from a laptop with k6 installed:
+
+```sh
+k6 run infra/k6/smoke.js                                   # production
+k6 run -e BASE_URL=http://localhost:8080 infra/k6/smoke.js # the Docker stack above
+```

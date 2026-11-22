@@ -143,6 +143,8 @@ The browser tests run against the real images in Docker. How to start them is in
 
 **On merge to `main`**: build and push the images to GHCR (tagged with the commit SHA) → SSH to EC2 using AWS OIDC (no stored AWS keys) → `prisma migrate deploy` on RDS → start → health check → automatic rollback to the previous image if it fails. Merge to live takes about 2½ minutes.
 
+**By hand:** a k6 load test against the live site (`k6.yml`, 10 users for 1 minute, with latency and error thresholds).
+
 Details: [docs/pipeline.md](docs/pipeline.md) · security: [docs/security.md](docs/security.md) · infrastructure: [docs/infra.md](docs/infra.md)
 
 ## Project management and conventions
