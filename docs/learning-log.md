@@ -2,6 +2,14 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-58: the deploy had become three times slower
+
+- **Found while writing the report, not by watching:** the report said "merge to live in about 2½ minutes". The deploy runs' own timings (GitHub API) said otherwise: a median of about 7½ minutes on 21–22 Nov, over the 5-minute target. A number written once goes stale unless it is measured again.
+- **Reading the build log, step by step:** about 75 s went on building Caddy from source (`xcaddy build`) on every run, although the base image digest and the command were the same each time, and about 3 minutes went on saving the cache.
+- **The cause:** all three image builds used `type=gha` with no scope, so they shared one cache record. The API build saved its record, the migrate build replaced it, and the web build then found no Caddy layer. Each build "used the cache" and still missed.
+- **The fix:** one scope per Dockerfile (`api`, `web`), in both `ci.yml` and `deploy.yml`; the migrate image only reads the `api` scope, since its layers are the API build stage.
+- **Lesson:** "cache enabled" is not the same as "cache hit". The log line to check is `CACHED` on the slow step.
+
 ## KAN-57: explaining the architecture
 
 - **The diagrams were drawn from the code, not from memory:** the module diagram follows each module's real `imports`, which showed my old table was out of date (a `UsersModule` that was never built, a Tesseract reader I dropped, "planned" modules that are now finished).
