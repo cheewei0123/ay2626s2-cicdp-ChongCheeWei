@@ -51,7 +51,7 @@ All jobs start at the same time, on every PR and every push to `main`. A new pus
 | `trivy api`, `trivy web`                         | Builds each image and scans the OS packages and binaries in it; results go to the Security tab                                                                                                                                                                        | A HIGH or CRITICAL CVE that has a fix (except the accepted ones in `.trivyignore.yaml`)                   |
 | `codeql javascript-typescript`, `codeql actions` | `codeql.yml`: reads our TypeScript and the workflow files for security bugs (also weekly)                                                                                                                                                                             | A new security finding                                                                                    |
 
-All 12 are required checks on `main`. A typical run takes about 2–2½ minutes; `docker-build` is the slowest job. The npm cache was measured to save almost nothing (see the KAN-50 learning-log entry); Docker's layer cache is the one that saves time.
+All 13 are required checks on `main`. A typical run takes about 4 minutes; `e2e-browser` is the slowest job (it builds the images without the layer cache, then runs the browser). The npm cache was measured to save almost nothing (see the KAN-50 learning-log entry); Docker's layer cache is the one that saves time.
 
 ## On merge to `main` (`.github/workflows/deploy.yml`)
 
