@@ -2,6 +2,14 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-57: explaining the architecture
+
+- **The diagrams were drawn from the code, not from memory:** the module diagram follows each module's real `imports`, which showed my old table was out of date (a `UsersModule` that was never built, a Tesseract reader I dropped, "planned" modules that are now finished).
+- **An event is a dependency too, just a looser one:** `BillsModule` never imports `ExpensesModule`, but they still depend on the `bill.locked` event's shape. I drew it as a dashed line so the diagram doesn't pretend they are unrelated.
+- **Rendering without sending my code anywhere:** online Mermaid renderers upload the diagram source, so I rendered them locally in Playwright's WebKit and saved PNGs for the report.
+- **Numbered steps tie the picture to the text:** `autonumber` on the sequence diagram lets the report walk through it as "(7–12) …" instead of repeating every arrow.
+- **Explaining where each cent goes:** the report's table works the brief's bill through step by step. The exact GST shares are 59.39, 74.24, 79.19 and 79.19, so after rounding down one cent is left and goes to Chee (largest fraction), giving 720/899/959/959, the same numbers the unit test checks.
+
 ## KAN-55: load testing with k6
 
 - **My own rate limits shape the test:** 10 users from one machine on a share link would mostly get `429` (100 a minute per IP), and that measures the limiter, not the server. So the load goes to the app page and `/api/health`, which have no limit but still go through Caddy, NestJS and RDS.
