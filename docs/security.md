@@ -32,7 +32,7 @@ Based on the OWASP Top 10 (2021). Each item: how SplitLah meets it, or why it do
 **Not done, and why:**
 
 - **No per-account lockout** after many wrong passwords. Limits are per IP, so many IPs could still try one account slowly. A lockout would let anyone lock a friend out on purpose. Instead: scrypt is slow, two-step login is available, and the email is never revealed.
-- **CSP allows `data:` and `blob:` images:** the receipt preview is a `blob:` URL of the photo just picked. Images can't run script.
+- **CSP allows `data:` images and fonts, and `blob:` images:** the receipt preview is a `blob:` URL of the photo just picked, and Vite puts the smallest font file straight into the stylesheet as `data:`. Images and fonts can't run script.
 - **Rate limits live in the API's memory:** fine for one API container; they reset when it restarts. More than one container would need a shared store such as Redis.
 
 ### Rate limits on risky routes

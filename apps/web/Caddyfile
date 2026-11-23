@@ -13,7 +13,7 @@
 		# Scripts, styles and frames only from us, plus Google's sign-in button (KAN-95).
 		# No inline scripts, so an injected <script> can't run. frame-ancestors: no other
 		# site can put SplitLah in a frame (clickjacking).
-		Content-Security-Policy "default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com/gsi/; connect-src 'self' https://accounts.google.com/gsi/; img-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		Content-Security-Policy "default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com/gsi/; connect-src 'self' https://accounts.google.com/gsi/; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 		X-Frame-Options "DENY" # the same as frame-ancestors, for older browsers
 		X-Content-Type-Options "nosniff"
 		# Other sites see only our origin, never a path such as /share/<token>
