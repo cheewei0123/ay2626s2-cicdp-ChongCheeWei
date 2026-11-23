@@ -6,6 +6,7 @@ import type { PasswordResetService } from './password-reset.service.js';
 import type { PhoneVerificationService } from './phone-verification.service.js';
 import type { VerificationService } from './verification.service.js';
 import type { TelegramService } from '../telegram/telegram.service.js';
+import type { MfaService } from './mfa.service.js';
 
 // A fake AuthService: the controllers should only pass work on to it
 const auth = {
@@ -31,12 +32,21 @@ const phonesMock = {
   smsReady: true,
 };
 const telegramMock = { startLink: vi.fn(), enabled: false };
+const mfaMock = {
+  setup: vi.fn(),
+  enable: vi.fn(),
+  disable: vi.fn(),
+  finishLogin: vi.fn(),
+  backupCodesLeft: vi.fn(),
+};
+const mfa = mfaMock as unknown as MfaService;
 const me = () =>
   new MeController(
     service,
     passwords,
     phonesMock as unknown as PhoneVerificationService,
     telegramMock as unknown as TelegramService,
+    mfa,
   );
 const user = { id: 'u1', email: 'chee@example.com', sessionId: 's1' };
 
@@ -46,7 +56,7 @@ describe('AuthController', () => {
   it('passes register and login to AuthService', async () => {
     auth.register.mockResolvedValue('registered');
     auth.login.mockResolvedValue('logged in');
-    const controller = new AuthController(service, verifier, passwords);
+    const controller = new AuthController(service, verifier, passwords, mfa);
     const body = { email: 'chee@example.com', password: 'correct horse' };
 
     expect(await controller.register({ ...body, displayName: 'Chee' })).toBe(
@@ -56,13 +66,13 @@ describe('AuthController', () => {
   });
 
   it('logout ends the session on the request (KAN-97)', async () => {
-    const controller = new AuthController(service, verifier, passwords);
+    const controller = new AuthController(service, verifier, passwords, mfa);
     await controller.logout(user);
     expect(auth.logout).toHaveBeenCalledWith('s1');
   });
 
   it('passes verify-email and resend to VerificationService', async () => {
-    const controller = new AuthController(service, verifier, passwords);
+    const controller = new AuthController(service, verifier, passwords, mfa);
     await controller.verifyEmail({ token: 'a'.repeat(43) });
     await controller.resend(user);
     expect(verification.verify).toHaveBeenCalledWith('a'.repeat(43));
@@ -70,7 +80,7 @@ describe('AuthController', () => {
   });
 
   it('passes forgot and reset password to PasswordResetService (KAN-90)', async () => {
-    const controller = new AuthController(service, verifier, passwords);
+    const controller = new AuthController(service, verifier, passwords, mfa);
     await controller.forgotPassword({ email: 'chee@example.com' });
     await controller.resetPassword({
       token: 't'.repeat(43),
@@ -159,5 +169,40 @@ describe('MeController: the PayNow number (KAN-91)', () => {
       'link',
     );
     expect(telegramMock.startLink).toHaveBeenCalledWith('u1', '+6591234567');
+  });
+});
+
+describe('Two-step login routes (KAN-92)', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('pass the login code, setup, enable and disable on to MfaService', async () => {
+    mfaMock.finishLogin.mockResolvedValue('logged in');
+    const controller = new AuthController(service, verifier, passwords, mfa);
+    expect(
+      await controller.loginWithCode({ mfaToken: 't', code: '123456' }),
+    ).toBe('logged in');
+    expect(mfaMock.finishLogin).toHaveBeenCalledWith('t', '123456');
+
+    await me().setupMfa(user, { password: 'pw' });
+    await me().enableMfa(user, { code: '123456' });
+    await me().disableMfa(user, { password: 'pw', code: 'abcd-efgh' });
+    expect(mfaMock.setup).toHaveBeenCalledWith('u1', 'pw');
+    expect(mfaMock.enable).toHaveBeenCalledWith('u1', '123456');
+    expect(mfaMock.disable).toHaveBeenCalledWith('u1', 'pw', 'abcd-efgh');
+  });
+
+  it('GET /me/mfa says whether it is on and how many backup codes are left', async () => {
+    auth.findSafeUser.mockResolvedValue({ mfaEnabledAt: new Date() });
+    mfaMock.backupCodesLeft.mockResolvedValue(7);
+    expect(await me().mfaStatus(user)).toEqual({
+      on: true,
+      backupCodesLeft: 7,
+    });
+    auth.findSafeUser.mockResolvedValue(null);
+    mfaMock.backupCodesLeft.mockResolvedValue(0);
+    expect(await me().mfaStatus(user)).toEqual({
+      on: false,
+      backupCodesLeft: 0,
+    });
   });
 });

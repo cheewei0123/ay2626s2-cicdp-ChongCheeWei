@@ -7,7 +7,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import type { JwtPayload } from './auth-user.js';
+import type { JwtPayload, MfaPayload } from './auth-user.js';
 import type { LoginDto } from './dto/login.dto.js';
 import type { RegisterDto } from './dto/register.dto.js';
 import type { UpdateMeDto } from './dto/update-me.dto.js';
@@ -22,6 +22,7 @@ export const SAFE_USER = {
   emailVerifiedAt: true,
   paynowMobile: true,
   phoneVerifiedAt: true, // null = the number was never checked by SMS (KAN-91)
+  mfaEnabledAt: true, // null = two-step login is off (KAN-92)
 } as const;
 
 export type SafeUser = Prisma.UserGetPayload<{ select: typeof SAFE_USER }>;
@@ -86,17 +87,17 @@ export class AuthService {
     if (!found || !ok) {
       throw new UnauthorizedException('Invalid email or password');
     }
-    return this.withToken(
-      {
-        id: found.id,
-        email: found.email,
-        displayName: found.displayName,
-        emailVerifiedAt: found.emailVerifiedAt,
-        paynowMobile: found.paynowMobile,
-        phoneVerifiedAt: found.phoneVerifiedAt,
-      },
-      found.sessionVersion,
-    );
+    // Two-step login on (KAN-92): the password alone is not a login. A half-way
+    // token, good for 5 minutes, lets POST /auth/mfa finish it with a code.
+    if (found.mfaEnabledAt) {
+      const payload: MfaPayload = { sub: found.id, typ: 'mfa' };
+      return {
+        mfaRequired: true as const,
+        mfaToken: await this.jwt.signAsync(payload, { expiresIn: '5m' }),
+      };
+    }
+    const { passwordHash: _hash, sessionVersion, ...user } = found;
+    return this.withToken(user, sessionVersion);
   }
 
   findSafeUser(id: string) {
