@@ -6,6 +6,7 @@ import { DeleteAccount } from '../components/DeleteAccount';
 import { Field } from '../components/Field';
 import { FormError } from '../components/FormError';
 import { PhoneCheck } from '../components/PhoneCheck';
+import { SetPassword } from '../components/SetPassword';
 import { TwoStepLogin } from '../components/TwoStepLogin';
 import { Page, plainButton, primaryButton } from '../components/Page';
 
@@ -64,14 +65,21 @@ export default function Profile() {
         </button>
       </form>
       <PhoneCheck />
-      <TwoStepLogin />
-      <Link to="/profile/password" className={plainButton}>
-        Change password
-      </Link>
+      {/* These need the password, which an account made with Google sets first (KAN-95) */}
+      {user?.hasPassword === false ? (
+        <SetPassword />
+      ) : (
+        <>
+          <TwoStepLogin />
+          <Link to="/profile/password" className={plainButton}>
+            Change password
+          </Link>
+        </>
+      )}
       <button type="button" onClick={logout} className={plainButton}>
         Log out
       </button>
-      <DeleteAccount />
+      {user?.hasPassword !== false && <DeleteAccount />}
     </Page>
   );
 }

@@ -86,6 +86,7 @@ export class PasswordResetService {
         where: { id: found.userId },
         data: {
           passwordHash: await hashPassword(password),
+          hasPassword: true, // an account made with Google now has one too (KAN-95)
           sessionVersion: { increment: 1 }, // logs out every device
         },
       }),

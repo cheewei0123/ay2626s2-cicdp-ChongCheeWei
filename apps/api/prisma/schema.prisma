@@ -48,6 +48,11 @@ model User {
   email             String    @unique
   emailVerifiedAt   DateTime?
   passwordHash      String
+  // false for an account made with Google (KAN-95): its passwordHash is random and
+  // unknown to anyone until a password is set through the reset link
+  hasPassword       Boolean   @default(true)
+  // Google's id for the account (the ID token's `sub`), once it has signed in with Google
+  googleId          String?   @unique
   displayName       String
   phone             String?
   // When paynowMobile was proved by an SMS code (KAN-91); null = not checked, so no PayNow QR

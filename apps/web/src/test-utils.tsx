@@ -22,6 +22,11 @@ export function fakeApi(replies: Record<string, Reply | Promise<Reply>>) {
   return fetchMock;
 }
 
+// The calls that send something (not GETs): the Log in and Register pages also
+// ask GET /api/auth/google whether to show "Continue with Google" (KAN-95)
+export const sent = (fetchMock: ReturnType<typeof fakeApi>) =>
+  fetchMock.mock.calls.filter(([, init]) => (init?.method ?? 'GET') !== 'GET');
+
 // The whole app (same routes as production) opened at `path`
 // (or at a path with the state another page would pass along)
 export function renderApp(path: string | { pathname: string; state: unknown }) {

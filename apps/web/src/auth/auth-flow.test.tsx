@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { fakeApi, renderApp } from '../test-utils';
+import { fakeApi, renderApp, sent } from '../test-utils';
 import { useAuth } from './context';
 
 const chee = {
@@ -40,7 +40,7 @@ describe('Register', () => {
     expect(router.state.location.pathname).toBe('/bills');
     expect(token()).toBe('jwt-1');
     // Name trimmed, and no empty PayNow number sent
-    const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+    const body = JSON.parse(sent(fetchMock)[0][1]?.body as string);
     expect(body).toEqual({
       displayName: 'Chee',
       email: 'chee@example.com',
@@ -72,7 +72,7 @@ describe('Register', () => {
       'aria-invalid',
       'true',
     );
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(sent(fetchMock)).toEqual([]);
   });
 
   it('shows the API error in words, not JSON', async () => {
@@ -184,7 +184,7 @@ describe('Log in', () => {
 
     expect(screen.getByText('Enter a valid email address')).toBeInTheDocument();
     expect(screen.getByText('Enter your password')).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(sent(fetchMock)).toEqual([]);
   });
 
   it('shows that it is working while the API answers', async () => {

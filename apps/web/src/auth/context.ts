@@ -9,6 +9,7 @@ export type User = {
   paynowMobile: string | null;
   phoneVerifiedAt: string | null; // null = the number was never checked by SMS (KAN-91)
   mfaEnabledAt: string | null; // null = two-step login is off (KAN-92)
+  hasPassword: boolean; // false = made with Google, no password yet (KAN-95)
 };
 
 export type RegisterInput = {
@@ -29,6 +30,8 @@ export type Auth = {
   // is on and a code is needed next (KAN-92)
   login: (email: string, password: string) => Promise<string | null>;
   loginWithCode: (mfaToken: string, code: string) => Promise<void>;
+  // The ID token from "Continue with Google" (KAN-95); resolves like login()
+  loginWithGoogle: (credential: string) => Promise<string | null>;
   register: (input: RegisterInput) => Promise<void>;
   saveProfile: (input: ProfileInput) => Promise<void>;
   refreshUser: () => Promise<void>; // asks GET /me again, e.g. after verifying the email

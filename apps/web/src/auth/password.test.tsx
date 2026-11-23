@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { fakeApi, renderApp } from '../test-utils';
+import { fakeApi, renderApp, sent } from '../test-utils';
 import { validateNewPassword } from './validation';
 
 const ok = (body: unknown, status = 200) => ({ status, body });
@@ -55,7 +55,7 @@ describe('Forgot password (KAN-90)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Send reset link' }));
     expect(screen.getByText('Enter a valid email address')).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(sent(fetchMock)).toEqual([]);
 
     await user.type(screen.getByLabelText('Email'), ' chee@example.com ');
     await user.click(screen.getByRole('button', { name: 'Send reset link' }));

@@ -2,6 +2,16 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-95: "Continue with Google" without trusting the browser
+
+- **The browser is not proof.** Google's button hands the browser an ID token; anyone can send the API any string. So the API checks it with Google's own library: Google's signature, that it was made for _our_ client ID (a token for another app is refused), the issuer and the expiry. Only then is the email trusted, and only if Google says it is verified.
+- **No secret to keep:** this flow only needs the client ID, which is public. There is no client secret, so nothing new goes into GitHub Secrets.
+- **Account pre-hijacking:** someone could sign up with my email and a password of theirs, never verify it, and wait. When I later use Google, a naive link would give me _their_ account, which they can still open with their password. So when Google links to an account whose email was never proved, its password, sessions and two-step login are wiped first. An e2e test plays the attacker and checks their token and password both stop working.
+- **No password, but the screens ask for one:** two-step login and deleting the account confirm with the password. An account made with Google gets a random one nobody knows (`hasPassword: false`), and Profile offers the reset email to set a real one, which also proves the email again.
+- **One login path:** the password login's last step (two-step check or a real session) became `startLogin`, and Google uses it too. That is why two-step login and deleted accounts needed no extra code for Google.
+- **Hidden until set up:** with no `GOOGLE_CLIENT_ID` the button does not show and Google's script is never loaded, so the app works the same as before and makes no call to Google.
+- **A test found a real bug:** if Google's script failed to load, the failed attempt stayed cached and the button never came back without a page reload. The reset now runs after the failure is stored, and a test fails the load first, then checks the next page still works.
+
 ## KAN-93: deleting an account, and keeping it for 6 months first
 
 - **Two parts:** pressing delete marks the account (`deletedAt`) and closes every way in at once; the data stays for 6 months, then a daily job wipes it. The hold keeps the records for a while in case they are needed, for example a question about who paid what.

@@ -8,6 +8,7 @@ import type { VerificationService } from './verification.service.js';
 import type { TelegramService } from '../telegram/telegram.service.js';
 import type { MfaService } from './mfa.service.js';
 import type { AccountDeletionService } from './account-deletion.service.js';
+import type { GoogleAuthService } from './google-auth.service.js';
 
 // A fake AuthService: the controllers should only pass work on to it
 const auth = {
@@ -42,6 +43,8 @@ const mfaMock = {
 };
 const mfa = mfaMock as unknown as MfaService;
 const deletionMock = { delete: vi.fn() };
+const googleMock = { login: vi.fn(), clientId: null as string | null };
+const google = googleMock as unknown as GoogleAuthService;
 const me = () =>
   new MeController(
     service,
@@ -59,7 +62,13 @@ describe('AuthController', () => {
   it('passes register and login to AuthService', async () => {
     auth.register.mockResolvedValue('registered');
     auth.login.mockResolvedValue('logged in');
-    const controller = new AuthController(service, verifier, passwords, mfa);
+    const controller = new AuthController(
+      service,
+      verifier,
+      passwords,
+      mfa,
+      google,
+    );
     const body = { email: 'chee@example.com', password: 'correct horse' };
 
     expect(await controller.register({ ...body, displayName: 'Chee' })).toBe(
@@ -68,14 +77,45 @@ describe('AuthController', () => {
     expect(await controller.login(body)).toBe('logged in');
   });
 
+  it('Google: gives the client ID and passes the credential on (KAN-95)', async () => {
+    const controller = new AuthController(
+      service,
+      verifier,
+      passwords,
+      mfa,
+      google,
+    );
+    googleMock.clientId = 'id.apps.googleusercontent.com';
+    expect(controller.googleConfig()).toEqual({
+      clientId: 'id.apps.googleusercontent.com',
+    });
+    googleMock.login.mockResolvedValue('logged in');
+    expect(await controller.loginWithGoogle({ credential: 'a.b.c' })).toBe(
+      'logged in',
+    );
+    expect(googleMock.login).toHaveBeenCalledWith('a.b.c');
+  });
+
   it('logout ends the session on the request (KAN-97)', async () => {
-    const controller = new AuthController(service, verifier, passwords, mfa);
+    const controller = new AuthController(
+      service,
+      verifier,
+      passwords,
+      mfa,
+      google,
+    );
     await controller.logout(user);
     expect(auth.logout).toHaveBeenCalledWith('s1');
   });
 
   it('passes verify-email and resend to VerificationService', async () => {
-    const controller = new AuthController(service, verifier, passwords, mfa);
+    const controller = new AuthController(
+      service,
+      verifier,
+      passwords,
+      mfa,
+      google,
+    );
     await controller.verifyEmail({ token: 'a'.repeat(43) });
     await controller.resend(user);
     expect(verification.verify).toHaveBeenCalledWith('a'.repeat(43));
@@ -83,7 +123,13 @@ describe('AuthController', () => {
   });
 
   it('passes forgot and reset password to PasswordResetService (KAN-90)', async () => {
-    const controller = new AuthController(service, verifier, passwords, mfa);
+    const controller = new AuthController(
+      service,
+      verifier,
+      passwords,
+      mfa,
+      google,
+    );
     await controller.forgotPassword({ email: 'chee@example.com' });
     await controller.resetPassword({
       token: 't'.repeat(43),
@@ -180,7 +226,13 @@ describe('Two-step login routes (KAN-92)', () => {
 
   it('pass the login code, setup, enable and disable on to MfaService', async () => {
     mfaMock.finishLogin.mockResolvedValue('logged in');
-    const controller = new AuthController(service, verifier, passwords, mfa);
+    const controller = new AuthController(
+      service,
+      verifier,
+      passwords,
+      mfa,
+      google,
+    );
     expect(
       await controller.loginWithCode({ mfaToken: 't', code: '123456' }),
     ).toBe('logged in');

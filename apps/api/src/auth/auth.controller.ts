@@ -1,8 +1,17 @@
-import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { AuthUser } from './auth-user.js';
 import { AuthService } from './auth.service.js';
 import { CurrentUser } from './current-user.decorator.js';
+import { GoogleLoginDto } from './dto/google.dto.js';
+import { GoogleAuthService } from './google-auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { MfaLoginDto } from './dto/mfa.dto.js';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/password.dto.js';
@@ -22,6 +31,7 @@ export class AuthController {
     private readonly verification: VerificationService,
     private readonly passwords: PasswordResetService,
     private readonly mfa: MfaService,
+    private readonly google: GoogleAuthService,
   ) {}
 
   // POST /api/auth/register → 201 { user, accessToken }
@@ -36,6 +46,21 @@ export class AuthController {
   @HttpCode(200)
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto);
+  }
+
+  // GET /api/auth/google → { clientId }: null when Google sign-in is not set up,
+  // so the web app hides the button (KAN-95)
+  @Get('google')
+  googleConfig() {
+    return { clientId: this.google.clientId };
+  }
+
+  // POST /api/auth/google { credential } → like /auth/login: { user, accessToken },
+  // or { mfaRequired, mfaToken } when two-step login is on
+  @Post('google')
+  @HttpCode(200)
+  loginWithGoogle(@Body() dto: GoogleLoginDto) {
+    return this.google.login(dto.credential);
   }
 
   // POST /api/auth/mfa { mfaToken, code } → 200 { user, accessToken }. 5 a minute
