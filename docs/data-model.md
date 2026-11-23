@@ -4,11 +4,16 @@ The tables, relations and rules that `apps/api/prisma/schema.prisma` (KAN-18) is
 
 ## ER diagram
 
-Drawn from the current `schema.prisma` (source: [diagrams/er.mmd](diagrams/er.mmd), image: [kan-51-er-diagram.png](evidence/kan-51-er-diagram.png)). Fields marked "unused" are in the schema but no code reads or writes them yet.
+Drawn from the current `schema.prisma` (source: [diagrams/er.mmd](diagrams/er.mmd), image: [kan-51-er-diagram.png](evidence/kan-51-er-diagram.png)). 15 tables. Fields marked "unused" are in the schema but no code reads or writes them yet. Sprint 4 (KAN-88 to KAN-95, KAN-97) added the last five: password reset links, sessions, two-step login backup codes, phone checks and the daily AI scan count.
 
 ```mermaid
 erDiagram
   USER ||--o{ EMAIL_VERIFICATION_TOKEN : "verifies with"
+  USER ||--o{ PASSWORD_RESET_TOKEN : "resets with"
+  USER ||--o{ SESSION : "logs in as"
+  USER ||--o{ MFA_BACKUP_CODE : "has (two-step login)"
+  USER ||--o| PHONE_VERIFICATION : "checks a number with"
+  USER ||--o{ AI_SCAN_COUNT : "counts scans per day"
   USER ||--o{ BILL : owns
   USER |o--o{ PARTICIPANT : "joins as (guests have none)"
   USER ||--o{ EXPENSE : logs
@@ -27,14 +32,19 @@ erDiagram
     string id PK
     string email UK
     datetime emailVerifiedAt "null until verified"
-    string passwordHash
+    string passwordHash "scrypt"
+    boolean hasPassword "false: made with Google"
+    string googleId UK "Google's id for the account"
     string displayName
     string phone "unused"
-    datetime phoneVerifiedAt "unused"
+    datetime phoneVerifiedAt "null until checked"
     string paynowMobile "for the PayNow QR"
     string paynowQrPayload "unused"
     string paynowQrImagePath "unused"
-    datetime deletedAt "set on delete; wiped 6 months later (KAN-93)"
+    int sessionVersion "raised to end every login"
+    string mfaSecret "encrypted; two-step login"
+    datetime mfaEnabledAt "null: two-step login off"
+    datetime deletedAt "set on delete; wiped 6 months later"
   }
   EMAIL_VERIFICATION_TOKEN {
     string id PK
@@ -108,6 +118,38 @@ erDiagram
     string userId FK
     string merchantKey
     Category category "the user's correction"
+  }
+  PASSWORD_RESET_TOKEN {
+    string id PK
+    string userId FK
+    string tokenHash UK "SHA-256, not the token"
+    datetime expiresAt "30 minutes"
+    datetime usedAt "null until used"
+  }
+  SESSION {
+    string id PK
+    string userId FK
+    datetime expiresAt "14 days"
+    datetime revokedAt "set by logout"
+  }
+  MFA_BACKUP_CODE {
+    string id PK
+    string userId FK
+    string codeHash UK
+    datetime usedAt "works once"
+  }
+  PHONE_VERIFICATION {
+    string userId PK,FK
+    string phone "+65 and 8 digits"
+    string codeHash "SMS code, hashed"
+    int attempts "5 wrong and it is used up"
+    string linkHash UK "Telegram link, hashed"
+    datetime expiresAt
+  }
+  AI_SCAN_COUNT {
+    string userId PK,FK
+    date day PK "Singapore date"
+    int count "capped per day"
   }
 ```
 
