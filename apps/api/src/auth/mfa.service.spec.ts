@@ -241,6 +241,13 @@ describe('MfaService (KAN-92)', () => {
       await expect(
         service.finishLogin(await token(), codeNow()),
       ).rejects.toThrow(startAgain);
+      // Deleted in the 5 minutes between the password and the code (KAN-93)
+      prisma.user.findUnique
+        .mockResolvedValueOnce(on())
+        .mockResolvedValueOnce({ id: 'u1', deletedAt: new Date() });
+      await expect(
+        service.finishLogin(await token(), codeNow(1)),
+      ).rejects.toThrow(startAgain);
       expect(auth.withToken).not.toHaveBeenCalled();
     });
   });

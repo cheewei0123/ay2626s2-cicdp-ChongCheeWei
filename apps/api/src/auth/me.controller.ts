@@ -10,11 +10,17 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { AccountDeletionService } from './account-deletion.service.js';
 import type { AuthUser } from './auth-user.js';
 import { AuthService } from './auth.service.js';
 import { CurrentUser } from './current-user.decorator.js';
 import { ChangePasswordDto } from './dto/password.dto.js';
-import { MfaDisableDto, MfaEnableDto, MfaPasswordDto } from './dto/mfa.dto.js';
+import {
+  DeleteAccountDto,
+  MfaDisableDto,
+  MfaEnableDto,
+  MfaPasswordDto,
+} from './dto/mfa.dto.js';
 import { MfaService } from './mfa.service.js';
 import { PhoneCodeDto, PhoneDto } from './dto/phone.dto.js';
 import { UpdateMeDto } from './dto/update-me.dto.js';
@@ -33,6 +39,7 @@ export class MeController {
     private readonly phones: PhoneVerificationService,
     private readonly telegram: TelegramService,
     private readonly mfa: MfaService,
+    private readonly deletion: AccountDeletionService,
   ) {}
 
   @Get()
@@ -49,6 +56,15 @@ export class MeController {
     const updated = await this.auth.updateProfile(user.id, dto);
     if (!updated) throw new NotFoundException('User not found');
     return updated;
+  }
+
+  // DELETE /api/me { password, code? } → 204. Logs out everywhere at once; the data is
+  // wiped 6 months later (KAN-93). Shares the password-guessing limit.
+  @Delete()
+  @HttpCode(204)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  deleteAccount(@CurrentUser() user: AuthUser, @Body() dto: DeleteAccountDto) {
+    return this.deletion.delete(user.id, dto.password, dto.code);
   }
 
   // POST /api/me/password { currentPassword, newPassword } → 200 { user, accessToken }.

@@ -97,7 +97,7 @@ export class ShareService {
     if (!code) throw new NotFoundException('No bill with this code');
 
     const bill = await this.prisma.bill.findUnique({
-      where: { joinCode: code },
+      where: { joinCode: code, owner: { deletedAt: null } },
       select: { shareToken: true, status: true },
     });
     // A settled bill is finished, so its code stops working

@@ -38,6 +38,16 @@ describe('PasswordResetService', () => {
       expect(email.send).not.toHaveBeenCalled();
     });
 
+    it('sends nothing for a deleted account (KAN-93)', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        ...pat,
+        deletedAt: new Date(),
+      });
+      await service.requestReset(pat.email);
+      expect(prisma.passwordResetToken.create).not.toHaveBeenCalled();
+      expect(email.send).not.toHaveBeenCalled();
+    });
+
     it('stores only a hash and emails a 30-minute link', async () => {
       prisma.user.findUnique.mockResolvedValue(pat);
       email.send.mockResolvedValue(undefined);

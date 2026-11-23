@@ -33,9 +33,10 @@ export class PasswordResetService {
   async requestReset(email: string): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true, displayName: true },
+      select: { id: true, email: true, displayName: true, deletedAt: true },
     });
-    if (!user) return;
+    // A deleted account (KAN-93) can't come back through a reset link
+    if (!user || user.deletedAt) return;
 
     const token = randomBytes(32).toString('base64url'); // 256 bits, safe in a URL
     await this.prisma.passwordResetToken.create({

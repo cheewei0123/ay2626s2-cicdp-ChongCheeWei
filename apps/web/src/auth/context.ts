@@ -24,6 +24,7 @@ export type ProfileInput = { displayName: string };
 export type Auth = {
   user: User | null;
   loading: boolean; // true while a saved token is being checked
+  notice: string; // a one-off message for the login page, '' for none
   // Resolves to null when logged in, or to a half-way token when two-step login
   // is on and a code is needed next (KAN-92)
   login: (email: string, password: string) => Promise<string | null>;
@@ -32,6 +33,8 @@ export type Auth = {
   saveProfile: (input: ProfileInput) => Promise<void>;
   refreshUser: () => Promise<void>; // asks GET /me again, e.g. after verifying the email
   changePassword: (current: string, next: string) => Promise<void>; // KAN-90
+  // Needs the password, and a code when two-step login is on (KAN-93); then logged out
+  deleteAccount: (password: string, code?: string) => Promise<void>;
   logout: () => void;
 };
 

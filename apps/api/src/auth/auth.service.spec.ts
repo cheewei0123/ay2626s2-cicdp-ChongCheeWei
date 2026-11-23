@@ -206,6 +206,18 @@ describe('AuthService (with a mocked database)', () => {
       ).rejects.toThrow(UnauthorizedException);
     });
 
+    it('a deleted account cannot log in, even with the right password (KAN-93)', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        ...safeUser,
+        deletedAt: new Date(),
+        passwordHash: await hashPassword('correct horse'),
+      });
+      await expect(
+        service.login({ email: 'chee@example.com', password: 'correct horse' }),
+      ).rejects.toThrow('Invalid email or password');
+      expect(prisma.session.create).not.toHaveBeenCalled();
+    });
+
     it('gives an unknown email the same error as a wrong password', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
       await expect(

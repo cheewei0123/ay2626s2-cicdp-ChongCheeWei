@@ -105,8 +105,10 @@ describe('ShareService (with a mocked database)', () => {
       expect(await service.shareTokenFor('k7p2q')).toEqual({
         shareToken: 'tok',
       });
+      // A deleted owner's bills can't be joined (KAN-93)
       expect(prisma.bill.findUnique.mock.calls[0][0].where).toEqual({
         joinCode: 'K7P2Q',
+        owner: { deletedAt: null },
       });
     });
 

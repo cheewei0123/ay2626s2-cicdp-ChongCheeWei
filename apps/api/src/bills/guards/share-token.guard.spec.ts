@@ -29,6 +29,10 @@ describe('ShareTokenGuard', () => {
     const { req, context } = contextFor({ token: 'good-token' });
     expect(await guard.canActivate(context)).toBe(true);
     expect(req.bill).toEqual(bill);
+    // A deleted owner's bills are no longer shared (KAN-93)
+    expect(prisma.bill.findUnique.mock.calls[0][0].where.owner).toEqual({
+      deletedAt: null,
+    });
   });
 
   it('answers 404 for a wrong token', async () => {

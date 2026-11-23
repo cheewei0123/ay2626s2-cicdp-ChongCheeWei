@@ -34,6 +34,7 @@ erDiagram
     string paynowMobile "for the PayNow QR"
     string paynowQrPayload "unused"
     string paynowQrImagePath "unused"
+    datetime deletedAt "set on delete; wiped 6 months later (KAN-93)"
   }
   EMAIL_VERIFICATION_TOKEN {
     string id PK

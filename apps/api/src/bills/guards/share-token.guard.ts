@@ -20,7 +20,8 @@ export class ShareTokenGuard implements CanActivate {
       throw new NotFoundException('Bill not found');
 
     const bill = await this.prisma.bill.findUnique({
-      where: { shareToken: token },
+      // A deleted owner's bills are no longer shared (KAN-93)
+      where: { shareToken: token, owner: { deletedAt: null } },
       select: { id: true, ownerId: true, status: true },
     });
     if (!bill) throw new NotFoundException('Bill not found');

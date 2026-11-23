@@ -20,6 +20,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   // With a saved token, wait for GET /me before deciding if you are logged in
   const [loading, setLoading] = useState(() => tokenStore.get() !== null);
+  // A one-off message for the login page, e.g. after deleting the account (KAN-93)
+  const [notice, setNotice] = useState('');
 
   // Forgets the token here and ends the session on the server (KAN-97), so a copy
   // of the token is no use either. Plain fetch, not api(): a 401 here (the session
@@ -51,10 +53,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await api<AuthResponse>(path, { method: 'POST', body });
       tokenStore.set(res.accessToken);
       setUser(res.user);
+      setNotice('');
     }
     return {
       user,
       loading,
+      notice,
       logout,
       login: async (email: string, password: string) => {
         const res = await api<AuthResponse | MfaStep>('/auth/login', {
@@ -64,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if ('mfaRequired' in res) return res.mfaToken;
         tokenStore.set(res.accessToken);
         setUser(res.user);
+        setNotice('');
         return null;
       },
       loginWithCode: (mfaToken: string, code: string) =>
@@ -76,8 +81,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Answers with a new token: the old one stops working when the password changes
       changePassword: (currentPassword: string, newPassword: string) =>
         signIn('/me/password', { currentPassword, newPassword }),
+      // The server has already ended every session, so the token is only forgotten
+      // here. With no user, the app goes to the login page, which shows the notice.
+      deleteAccount: async (password: string, code?: string) => {
+        await api('/me', { method: 'DELETE', body: { password, code } });
+        tokenStore.clear();
+        setNotice('Your account is deleted.');
+        setUser(null);
+      },
     };
-  }, [user, loading, logout]);
+  }, [user, loading, notice, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
