@@ -10,6 +10,7 @@ Short notes on what I learned and what went wrong, newest first. Used as evidenc
 - **No password, but the screens ask for one:** two-step login and deleting the account confirm with the password. An account made with Google gets a random one nobody knows (`hasPassword: false`), and Profile offers the reset email to set a real one, which also proves the email again.
 - **One login path:** the password login's last step (two-step check or a real session) became `startLogin`, and Google uses it too. That is why two-step login and deleted accounts needed no extra code for Google.
 - **Hidden until set up:** with no `GOOGLE_CLIENT_ID` the button does not show and Google's script is never loaded, so the app works the same as before and makes no call to Google.
+- **Looking at it live found what tests can't:** Google's button sat in a white box. Google draws it in an iframe whose page is light, and our page says `color-scheme: dark`; when the two differ the browser paints the iframe's background solid white. Marking the button's spot `color-scheme: light` makes it transparent, and the button then lines up with Log in.
 - **A test found a real bug:** if Google's script failed to load, the failed attempt stayed cached and the button never came back without a page reload. The reset now runs after the failure is stored, and a test fails the load first, then checks the next page still works.
 
 ## KAN-93: deleting an account, and keeping it for 6 months first
