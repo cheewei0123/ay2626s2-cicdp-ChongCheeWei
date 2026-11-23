@@ -86,8 +86,11 @@ export function GoogleButton({
           <span className="h-px flex-1 bg-line" />
         </p>
       )}
-      {/* Google draws into this; it stays empty (and takes no space) until then */}
-      <div ref={box} className="flex justify-center" />
+      {/* Google draws into this; it stays empty (and takes no space) until then.
+          Google's button is an iframe with a light page inside. Our page is dark
+          (color-scheme: dark), and when the two differ the browser paints a solid
+          white box behind the iframe, so this spot is marked light to match it. */}
+      <div ref={box} className="flex justify-center [color-scheme:light]" />
     </div>
   );
 }
