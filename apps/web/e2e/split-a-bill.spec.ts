@@ -55,9 +55,9 @@ test('owner: register, verify, scan a receipt, fix an item, share', async ({
   await page.getByLabel('What is this bill for?').fill('Dinner at Maxwell');
   await button(page, 'Next: add items').click();
 
-  // The file input is what the camera button opens on a phone
+  // A receipt photo picked from the gallery (KAN-88); "Scan receipt" opens the camera
   await page
-    .locator('input[type=file]')
+    .getByLabel('Upload from Photos')
     .setInputFiles(
       fileURLToPath(new URL('fixtures/receipt.png', import.meta.url)),
     );

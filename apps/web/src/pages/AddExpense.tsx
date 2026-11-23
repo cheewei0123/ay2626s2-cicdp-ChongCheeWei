@@ -126,6 +126,19 @@ export default function AddExpense() {
           onChange={(e) => scan(e.target.files?.[0])}
         />
       </label>
+      {/* No capture: the phone offers Photos, so a receipt can be added later (KAN-88) */}
+      {busy !== 'reading' && (
+        <label className={plainButton}>
+          Upload from Photos
+          <input
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            disabled={busy !== ''}
+            onChange={(e) => scan(e.target.files?.[0])}
+          />
+        </label>
+      )}
       {scanned && (
         <p role="status" className="px-2 text-sm text-ok">
           Read from your receipt. Check it, then save.

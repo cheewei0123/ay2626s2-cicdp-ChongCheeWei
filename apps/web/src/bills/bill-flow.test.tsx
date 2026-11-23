@@ -108,6 +108,23 @@ describe('Scan receipt', () => {
   const photo = new File(['fake photo'], 'IMG_0001.jpg', {
     type: 'image/jpeg',
   });
+
+  it('can pick a photo from the gallery instead of the camera (KAN-88)', async () => {
+    fakeApi(me);
+    const user = userEvent.setup();
+    renderApp('/bills/b1/scan');
+
+    const camera = await screen.findByLabelText('Scan receipt');
+    const gallery = screen.getByLabelText('Upload from Photos');
+    expect(camera).toHaveAttribute('capture', 'environment');
+    expect(gallery).not.toHaveAttribute('capture');
+
+    await user.upload(gallery, photo);
+    expect(screen.getByAltText('Your receipt')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Read receipt' }),
+    ).toBeInTheDocument();
+  });
   const draft = {
     items: dinner.items.map(({ id: _id, ...item }) => item),
     serviceBp: 1000,

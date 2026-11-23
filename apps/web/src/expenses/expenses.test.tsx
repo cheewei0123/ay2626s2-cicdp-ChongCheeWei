@@ -368,7 +368,11 @@ describe('Add expense', () => {
     renderApp('/expenses/new');
 
     const photo = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' });
-    await user.upload(await screen.findByLabelText('Scan a receipt'), photo);
+    // A photo taken earlier, picked from the gallery (KAN-88)
+    await user.upload(
+      await screen.findByLabelText('Upload from Photos'),
+      photo,
+    );
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'No amount found on this receipt',
     );
