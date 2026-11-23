@@ -5,6 +5,8 @@ import { validateRegister, type FieldErrors } from '../auth/validation';
 import { AuthLayout } from '../components/AuthLayout';
 import { Field } from '../components/Field';
 import { FormError } from '../components/FormError';
+import { toE164 } from '../auth/phone';
+import { PhoneField } from '../components/PhoneField';
 import { primaryButton } from '../components/Page';
 
 export default function Register() {
@@ -39,7 +41,7 @@ export default function Register() {
         email: form.email.trim(),
         password: form.password,
         // The PayNow number is optional; leave it out rather than send ""
-        paynowMobile: form.paynowMobile.trim() || undefined,
+        paynowMobile: toE164(form.paynowMobile) || undefined,
       });
     } catch (err) {
       setFormError((err as Error).message); // api() always throws an ApiError with a readable message
@@ -79,14 +81,11 @@ export default function Register() {
           error={errors.password}
           hint="At least 8 characters"
         />
-        <Field
+        <PhoneField
           label="PayNow number (optional)"
           name="paynowMobile"
-          type="tel"
-          autoComplete="tel"
-          placeholder="+6591234567"
           value={form.paynowMobile}
-          onChange={set('paynowMobile')}
+          onChange={(digits) => setForm({ ...form, paynowMobile: digits })}
           error={errors.paynowMobile}
           hint="Friends pay you here"
         />

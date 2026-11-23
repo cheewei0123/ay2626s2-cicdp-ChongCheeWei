@@ -11,7 +11,7 @@ const valid = {
 describe('validateRegister (same rules as the API RegisterDto)', () => {
   it('accepts a valid form, with or without a PayNow number', () => {
     expect(validateRegister(valid)).toEqual({});
-    expect(validateRegister({ ...valid, paynowMobile: '+6591234567' })).toEqual(
+    expect(validateRegister({ ...valid, paynowMobile: '91234567' })).toEqual(
       {},
     );
   });
@@ -22,8 +22,8 @@ describe('validateRegister (same rules as the API RegisterDto)', () => {
     [{ email: 'not-an-email' }, 'email'],
     [{ password: 'short' }, 'password'],
     [{ password: 'x'.repeat(129) }, 'password'],
-    [{ paynowMobile: '+6512345678' }, 'paynowMobile'], // SG mobiles start with 8 or 9
-    [{ paynowMobile: '91234567' }, 'paynowMobile'], // needs +65
+    [{ paynowMobile: '12345678' }, 'paynowMobile'], // SG mobiles start with 8 or 9
+    [{ paynowMobile: '9123456' }, 'paynowMobile'], // 8 digits after the fixed +65
   ])('rejects %o', (change, field) => {
     expect(Object.keys(validateRegister({ ...valid, ...change }))).toEqual([
       field,

@@ -3,6 +3,8 @@ import { useAuth } from '../auth/context';
 import { validateProfile, type FieldErrors } from '../auth/validation';
 import { Field } from '../components/Field';
 import { FormError } from '../components/FormError';
+import { localDigits, toE164 } from '../auth/phone';
+import { PhoneField } from '../components/PhoneField';
 import { Page, plainButton, primaryButton } from '../components/Page';
 
 // Wireframe #3 (slimmed): your name and the PayNow number friends pay you back on.
@@ -11,7 +13,7 @@ export default function Profile() {
   const { user, saveProfile, logout } = useAuth();
   const [form, setForm] = useState({
     displayName: user?.displayName ?? '',
-    paynowMobile: user?.paynowMobile ?? '',
+    paynowMobile: localDigits(user?.paynowMobile ?? ''),
   });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState('');
@@ -34,7 +36,7 @@ export default function Profile() {
       await saveProfile({
         displayName: form.displayName.trim(),
         // An empty box removes the number (null), rather than saving ""
-        paynowMobile: form.paynowMobile.trim() || null,
+        paynowMobile: toE164(form.paynowMobile) || null,
       });
       setSaved(true);
     } catch (err) {
@@ -56,14 +58,11 @@ export default function Profile() {
           error={errors.displayName}
           hint="Friends see this on your bills"
         />
-        <Field
+        <PhoneField
           label="PayNow number"
           name="paynowMobile"
-          type="tel"
-          autoComplete="tel"
-          placeholder="+6591234567"
           value={form.paynowMobile}
-          onChange={(e) => set('paynowMobile')(e.target.value)}
+          onChange={set('paynowMobile')}
           error={errors.paynowMobile}
           hint="Friends get a PayNow QR to this number. Leave it empty to remove it."
         />
