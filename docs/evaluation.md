@@ -11,7 +11,7 @@ An honest look at the project at the feature freeze (22 Nov 2026). Every point c
 | Automatic, safe deploy        | Met. Merge to live in 2½–3 minutes with migrations, a health check and rollback; a failed deploy (full disk) left the site up.               | [pipeline.md](pipeline.md), `kan-40-deploy-disk-full-steps.png`  |
 | Secure by default             | Met. No AWS key stored (OIDC); SSH open only during a deploy; private RDS; 8 HIGH image and 3 CodeQL findings fixed.                         | [security.md](security.md)                                       |
 | Usable on an iPhone           | Met. HTTPS with no warning; installed on the home screen; opens full-screen.                                                                 | `kan-39-iphone-https.png`, `kan-46-iphone-*.png`                 |
-| Pay back by PayNow            | Built and live; **not yet checked** with a friend scanning the QR in a real banking app.                                                     | KAN-61 (demo rehearsal)                                          |
+| Pay back by PayNow            | Built and live; **not checked** with a friend scanning the QR in a real banking app (the rehearsal for it was dropped on 23 Nov).            | KAN-61 (dropped)                                                 |
 | Email verification            | Met. Switched on 22 Nov: registering on the live site sent a real email through Gmail SMTP, and its link verified the account on the iPhone. | `kan-77-verification-email.png`                                  |
 
 ## Strengths of NestJS, seen in this project

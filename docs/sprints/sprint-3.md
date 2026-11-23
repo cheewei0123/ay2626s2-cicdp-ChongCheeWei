@@ -10,7 +10,7 @@
 
 - **HTTPS and the PWA:** the app is served at `https://splitlah.duckdns.org` by Caddy with a Let's Encrypt certificate that survives a restart. It installs on the iPhone home screen with its own icon and opens full-screen, with no Safari address bar.
 - **The whole journey works in the browser:** scan a receipt (Gemini), fix an item, share a link or a 5-character code, friends join and tap their items, the live summary, lock, a PayNow QR for each friend's exact amount, and the owner ticks who has paid. On every PR, the Playwright test in CI runs the first half (register, verify, scan, fix an item, share, a guest joins and claims, totals match) on an iPhone 14-sized WebKit browser; locking, PayNow and marking paid are covered by the API e2e and component tests.
-- **Not yet checked by hand:** the same journey with a friend scanning the QR in a real banking app on their own phone. That is part of the demo rehearsal (KAN-61).
+- **Not yet checked by hand:** the same journey with a friend scanning the QR in a real banking app on their own phone. It was planned for the demo rehearsal (KAN-61), which was dropped on 23 Nov because the brief does not ask for it, so it stays unchecked.
 - **Pipeline:** every PR now runs **13 required checks** in parallel (lint, unit tests with 90% coverage gates, API e2e against Postgres, browser e2e, Docker build, Gitleaks, npm audit, CodeQL on the code and the workflows, Trivy on both images). A merge goes live in about **2½–3 minutes**; a failed health check rolls back to the last good release.
 - **Security scans:** Trivy found 8 HIGH findings in the first images and CodeQL 3 in the code; all were fixed. One dependency advisory (`effect` inside the Prisma CLI) is accepted until 31 Dec 2026, and one CodeQL alert was reviewed as a false positive. Details in [security.md](../security.md).
 - **More than planned:** personal expenses (my share is logged when a bill is locked, manual add, receipt scan, category bars), category guessing that remembers corrections (KAN-78) and email verification (KAN-77), which the 17 Nov plan had cut, were built on the last day.
@@ -74,14 +74,14 @@ All three are checks and evidence, not code, so they fit the feature freeze.
 
 No new features. Sprint 4 is:
 
-| Ticket                 | What                                                              |
-| ---------------------- | ----------------------------------------------------------------- |
-| KAN-50, KAN-77, KAN-80 | Finish the checks and screenshots above                           |
-| KAN-54                 | README: a classmate follows the setup from a clean clone          |
-| KAN-59                 | Report d): critical analysis and conclusion                       |
-| KAN-60                 | Gantt chart and burndown screenshots                              |
-| KAN-61                 | Demo rehearsal: push a change, green pipeline, live on the iPhone |
-| KAN-62                 | Declaration, report PDF and ZIP, submitted before 27 Nov 5 pm     |
+| Ticket                 | What                                                          |
+| ---------------------- | ------------------------------------------------------------- |
+| KAN-50, KAN-77, KAN-80 | Finish the checks and screenshots above                       |
+| KAN-54                 | README: a classmate follows the setup from a clean clone      |
+| KAN-59                 | Report d): critical analysis and conclusion                   |
+| KAN-60                 | Gantt chart and burndown screenshots                          |
+| KAN-61                 | Demo rehearsal (dropped 23 Nov: not asked for in the brief)   |
+| KAN-62                 | Declaration, report PDF and ZIP, submitted before 27 Nov 5 pm |
 
 **Cut, and listed as future enhancements in the report:** uploading and decoding a PayNow QR image, the phone field and verified-email badge on the profile, one colour per category in the chart, live updates over WebSockets, discounts, and groups or friends lists.
 
