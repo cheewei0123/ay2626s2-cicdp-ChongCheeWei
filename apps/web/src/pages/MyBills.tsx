@@ -42,10 +42,12 @@ export default function MyBills() {
       <Link to="/bills/new" className={primaryButton}>
         + New bill
       </Link>
-      {/* Without a number, friends get no PayNow QR (KAN-48) */}
-      {user && !user.paynowMobile && (
+      {/* Without a checked number, friends get no PayNow QR (KAN-48, KAN-91) */}
+      {user && !user.phoneVerifiedAt && (
         <Link to="/profile" className="rounded-[28px] bg-warn/10 p-4 text-warn">
-          Add your PayNow number so friends can pay you back ›
+          {user.paynowMobile
+            ? 'Check your PayNow number so friends can pay you back ›'
+            : 'Add your PayNow number so friends can pay you back ›'}
         </Link>
       )}
       <FormError message={error} />

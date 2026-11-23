@@ -15,12 +15,13 @@ import { hashPassword, verifyPassword } from './password.js';
 import { VerificationService } from './verification.service.js';
 
 // The only user fields ever sent to a client; passwordHash is never in this list
-const SAFE_USER = {
+export const SAFE_USER = {
   id: true,
   email: true,
   displayName: true,
   emailVerifiedAt: true,
   paynowMobile: true,
+  phoneVerifiedAt: true, // null = the number was never checked by SMS (KAN-91)
 } as const;
 
 export type SafeUser = Prisma.UserGetPayload<{ select: typeof SAFE_USER }>;
@@ -88,6 +89,7 @@ export class AuthService {
         displayName: found.displayName,
         emailVerifiedAt: found.emailVerifiedAt,
         paynowMobile: found.paynowMobile,
+        phoneVerifiedAt: found.phoneVerifiedAt,
       },
       found.sessionVersion,
     );
@@ -97,13 +99,13 @@ export class AuthService {
     return this.prisma.user.findUnique({ where: { id }, select: SAFE_USER });
   }
 
-  // Only the fields that were sent change; null on paynowMobile removes it.
-  // null back means the account no longer exists.
+  // Only the fields that were sent change. The PayNow number changes through
+  // /me/phone instead, which checks it by SMS (KAN-91). null = the account is gone.
   async updateProfile(id: string, dto: UpdateMeDto) {
     try {
       return await this.prisma.user.update({
         where: { id },
-        data: { displayName: dto.displayName, paynowMobile: dto.paynowMobile },
+        data: { displayName: dto.displayName },
         select: SAFE_USER,
       });
     } catch (error) {

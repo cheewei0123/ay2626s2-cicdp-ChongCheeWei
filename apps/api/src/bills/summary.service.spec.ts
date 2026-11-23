@@ -26,7 +26,11 @@ const briefBill = {
   ownerId: 'u1',
   serviceBp: 1000,
   gstBp: 900,
-  owner: { displayName: 'Chee', paynowMobile: '+6591234567' },
+  owner: {
+    displayName: 'Chee',
+    paynowMobile: '+6591234567',
+    phoneVerifiedAt: new Date('2026-11-20T00:00:00Z'), // checked by SMS (KAN-91)
+  },
   items: [
     {
       id: 'chicken-rice',
@@ -172,7 +176,7 @@ describe('SummaryService (mocked database, real SplitService)', () => {
   it('gives no QR when the owner has no PayNow number or the guest owes nothing', async () => {
     prisma.bill.findUnique.mockResolvedValue({
       ...briefBill,
-      owner: { displayName: 'Chee', paynowMobile: null },
+      owner: { displayName: 'Chee', paynowMobile: null, phoneVerifiedAt: null },
     });
     const noNumber = await service.forGuest('b1');
     expect(noNumber.people.every((p) => p.paynowPayload === null)).toBe(true);
@@ -185,6 +189,16 @@ describe('SummaryService (mocked database, real SplitService)', () => {
     expect(
       owesNothing.people.find((p) => p.displayName === 'Ali')!.paynowPayload,
     ).toBeNull();
+  });
+
+  it('hides a number that was never checked by SMS, so no QR can pay a stranger (KAN-91)', async () => {
+    prisma.bill.findUnique.mockResolvedValue({
+      ...briefBill,
+      owner: { ...briefBill.owner, phoneVerifiedAt: null },
+    });
+    const guest = await service.forGuest('b1');
+    expect(guest.paynow).toEqual({ mobile: null, name: 'Chee' });
+    expect(guest.people.every((p) => p.paynowPayload === null)).toBe(true);
   });
 
   it('creates the owner as a participant if they are not one yet', async () => {

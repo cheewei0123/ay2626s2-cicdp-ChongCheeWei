@@ -106,7 +106,7 @@ describe('Auth (e2e, real database)', () => {
     expect(res.body.message).toContain('property isAdmin should not exist');
   });
 
-  it('PATCH /me sets, checks and clears the PayNow number', async () => {
+  it('PATCH /me changes the name, but not the PayNow number (KAN-91)', async () => {
     const server = app.getHttpServer();
     const token = (
       await request(server)
@@ -120,29 +120,17 @@ describe('Auth (e2e, real database)', () => {
         .set('Authorization', `Bearer ${token}`)
         .send(body);
 
-    const set = await patch({
-      paynowMobile: '+6598765432',
-      displayName: ' Chee Wei ',
-    }).expect(200);
-    expect(set.body).toMatchObject({
-      email,
-      displayName: 'Chee Wei',
-      paynowMobile: '+6598765432',
-    });
+    const set = await patch({ displayName: ' Chee Wei ' }).expect(200);
+    expect(set.body).toMatchObject({ email, displayName: 'Chee Wei' });
     expect(set.body).not.toHaveProperty('passwordHash');
 
-    const bad = await patch({ paynowMobile: '91234567' }).expect(400);
-    expect(bad.body.message).toContain(
-      'paynowMobile must be a Singapore mobile number like +6591234567',
+    // The number only changes through POST /me/phone and its SMS code
+    const number = await patch({ paynowMobile: '+6598765432' }).expect(400);
+    expect(number.body.message).toContain(
+      'property paynowMobile should not exist',
     );
     // Only the profile fields can change
     await patch({ email: 'someone@example.com' }).expect(400);
-
-    const cleared = await patch({ paynowMobile: null }).expect(200);
-    expect(cleared.body).toMatchObject({
-      displayName: 'Chee Wei',
-      paynowMobile: null,
-    });
     await request(server)
       .patch('/api/me')
       .send({ displayName: 'x' })

@@ -7,6 +7,7 @@ export type User = {
   displayName: string;
   emailVerifiedAt: string | null;
   paynowMobile: string | null;
+  phoneVerifiedAt: string | null; // null = the number was never checked by SMS (KAN-91)
 };
 
 export type RegisterInput = {
@@ -16,10 +17,8 @@ export type RegisterInput = {
   paynowMobile?: string;
 };
 
-export type ProfileInput = {
-  displayName: string;
-  paynowMobile: string | null; // null removes the number
-};
+// The PayNow number changes through PhoneCheck, which checks it by SMS (KAN-91)
+export type ProfileInput = { displayName: string };
 
 export type Auth = {
   user: User | null;

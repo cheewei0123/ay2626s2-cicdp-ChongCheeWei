@@ -13,6 +13,7 @@ const safeUser = {
   displayName: 'Chee',
   emailVerifiedAt: null,
   paynowMobile: '+6591234567',
+  phoneVerifiedAt: null,
 };
 
 const uniqueError = () =>
@@ -161,15 +162,12 @@ describe('AuthService (with a mocked database)', () => {
     it('changes only the fields that were sent and returns the safe user', async () => {
       prisma.user.update.mockResolvedValue(safeUser);
       expect(
-        await service.updateProfile('u1', { paynowMobile: '+6591234567' }),
+        await service.updateProfile('u1', { displayName: 'Chee W' }),
       ).toEqual(safeUser);
       const call = prisma.user.update.mock.calls[0][0];
       expect(call.where).toEqual({ id: 'u1' });
-      // undefined = Prisma leaves displayName as it is
-      expect(call.data).toEqual({
-        displayName: undefined,
-        paynowMobile: '+6591234567',
-      });
+      // The PayNow number can't change here: only through the SMS check (KAN-91)
+      expect(call.data).toEqual({ displayName: 'Chee W' });
       expect(call.select).not.toHaveProperty('passwordHash');
     });
 

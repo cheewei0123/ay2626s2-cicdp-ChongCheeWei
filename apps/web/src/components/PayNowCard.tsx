@@ -40,7 +40,7 @@ export function PayNowCard(props: {
   if (!paynow.mobile || !me.paynowPayload)
     return (
       <p className={`${box} text-muted`}>
-        {owner} hasn't added a PayNow number yet. Ask them how to pay{' '}
+        {owner} hasn't added a checked PayNow number yet. Ask them how to pay{' '}
         {formatCents(me.totalCents)}.
       </p>
     );
