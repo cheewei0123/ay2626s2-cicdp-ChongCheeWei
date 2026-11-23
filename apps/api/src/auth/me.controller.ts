@@ -14,6 +14,8 @@ import type { AuthUser } from './auth-user.js';
 import { AuthService } from './auth.service.js';
 import { CurrentUser } from './current-user.decorator.js';
 import { ChangePasswordDto } from './dto/password.dto.js';
+import { MfaDisableDto, MfaEnableDto, MfaPasswordDto } from './dto/mfa.dto.js';
+import { MfaService } from './mfa.service.js';
 import { PhoneCodeDto, PhoneDto } from './dto/phone.dto.js';
 import { UpdateMeDto } from './dto/update-me.dto.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
@@ -30,6 +32,7 @@ export class MeController {
     private readonly passwords: PasswordResetService,
     private readonly phones: PhoneVerificationService,
     private readonly telegram: TelegramService,
+    private readonly mfa: MfaService,
   ) {}
 
   @Get()
@@ -59,6 +62,41 @@ export class MeController {
     @Body() dto: ChangePasswordDto,
   ) {
     return this.passwords.change(user.id, dto.currentPassword, dto.newPassword);
+  }
+
+  // GET /api/me/mfa → { on, backupCodesLeft } (KAN-92)
+  @Get('mfa')
+  async mfaStatus(@CurrentUser() user: AuthUser) {
+    const found = await this.auth.findSafeUser(user.id);
+    return {
+      on: !!found?.mfaEnabledAt,
+      backupCodesLeft: await this.mfa.backupCodesLeft(user.id),
+    };
+  }
+
+  // POST /api/me/mfa/setup { password } → 200 { secret, otpauthUrl } for the QR code.
+  // Each of these needs the password, so they share the password-guessing limit.
+  @Post('mfa/setup')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  setupMfa(@CurrentUser() user: AuthUser, @Body() dto: MfaPasswordDto) {
+    return this.mfa.setup(user.id, dto.password);
+  }
+
+  // POST /api/me/mfa/enable { code } → 200 { backupCodes }, shown only this once
+  @Post('mfa/enable')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  enableMfa(@CurrentUser() user: AuthUser, @Body() dto: MfaEnableDto) {
+    return this.mfa.enable(user.id, dto.code);
+  }
+
+  // POST /api/me/mfa/disable { password, code } → 200 the profile
+  @Post('mfa/disable')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  disableMfa(@CurrentUser() user: AuthUser, @Body() dto: MfaDisableDto) {
+    return this.mfa.disable(user.id, dto.password, dto.code);
   }
 
   // GET /api/me/phone/methods → { telegram, sms }: which ways of checking work here

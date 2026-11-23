@@ -57,6 +57,12 @@ model User {
   paynowQrImagePath String?
   // Goes up by one when the password changes; login tokens carry it, so older tokens stop working (KAN-90)
   sessionVersion    Int       @default(0)
+  // Two-step login with an authenticator app (KAN-92). mfaSecret is AES-GCM encrypted
+  // (see secret-box.ts); it is set at setup and only used once mfaEnabledAt is set.
+  mfaSecret         String?
+  mfaEnabledAt      DateTime?
+  // The last 30-second step a code was accepted for, so a seen code can't be used twice
+  mfaLastStep       Int?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -69,6 +75,19 @@ model User {
   aiScanCounts        AiScanCount[]
   phoneVerification   PhoneVerification?
   sessions            Session[]
+  mfaBackupCodes      MfaBackupCode[]
+}
+
+// One-time codes for when the phone with the authenticator app is lost (KAN-92).
+// Only SHA-256 hashes are stored; the codes are shown once, when MFA is turned on.
+model MfaBackupCode {
+  id       String    @id @default(cuid())
+  userId   String
+  codeHash String    @unique
+  usedAt   DateTime?
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // One login on one device (KAN-97). The token carries the id, so this login can be

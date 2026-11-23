@@ -5,6 +5,7 @@ import { validateProfile, type FieldErrors } from '../auth/validation';
 import { Field } from '../components/Field';
 import { FormError } from '../components/FormError';
 import { PhoneCheck } from '../components/PhoneCheck';
+import { TwoStepLogin } from '../components/TwoStepLogin';
 import { Page, plainButton, primaryButton } from '../components/Page';
 
 // Wireframe #3 (slimmed): your name, and the PayNow number friends pay you back on,
@@ -62,6 +63,7 @@ export default function Profile() {
         </button>
       </form>
       <PhoneCheck />
+      <TwoStepLogin />
       <Link to="/profile/password" className={plainButton}>
         Change password
       </Link>

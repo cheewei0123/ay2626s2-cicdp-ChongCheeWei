@@ -14,6 +14,7 @@ const safeUser = {
   emailVerifiedAt: null,
   paynowMobile: '+6591234567',
   phoneVerifiedAt: null,
+  mfaEnabledAt: null,
 };
 
 const uniqueError = () =>
@@ -165,12 +166,34 @@ describe('AuthService (with a mocked database)', () => {
         password: 'correct horse',
       });
 
+      if (!('accessToken' in result)) throw new Error('expected a login');
       expect(result.user).toEqual(safeUser);
       expect(result.user).not.toHaveProperty('passwordHash');
       expect(await jwt.verifyAsync(result.accessToken)).toMatchObject({
         sub: 'u1',
         email: 'chee@example.com',
       });
+    });
+
+    it('with two-step login on, gives only a 5-minute half-way token (KAN-92)', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        ...safeUser,
+        mfaEnabledAt: new Date(),
+        passwordHash: await hashPassword('correct horse'),
+      });
+
+      const result = await service.login({
+        email: 'chee@example.com',
+        password: 'correct horse',
+      });
+
+      expect(result).not.toHaveProperty('accessToken');
+      expect(result).not.toHaveProperty('user');
+      if (!('mfaToken' in result)) throw new Error('expected an MFA step');
+      const payload = await jwt.verifyAsync(result.mfaToken);
+      expect(payload).toMatchObject({ sub: 'u1', typ: 'mfa' });
+      expect(payload.exp - payload.iat).toBe(5 * 60);
+      expect(prisma.session.create).not.toHaveBeenCalled();
     });
 
     it('rejects a wrong password', async () => {

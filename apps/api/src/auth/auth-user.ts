@@ -25,6 +25,13 @@ export interface GuestPayload {
   typ: 'guest';
 }
 
+// The half-way token after a right password when two-step login is on (KAN-92).
+// It only works on POST /auth/mfa, with a code; JwtAuthGuard refuses it.
+export interface MfaPayload {
+  sub: string;
+  typ: 'mfa';
+}
+
 // Lets TypeScript know that `req.user` can exist on an Express request
 declare module 'express-serve-static-core' {
   interface Request {

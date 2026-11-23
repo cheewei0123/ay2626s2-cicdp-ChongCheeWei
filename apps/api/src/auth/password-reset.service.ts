@@ -1,10 +1,10 @@
 import {
+  ForbiddenException,
   BadRequestException,
   Inject,
   Injectable,
   Logger,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import { EMAIL_SERVICE, type EmailService } from '../email/email.interface.js';
@@ -105,7 +105,8 @@ export class PasswordResetService {
     });
     if (!user) throw new NotFoundException('User not found');
     if (!(await verifyPassword(current, user.passwordHash))) {
-      throw new UnauthorizedException('Your current password is wrong');
+      // 403, not 401: the login is fine, so the app must not log you out
+      throw new ForbiddenException('Your current password is wrong');
     }
     const updated = await this.prisma.user.update({
       where: { id: userId },

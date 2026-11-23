@@ -4,10 +4,12 @@ import type { AuthUser } from './auth-user.js';
 import { AuthService } from './auth.service.js';
 import { CurrentUser } from './current-user.decorator.js';
 import { LoginDto } from './dto/login.dto.js';
+import { MfaLoginDto } from './dto/mfa.dto.js';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/password.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { VerifyEmailDto } from './dto/verify-email.dto.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
+import { MfaService } from './mfa.service.js';
 import { PasswordResetService } from './password-reset.service.js';
 import { VerificationService } from './verification.service.js';
 
@@ -19,6 +21,7 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly verification: VerificationService,
     private readonly passwords: PasswordResetService,
+    private readonly mfa: MfaService,
   ) {}
 
   // POST /api/auth/register → 201 { user, accessToken }
@@ -27,11 +30,22 @@ export class AuthController {
     return this.auth.register(dto);
   }
 
-  // POST /api/auth/login → 200 { user, accessToken }
+  // POST /api/auth/login → 200 { user, accessToken }, or { mfaRequired, mfaToken }
+  // when two-step login is on (KAN-92)
   @Post('login')
   @HttpCode(200)
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto);
+  }
+
+  // POST /api/auth/mfa { mfaToken, code } → 200 { user, accessToken }. 5 a minute
+  // per IP, and the half-way token lasts 5 minutes, so guessing a 6-digit code
+  // would take far longer than anyone has.
+  @Post('mfa')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  loginWithCode(@Body() dto: MfaLoginDto) {
+    return this.mfa.finishLogin(dto.mfaToken, dto.code);
   }
 
   // POST /api/auth/logout → 204: ends this login on the server (KAN-97). Other

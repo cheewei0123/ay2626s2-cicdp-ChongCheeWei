@@ -112,7 +112,7 @@ describe('Passwords (e2e)', () => {
       .post('/api/me/password')
       .set('Authorization', auth)
       .send({ currentPassword: 'wrong guess', newPassword: 'third password' })
-      .expect(401);
+      .expect(403); // the login is fine, so not 401
 
     const res = await request(server())
       .post('/api/me/password')
