@@ -53,15 +53,16 @@ Every endpoint can also return `500` for unexpected errors (same format).
 
 ## Auth
 
-| Method | Path                        | Who      | Request body                                      | Response                    | Errors        |
-| ------ | --------------------------- | -------- | ------------------------------------------------- | --------------------------- | ------------- |
-| POST   | `/auth/register`            | `public` | `{ email, password, displayName, paynowMobile? }` | `201 { user, accessToken }` | 400, 409, 429 |
-| POST   | `/auth/login`               | `public` | `{ email, password }`                             | `200 { user, accessToken }` | 400, 401, 429 |
-| POST   | `/auth/logout`              | `JWT`    | none                                              | `204`                       | 401, 429      |
-| POST   | `/auth/verify-email`        | `public` | `{ token }` (from the email link)                 | `204`                       | 400, 429      |
-| POST   | `/auth/resend-verification` | `JWT`    | none                                              | `204`                       | 401, 409, 429 |
-| POST   | `/auth/forgot-password`     | `public` | `{ email }`                                       | `204` (always)              | 400, 429      |
-| POST   | `/auth/reset-password`      | `public` | `{ token, password }` (from the email link)       | `204`                       | 400, 429      |
+| Method | Path                        | Who      | Request body                                      | Response                                                       | Errors        |
+| ------ | --------------------------- | -------- | ------------------------------------------------- | -------------------------------------------------------------- | ------------- |
+| POST   | `/auth/register`            | `public` | `{ email, password, displayName, paynowMobile? }` | `201 { user, accessToken }`                                    | 400, 409, 429 |
+| POST   | `/auth/login`               | `public` | `{ email, password }`                             | `200 { user, accessToken }` or `200 { mfaRequired, mfaToken }` | 400, 401, 429 |
+| POST   | `/auth/mfa`                 | `public` | `{ mfaToken, code }`                              | `200 { user, accessToken }`                                    | 400, 401, 429 |
+| POST   | `/auth/logout`              | `JWT`    | none                                              | `204`                                                          | 401, 429      |
+| POST   | `/auth/verify-email`        | `public` | `{ token }` (from the email link)                 | `204`                                                          | 400, 429      |
+| POST   | `/auth/resend-verification` | `JWT`    | none                                              | `204`                                                          | 401, 409, 429 |
+| POST   | `/auth/forgot-password`     | `public` | `{ email }`                                       | `204` (always)                                                 | 400, 429      |
+| POST   | `/auth/reset-password`      | `public` | `{ token, password }` (from the email link)       | `204`                                                          | 400, 429      |
 
 - Emails are trimmed and lower-cased, so `Chee@Example.com` and `chee@example.com` are one account.
 - Passwords: 8 to 128 characters. Only a salted scrypt hash is stored.
@@ -76,6 +77,7 @@ Every endpoint can also return `500` for unexpected errors (same format).
 - `EMAIL_PROVIDER=fake` (tests, CI, local) logs the link instead of sending it; `smtp` sends through Gmail with an app password.
 - **Forgot and reset password (KAN-90):** `forgot-password` always answers `204`, so it never shows which emails have accounts; the email goes out in the background so the timing doesn't either. It is limited to 5 an hour per IP. The link `APP_URL/reset-password?token=…` works once and expires after 30 minutes; only its SHA-256 hash is stored. Resetting also marks the email verified (the link proved it) and uses up every other reset link for the account.
 - **Ending old logins:** each user has a `sessionVersion`, copied into the login token as `ver`. Resetting or changing the password raises it, and `JwtAuthGuard` refuses a token whose `ver` is out of date (`401 Your session has ended. Log in again.`), so every other device is logged out at once. With sessions (KAN-97) this still ends every session, because each session's token carries the old `ver`.
+- **Two-step login (KAN-92):** when it is on, a right password does not log in. `/auth/login` answers `{ mfaRequired: true, mfaToken }` instead: a JWT with `typ: 'mfa'` that lasts 5 minutes and is refused by every other route. `POST /auth/mfa` with that token and a code finishes the login and returns `{ user, accessToken }` like `/auth/login`. The code is the 6 digits from the authenticator app (TOTP, RFC 6238, 30-second steps, one step either side allowed for a slow phone clock) or one of the backup codes (`xxxx-xxxx`, any case). A code that was already used, or an older one, is refused, so a code seen over someone's shoulder can't be replayed. 5 tries a minute; a wrong or used code is `401 That code is not right`, a token past 5 minutes is `401 This login took too long. Start again.`
 
 ## Profile
 
@@ -83,7 +85,11 @@ Every endpoint can also return `500` for unexpected errors (same format).
 | ------ | -------------------- | ----- | ---------------------------------- | ------------------------------- | ----------------------- |
 | GET    | `/me`                | `JWT` | none                               | `200 user`                      | 401                     |
 | PATCH  | `/me`                | `JWT` | `{ displayName? }`                 | `200 user`                      | 400, 401, 404           |
-| POST   | `/me/password`       | `JWT` | `{ currentPassword, newPassword }` | `200 { user, accessToken }`     | 400, 401, 429           |
+| POST   | `/me/password`       | `JWT` | `{ currentPassword, newPassword }` | `200 { user, accessToken }`     | 400, 401, 403, 429      |
+| GET    | `/me/mfa`            | `JWT` | none                               | `200 { on, backupCodesLeft }`   | 401                     |
+| POST   | `/me/mfa/setup`      | `JWT` | `{ password }`                     | `200 { secret, otpauthUrl }`    | 400, 401, 403, 409, 429 |
+| POST   | `/me/mfa/enable`     | `JWT` | `{ code }`                         | `200 { backupCodes }`           | 400, 401, 409, 429      |
+| POST   | `/me/mfa/disable`    | `JWT` | `{ password, code }`               | `200 user`                      | 400, 401, 403, 429      |
 | GET    | `/me/phone/methods`  | `JWT` | none                               | `200 { telegram, sms }`         | 401                     |
 | POST   | `/me/phone/telegram` | `JWT` | `{ phone }`                        | `200 { phone, expiresAt, url }` | 400, 401, 409, 429, 503 |
 | POST   | `/me/phone`          | `JWT` | `{ phone }`                        | `200 { phone, expiresAt }`      | 400, 401, 409, 429, 503 |
@@ -105,7 +111,9 @@ Built in KAN-81 (slimmed):
   - `SMS_PROVIDER=fake` (tests, CI, local) logs the code; `sns` sends it through Amazon SNS with the EC2 instance's IAM role (no key stored), see [infra.md](infra.md).
 - The response is the same safe user as `GET /me`, never the password hash. `404` if the account behind the token no longer exists.
 - Cut to fit the deadline: uploading and decoding a PayNow QR (`POST /me/paynow-qr`) and the phone field. The number alone is enough to build each friend's QR (KAN-48).
-- `POST /me/password` (KAN-90) needs the current password (`401` if wrong, 5 tries a minute). It logs out every other device and returns a fresh token, so this one stays logged in.
+- `POST /me/password` (KAN-90) needs the current password (`403 Your current password is wrong`, 5 tries a minute; it was `401` until KAN-92, which the web app treats as "logged out"). It logs out every other device and returns a fresh token, so this one stays logged in.
+- **Two-step login (KAN-92):** `setup` needs the password again (`403` if wrong) and returns a new secret and an `otpauth://` link for the QR; nothing is on yet. `enable` with the first right code turns it on and returns 10 backup codes, shown this once: only `sha256(userId:code)` is kept and each works once. `disable` needs the password and a code (`403` if either is wrong). `409` if it is already on (setup, enable). The secret is stored sealed with AES-256-GCM, using a key derived from `JWT_SECRET` (HKDF), so a database leak alone does not give the secrets away. Each route is limited to 5 calls a minute.
+- **`403`, not `401`, for a wrong password or code while logged in:** the web app logs out on any `401`, so a typo must not end the session.
 
 ## Bills (owner)
 

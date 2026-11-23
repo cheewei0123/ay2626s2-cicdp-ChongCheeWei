@@ -106,6 +106,8 @@ What the script does:
 | `/opt/splitlah/.env`              | The server only, readable only by `deploy`               | `DATABASE_URL` (RDS `app` user), `JWT_SECRET`, Gemini key, Gmail app password (`SMTP_PASS`), Telegram bot token and webhook secret |
 | RDS master password (`postgres`)  | My password manager only                                 | Creating the `app` user                                                                                                            |
 
+Changing `JWT_SECRET` logs everybody out and also makes every two-step login secret unreadable (they are sealed with a key derived from it, KAN-92), so users with two-step login on could only log in with a backup code. Change it only after a leak, and then turn two-step login off for those users in the database.
+
 No key is in git. If the Actions key leaks, removing one line from `authorized_keys` cuts it off without touching my own access.
 
 ## How a deploy reaches the server

@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { MeController } from './me.controller.js';
+import { MfaService } from './mfa.service.js';
 import { PasswordResetService } from './password-reset.service.js';
 import { VerificationService } from './verification.service.js';
 
@@ -33,6 +34,7 @@ import { PhoneVerificationService } from './phone-verification.service.js';
     VerificationService,
     PasswordResetService,
     PhoneVerificationService,
+    MfaService,
     JwtAuthGuard,
   ],
   exports: [JwtAuthGuard],

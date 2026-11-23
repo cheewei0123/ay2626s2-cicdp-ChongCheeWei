@@ -2,6 +2,15 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-92: two-step login with an authenticator app
+
+- **What it is:** after the password, the app asks for the 6-digit code from Google Authenticator (or any TOTP app). A stolen password alone no longer opens the account. It is only asked when logging in, as wanted, so with the 14-day sessions (KAN-97) it is asked about once a fortnight per device.
+- **No library for the maths:** TOTP is HMAC-SHA1 of the 30-second step number, cut to 6 digits (RFC 6238). With base32 and the time window it is one 83-line file using `node:crypto`, and tested against the RFC's own test values, so I can explain every line instead of trusting a package.
+- **Replays:** a code stays valid for up to 90 seconds (one step either side for clock drift). The last used step is saved, and claiming a step is one conditional `updateMany` (`mfaLastStep < step`), so even two requests at the same moment can't both use one code. Backup codes are claimed the same way (`usedAt: null`).
+- **Half a login is not a login:** the password step returns a 5-minute token with `typ: 'mfa'`, not a session. The guard refuses any token with a `typ`, and an e2e test calls `/me` with it to prove it.
+- **The secret is sealed:** the server must be able to read the secret back (to check codes), so it can't be hashed like a password. It is encrypted with AES-256-GCM using a key derived from `JWT_SECRET`, so a copy of the database alone is not enough. The cost: rotating `JWT_SECRET` breaks every secret (noted in `infra.md`).
+- **A bug found on the way:** a wrong current password in "Change password" answered `401`, and the web app treats every `401` as "your login ended", so one typo logged you out. Wrong passwords and codes while logged in now answer `403`.
+
 ## KAN-97: staying logged in for 14 days without losing the ability to log someone out
 
 - **The complaint:** the token ran out after an hour, so the app asked for the password again all the time.

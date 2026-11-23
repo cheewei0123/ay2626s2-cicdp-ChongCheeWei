@@ -14,6 +14,7 @@ import {
 } from './context';
 
 type AuthResponse = { user: User; accessToken: string };
+type MfaStep = { mfaRequired: true; mfaToken: string };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -55,8 +56,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       loading,
       logout,
-      login: (email: string, password: string) =>
-        signIn('/auth/login', { email, password }),
+      login: async (email: string, password: string) => {
+        const res = await api<AuthResponse | MfaStep>('/auth/login', {
+          method: 'POST',
+          body: { email, password },
+        });
+        if ('mfaRequired' in res) return res.mfaToken;
+        tokenStore.set(res.accessToken);
+        setUser(res.user);
+        return null;
+      },
+      loginWithCode: (mfaToken: string, code: string) =>
+        signIn('/auth/mfa', { mfaToken, code }),
       register: (input: RegisterInput) => signIn('/auth/register', input),
       // PATCH /me answers with the saved profile, so every screen sees the change
       saveProfile: async (input: ProfileInput) =>

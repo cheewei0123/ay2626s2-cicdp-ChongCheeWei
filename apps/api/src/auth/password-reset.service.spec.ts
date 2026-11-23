@@ -1,7 +1,7 @@
 import {
   BadRequestException,
   NotFoundException,
-  UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import type { EmailService } from '../email/email.interface.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -107,7 +107,7 @@ describe('PasswordResetService', () => {
       });
       await expect(
         service.change('u1', 'wrong one', 'new password'),
-      ).rejects.toThrow(UnauthorizedException);
+      ).rejects.toThrow(ForbiddenException);
       expect(prisma.user.update).not.toHaveBeenCalled();
     });
 
