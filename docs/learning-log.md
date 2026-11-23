@@ -2,6 +2,13 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-94: a calendar and a chart that is honest about colour
+
+- **The API change was small:** the list and the summary take `from` and `to` as well as `month`, as whole Singapore days, and the summary adds a total per day. The rules (together, in order, 366 days at most) are checked once in the service and tested at both levels.
+- **A pie of 10 categories can't be colour-safe.** I ran the dataviz validator on an 8-hue palette against our glass surface: it passes when only neighbours are compared (bars), but in a pie any two slices can touch, and then it fails (green and orange look the same to colour-blind eyes). So the pie colours by rank on one violet ramp, keeps 6 slices at most, and the category name always sits beside its swatch.
+- **Looking at it found a bug the tests missed:** the last day's label ("30") was cut off at the chart's edge, and a 7-day range only labelled its first and last day. Both were fixed after the screenshot, not before.
+- **Lint caught two React mistakes:** reading today's date during render (moved into `useState`), and adding up slice positions with a variable changed during render (moved into the pure `slicesOf`).
+
 ## KAN-60: a Gantt chart from what actually happened
 
 - **Plan and reality side by side:** the chart shows each sprint as planned in Jira and as it ran. Sprints 1 and 2 closed 3 and 5 days early; Sprint 3 ran its full 13 days.

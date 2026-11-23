@@ -1,8 +1,8 @@
 import { formatCents } from '../bills/money';
 import { CATEGORIES, type MonthSummary } from '../expenses/types';
 
-// Where the month's money went: one bar per category, biggest first, with $ and %.
-// Bars are plain ink on glass: colour on this page is kept for meaning (ui-design.md).
+// Where the money went: one bar per category, biggest first, with $ and %.
+// One series, so one colour: chart-3 from the chart ramp (ui-design.md, Charts).
 export function CategoryBars({ summary }: { summary: MonthSummary }) {
   return (
     <ul aria-label="Spending by category" className="flex flex-col gap-3">
@@ -21,12 +21,12 @@ export function CategoryBars({ summary }: { summary: MonthSummary }) {
                 <span className="font-semibold">
                   {formatCents(line.totalCents)}
                 </span>{' '}
-                <span className="opacity-75">{percent}%</span>
+                <span className="text-muted">{percent}%</span>
               </span>
             </span>
             <span aria-hidden="true" className="h-2 rounded-full bg-surface">
               <span
-                className="block h-2 rounded-full bg-ink"
+                className="block h-2 rounded-full bg-chart-3"
                 style={{ width: `${Math.max(percent, 1)}%` }}
               />
             </span>

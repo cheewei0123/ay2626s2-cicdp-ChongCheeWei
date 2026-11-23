@@ -28,6 +28,7 @@ const SPENT_AT = {
     'spentAt must be a date like 2026-11-05 or 2026-11-05T19:30:00+08:00',
 };
 const MONTH = { message: 'month must look like 2026-11' };
+const DAY = { message: 'from and to must be real dates like 2026-11-05' };
 
 // POST /api/expenses
 export class CreateExpenseDto {
@@ -89,11 +90,24 @@ export class UpdateExpenseDto {
   note?: string;
 }
 
-// ?month=2026-11 (leave it out for the current month in Singapore)
-export class MonthQueryDto {
+// ?month=2026-11 (leave it out for the current month in Singapore),
+// or a free range ?from=2026-11-03&to=2026-11-09 (both days included, KAN-94).
+// The service checks the two go together, to isn't before from, and it's at most 366 days.
+export class PeriodQueryDto {
   @IsOptional()
   @Matches(/^\d{4}-(0[1-9]|1[0-2])$/, MONTH)
   month?: string;
+
+  // Matches keeps it to a bare date; IsDateString strict refuses 2026-02-30
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, DAY)
+  @IsDateString({ strict: true }, DAY)
+  from?: string;
+
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, DAY)
+  @IsDateString({ strict: true }, DAY)
+  to?: string;
 }
 
 // GET /api/expenses/category?merchant=Starbucks
@@ -104,8 +118,8 @@ export class CategoryQueryDto {
   merchant!: string;
 }
 
-// GET /api/expenses?month=2026-11&page=1&pageSize=50
-export class ListExpensesQueryDto extends MonthQueryDto {
+// GET /api/expenses?month=2026-11&page=1&pageSize=50 (or from/to instead of month)
+export class ListExpensesQueryDto extends PeriodQueryDto {
   // Query values arrive as text; @Type turns "2" into 2 before the checks run
   @IsOptional()
   @Type(() => Number)

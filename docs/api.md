@@ -216,15 +216,15 @@ Built in KAN-47 and KAN-48:
 
 ## Expenses
 
-| Method | Path                                         | Who        | Request body                                                    | Response                                                                   | Errors                            |
-| ------ | -------------------------------------------- | ---------- | --------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------- |
-| GET    | `/expenses?month=YYYY-MM&page=1&pageSize=50` | `verified` | none                                                            | `200 { month, page, pageSize, totalCount, items: expense[] }`              | 400, 401, 403                     |
-| POST   | `/expenses`                                  | `verified` | `{ amountCents, category, spentAt, merchant?, note?, source? }` | `201 expense` (source `MANUAL`, or `RECEIPT` for a saved scan)             | 400, 401, 403                     |
-| PATCH  | `/expenses/:id`                              | `verified` | `{ amountCents?, category?, merchant?, note?, spentAt? }`       | `200 expense`                                                              | 400, 401, 403, 404, 409           |
-| DELETE | `/expenses/:id`                              | `verified` | none                                                            | `204`                                                                      | 401, 403, 404, 409                |
-| POST   | `/expenses/receipt`                          | `verified` | `multipart` receipt photo (field `image`)                       | `201` draft `{ amountCents, amount, merchant, category, spentAt, source }` | 400, 401, 403, 413, 422, 429, 503 |
-| GET    | `/expenses/summary?month=YYYY-MM`            | `verified` | none                                                            | `200 { month, totalCents, total, byCategory[] }`                           | 400, 401, 403                     |
-| GET    | `/expenses/category?merchant=Starbucks`      | `verified` | none                                                            | `200 { category, from }`                                                   | 400, 401, 403                     |
+| Method | Path                                                          | Who        | Request body                                                    | Response                                                                   | Errors                            |
+| ------ | ------------------------------------------------------------- | ---------- | --------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------- |
+| GET    | `/expenses?month=YYYY-MM&page=1&pageSize=50` (or `from=&to=`) | `verified` | none                                                            | `200 { month \| from, to, page, pageSize, totalCount, items: expense[] }`  | 400, 401, 403                     |
+| POST   | `/expenses`                                                   | `verified` | `{ amountCents, category, spentAt, merchant?, note?, source? }` | `201 expense` (source `MANUAL`, or `RECEIPT` for a saved scan)             | 400, 401, 403                     |
+| PATCH  | `/expenses/:id`                                               | `verified` | `{ amountCents?, category?, merchant?, note?, spentAt? }`       | `200 expense`                                                              | 400, 401, 403, 404, 409           |
+| DELETE | `/expenses/:id`                                               | `verified` | none                                                            | `204`                                                                      | 401, 403, 404, 409                |
+| POST   | `/expenses/receipt`                                           | `verified` | `multipart` receipt photo (field `image`)                       | `201` draft `{ amountCents, amount, merchant, category, spentAt, source }` | 400, 401, 403, 413, 422, 429, 503 |
+| GET    | `/expenses/summary?month=YYYY-MM` (or `from=&to=`)            | `verified` | none                                                            | `200 { month \| from, to, totalCents, total, byCategory[], byDay[] }`      | 400, 401, 403                     |
+| GET    | `/expenses/category?merchant=Starbucks`                       | `verified` | none                                                            | `200 { category, from }`                                                   | 400, 401, 403                     |
 
 - `category` is one of: `FOOD_DRINKS`, `GROCERIES`, `TRANSPORT`, `SHOPPING`, `GIFTS`, `ENTERTAINMENT`, `BILLS_UTILITIES`, `HEALTH`, `TRAVEL`, `OTHERS`.
 - A `BILL_SHARE` expense comes from a locked bill. It cannot be deleted here (`409`); it changes with the bill. Its category can still be changed.
@@ -235,6 +235,8 @@ Built in KAN-47 and KAN-48:
   - **Months are Singapore time** (UTC+8): an expense at 11pm on 30 Nov is in November. `month` defaults to the current month in Singapore.
   - `expense` is `{ id, amountCents, amount, category, merchant, note, spentAt, source, billId, createdAt }`. Newest first; `pageSize` is 1 to 100 (default 50).
   - `byCategory[]` is `{ category, totalCents, total, count }`, biggest first. The category totals always add up to `totalCents`.
+  - **Any run of days (KAN-94):** instead of `month`, send `from` and `to` (`YYYY-MM-DD`, Singapore days, both included), e.g. `from=2026-11-03&to=2026-11-09`. They must come together and without `month`, `to` can't be before `from`, and a range is at most 366 days; otherwise `400`. The answer echoes `{ from, to }` instead of `{ month }`.
+  - `byDay[]` is `{ day, totalCents }` for each Singapore day that has spending, oldest first, for the chart. It also adds up to `totalCents`.
   - `amountCents` is 1 to 100000000 (whole cents). `source` can be `MANUAL` or `RECEIPT`; only a locked bill makes a `BILL_SHARE`.
   - A `BILL_SHARE`'s amount, merchant and date come from the bill, so changing them is `409`; `category` and `note` can change.
   - `POST /expenses/receipt` is a draft, nothing is saved: `amountCents` is the printed total (or the items added up), `category` is the guess above and `categoryFrom` says where it came from, and `spentAt` is `null` if no date was read. No total at all → `422`. Same limits as the bill receipt route (5 a minute, 5 MB, JPEG or PNG).

@@ -60,6 +60,10 @@ const november = {
       { category: 'TRANSPORT', totalCents: 1600, count: 1 },
       { category: 'FOOD_DRINKS', totalCents: 1400, count: 2 },
     ],
+    byDay: [
+      { day: '2026-11-20', totalCents: 1600 },
+      { day: '2026-11-21', totalCents: 1400 },
+    ],
   }),
 };
 const emptyMonth = (month: string) => ({
@@ -72,6 +76,7 @@ const emptyMonth = (month: string) => ({
     month,
     totalCents: 0,
     byCategory: [],
+    byDay: [],
   }),
 });
 const sent = (calls: unknown[][], method: string, url: string) =>
@@ -92,7 +97,7 @@ describe('Expenses: this month', () => {
     renderApp('/expenses?month=2026-11');
 
     expect(screen.getByText('Loading…')).toBeInTheDocument();
-    const hero = await screen.findByRole('region', { name: 'Month total' });
+    const hero = await screen.findByRole('region', { name: 'Total' });
     expect(hero).toHaveTextContent('$30.00');
     expect(screen.getByRole('heading', { name: 'Nov 2026' })).toBeVisible();
 

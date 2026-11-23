@@ -25,7 +25,7 @@ import {
   CategoryQueryDto,
   CreateExpenseDto,
   ListExpensesQueryDto,
-  MonthQueryDto,
+  PeriodQueryDto,
   UpdateExpenseDto,
 } from './dto/expense.dto.js';
 import { ExpensesService } from './expenses.service.js';
@@ -45,10 +45,10 @@ export class ExpensesController {
     return this.expenses.list(user.id, query);
   }
 
-  // GET /api/expenses/summary?month=2026-11 → total and per-category totals
+  // GET /api/expenses/summary?month=2026-11 (or ?from=&to=) → total, per category, per day
   @Get('summary')
-  summary(@CurrentUser() user: AuthUser, @Query() query: MonthQueryDto) {
-    return this.expenses.summary(user.id, query.month);
+  summary(@CurrentUser() user: AuthUser, @Query() query: PeriodQueryDto) {
+    return this.expenses.summary(user.id, query);
   }
 
   // GET /api/expenses/category?merchant=Starbucks → { category, from }: the guess the

@@ -194,7 +194,50 @@ describe('Expenses (e2e, real database)', () => {
           count: 2,
         },
       ],
+      byDay: [
+        { day: '2026-11-03', totalCents: 720 },
+        { day: '2026-11-10', totalCents: 3770 },
+        { day: '2026-11-30', totalCents: 1250 }, // 11pm in Singapore is still 30 Nov
+      ],
     });
+  });
+
+  it('lists and adds up a free range of days (KAN-94)', async () => {
+    const list = await api()
+      .get('/api/expenses?from=2026-11-03&to=2026-11-10')
+      .set('Authorization', alice)
+      .expect(200);
+    const summary = await api()
+      .get('/api/expenses/summary?from=2026-11-03&to=2026-11-10')
+      .set('Authorization', alice)
+      .expect(200);
+
+    expect(list.body).toMatchObject({ from: '2026-11-03', to: '2026-11-10' });
+    expect(
+      list.body.items.map((e: { amountCents: number }) => e.amountCents),
+    ).toEqual([3770, 720]);
+    expect(summary.body).toMatchObject({
+      from: '2026-11-03',
+      to: '2026-11-10',
+      totalCents: 4490,
+    });
+  });
+
+  it.each([
+    'from=2026-11-05',
+    'from=2026-11-09&to=2026-11-03',
+    'from=2026-02-30&to=2026-03-01',
+    'from=2025-01-01&to=2026-11-03',
+    'month=2026-11&from=2026-11-01&to=2026-11-02',
+  ])('rejects the range %s (400)', async (range) => {
+    await api()
+      .get(`/api/expenses?${range}`)
+      .set('Authorization', alice)
+      .expect(400);
+    await api()
+      .get(`/api/expenses/summary?${range}`)
+      .set('Authorization', alice)
+      .expect(400);
   });
 
   it.each([
