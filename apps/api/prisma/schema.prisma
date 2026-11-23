@@ -243,12 +243,15 @@ model AiScanCount {
 // A number waiting for its SMS code (KAN-91). One per user: asking again replaces it.
 // The verified number only moves into User.paynowMobile once the code is right,
 // so the old number keeps working until then.
+// A number waiting to be checked, either by an SMS code or through Telegram (KAN-91)
 model PhoneVerification {
-  userId    String   @id
-  phone     String // +65 and 8 digits
-  codeHash  String // SHA-256 of the 6-digit code; the code itself is never stored
-  attempts  Int      @default(0) // wrong codes so far; 5 and the code is used up
-  expiresAt DateTime
-  createdAt DateTime @default(now()) // also when the last SMS went out, for the 60 s wait
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String   @id
+  phone          String // +65 and 8 digits
+  codeHash       String? // SMS: SHA-256 of the 6-digit code; the code itself is never stored
+  attempts       Int      @default(0) // wrong codes so far; 5 and the code is used up
+  linkHash       String?  @unique // Telegram: SHA-256 of the token in the t.me link
+  telegramUserId String?  @unique // Telegram: the account that opened the link
+  expiresAt      DateTime
+  createdAt      DateTime @default(now()) // also when the last SMS went out, for the 60 s wait
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

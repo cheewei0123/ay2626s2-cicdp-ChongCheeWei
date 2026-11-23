@@ -288,6 +288,139 @@ describe('Profile: checking the PayNow number by SMS (KAN-91)', () => {
   });
 });
 
+describe('Profile: checking the PayNow number with Telegram (KAN-91)', () => {
+  const both = ok({ telegram: true, sms: true });
+
+  it('opens the bot with a one-time link, then shows Checked ✓ by itself', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const url = 'https://t.me/SplitLahBot?start=abc';
+    const replies = {
+      'GET /api/me': ok(chee),
+      'GET /api/me/phone/methods': both,
+      'POST /api/me/phone/telegram': ok({ phone: '+6591234567', url }),
+    };
+    const fetchMock = fakeApi(replies);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderApp('/profile');
+
+    const section = await screen.findByRole('region', {
+      name: 'PayNow number',
+    });
+    await user.type(
+      within(section).getByLabelText('Mobile number'),
+      '91234567',
+    );
+    await user.click(
+      await within(section).findByRole('button', {
+        name: 'Check with Telegram',
+      }),
+    );
+    const open = await within(section).findByRole('link', {
+      name: 'Open Telegram',
+    });
+    expect(open).toHaveAttribute('href', url);
+    expect(open).toHaveAttribute('target', '_blank');
+    expect(
+      sent(fetchMock.mock.calls, 'POST', '/api/me/phone/telegram'),
+    ).toEqual({ phone: '+6591234567' });
+    expect(within(section).getByRole('status')).toHaveTextContent(
+      'Waiting for Telegram',
+    );
+
+    // The bot checks the number; the next poll sees it
+    replies['GET /api/me'] = ok(checked);
+    await act(() => vi.advanceTimersByTime(3000));
+    expect(await within(section).findByText('Checked ✓')).toBeVisible();
+  });
+
+  it('keeps SMS as the other way, and Cancel leaves the waiting step', async () => {
+    const fetchMock = fakeApi({
+      'GET /api/me': ok(unchecked),
+      'GET /api/me/phone/methods': both,
+      'POST /api/me/phone/telegram': ok({ phone: '+6591234567', url: 'x' }),
+      'POST /api/me/phone': ok({ phone: '+6598765432', expiresAt: 'x' }),
+    });
+    const user = userEvent.setup();
+    renderApp('/profile');
+
+    const section = await screen.findByRole('region', {
+      name: 'PayNow number',
+    });
+    await user.click(
+      await within(section).findByRole('button', {
+        name: 'Check with Telegram',
+      }),
+    );
+    await user.click(
+      await within(section).findByRole('button', { name: 'Cancel' }),
+    );
+    expect(within(section).getByText('Not checked')).toBeVisible();
+
+    await user.click(
+      within(section).getByRole('button', { name: 'Change number' }),
+    );
+    // A typo is still caught before anything is sent
+    await user.click(
+      within(section).getByRole('button', {
+        name: 'No Telegram? Text me a code',
+      }),
+    );
+    expect(
+      within(section).getByText('8 digits, starting with 8 or 9'),
+    ).toBeInTheDocument();
+    await user.type(
+      within(section).getByLabelText('Mobile number'),
+      '98765432',
+    );
+    await user.click(
+      within(section).getByRole('button', {
+        name: 'No Telegram? Text me a code',
+      }),
+    );
+    expect(
+      await within(section).findByText(/We texted a code to \+65 9876 5432/),
+    ).toBeInTheDocument();
+    expect(sent(fetchMock.mock.calls, 'POST', '/api/me/phone')).toEqual({
+      phone: '+6598765432',
+    });
+  });
+
+  it('hides SMS on a server that cannot text, and says so when nothing works', async () => {
+    fakeApi({
+      'GET /api/me': ok(unchecked),
+      'GET /api/me/phone/methods': ok({ telegram: true, sms: false }),
+    });
+    renderApp('/profile');
+    const section = await screen.findByRole('region', {
+      name: 'PayNow number',
+    });
+    expect(
+      await within(section).findByRole('button', {
+        name: 'Check with Telegram',
+      }),
+    ).toBeVisible();
+    expect(
+      within(section).queryByRole('button', { name: 'Text me a code' }),
+    ).toBeNull();
+  });
+
+  it('says so when neither way is set up', async () => {
+    fakeApi({
+      'GET /api/me': ok(chee),
+      'GET /api/me/phone/methods': ok({ telegram: false, sms: false }),
+    });
+    renderApp('/profile');
+    expect(
+      await screen.findByText(
+        "Checking numbers isn't set up on this server yet.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: 'Text me a code' }),
+    ).toBeDisabled();
+  });
+});
+
 describe('validateProfile', () => {
   it('needs a name of 1 to 50 characters', () => {
     expect(validateProfile({ displayName: 'Chee' })).toEqual({});

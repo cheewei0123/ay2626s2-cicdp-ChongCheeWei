@@ -205,4 +205,33 @@ describe('PhoneVerificationService (KAN-91)', () => {
       where: { userId: 'u1' },
     });
   });
+  describe('alongside a Telegram check', () => {
+    it('a waiting Telegram link is no reason to wait, and the SMS cancels it', async () => {
+      prisma.phoneVerification.findUnique.mockResolvedValue(
+        pending({ codeHash: null, createdAt: NOW }),
+      );
+      await service().sendCode('u1', '+6598765432');
+      expect(
+        prisma.phoneVerification.upsert.mock.calls[0][0].update,
+      ).toMatchObject({ linkHash: null, telegramUserId: null });
+    });
+
+    it('a code is refused while only a Telegram link is waiting', async () => {
+      prisma.phoneVerification.findUnique.mockResolvedValue(
+        pending({ codeHash: null }),
+      );
+      await expect(service().verify('u1', '123456')).rejects.toThrow(
+        'This code has expired. Ask for a new one.',
+      );
+    });
+  });
+
+  it('only offers SMS on the live site when texts really go out', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    expect(service().smsReady).toBe(false);
+    expect(service({ provider: 'sns', send: vi.fn() }).smsReady).toBe(true);
+    vi.stubEnv('NODE_ENV', 'test');
+    expect(service().smsReady).toBe(true);
+    vi.unstubAllEnvs();
+  });
 });

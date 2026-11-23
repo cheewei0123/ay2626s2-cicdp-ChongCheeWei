@@ -32,6 +32,14 @@ export class PhoneVerificationService {
     @Inject(SMS_SERVICE) private readonly sms: SmsService,
   ) {}
 
+  // Real texts go out (SNS), or this is not the live site. On the live site with the
+  // fake sender, a code would only reach the server log, so the app hides this way.
+  get smsReady() {
+    return (
+      this.sms.provider !== 'fake' || process.env.NODE_ENV !== 'production'
+    );
+  }
+
   async sendCode(userId: string, phone: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -43,7 +51,8 @@ export class PhoneVerificationService {
     const pending = await this.prisma.phoneVerification.findUnique({
       where: { userId },
     });
-    const wait = pending
+    // Only an SMS counts here: a Telegram link costs nothing to send
+    const wait = pending?.codeHash
       ? pending.createdAt.getTime() + RESEND_MS - Date.now()
       : 0;
     if (wait > 0)
@@ -58,6 +67,8 @@ export class PhoneVerificationService {
       phone,
       codeHash: hashOf(userId, code).toString('hex'),
       attempts: 0,
+      linkHash: null, // a waiting Telegram link stops working
+      telegramUserId: null,
       expiresAt,
       createdAt: new Date(),
     };
@@ -89,7 +100,7 @@ export class PhoneVerificationService {
       where: { userId },
     });
     if (
-      !pending ||
+      !pending?.codeHash ||
       pending.expiresAt <= new Date() ||
       pending.attempts >= MAX_TRIES
     )

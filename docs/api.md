@@ -77,14 +77,16 @@ Every endpoint can also return `500` for unexpected errors (same format).
 
 ## Profile
 
-| Method | Path               | Who   | Request body                       | Response                    | Errors                  |
-| ------ | ------------------ | ----- | ---------------------------------- | --------------------------- | ----------------------- |
-| GET    | `/me`              | `JWT` | none                               | `200 user`                  | 401                     |
-| PATCH  | `/me`              | `JWT` | `{ displayName? }`                 | `200 user`                  | 400, 401, 404           |
-| POST   | `/me/password`     | `JWT` | `{ currentPassword, newPassword }` | `200 { user, accessToken }` | 400, 401, 429           |
-| POST   | `/me/phone`        | `JWT` | `{ phone }`                        | `200 { phone, expiresAt }`  | 400, 401, 409, 429, 503 |
-| POST   | `/me/phone/verify` | `JWT` | `{ code }`                         | `200 user`                  | 400, 401, 429           |
-| DELETE | `/me/phone`        | `JWT` | none                               | `200 user`                  | 401                     |
+| Method | Path                 | Who   | Request body                       | Response                        | Errors                  |
+| ------ | -------------------- | ----- | ---------------------------------- | ------------------------------- | ----------------------- |
+| GET    | `/me`                | `JWT` | none                               | `200 user`                      | 401                     |
+| PATCH  | `/me`                | `JWT` | `{ displayName? }`                 | `200 user`                      | 400, 401, 404           |
+| POST   | `/me/password`       | `JWT` | `{ currentPassword, newPassword }` | `200 { user, accessToken }`     | 400, 401, 429           |
+| GET    | `/me/phone/methods`  | `JWT` | none                               | `200 { telegram, sms }`         | 401                     |
+| POST   | `/me/phone/telegram` | `JWT` | `{ phone }`                        | `200 { phone, expiresAt, url }` | 400, 401, 409, 429, 503 |
+| POST   | `/me/phone`          | `JWT` | `{ phone }`                        | `200 { phone, expiresAt }`      | 400, 401, 409, 429, 503 |
+| POST   | `/me/phone/verify`   | `JWT` | `{ code }`                         | `200 user`                      | 400, 401, 429           |
+| DELETE | `/me/phone`          | `JWT` | none                               | `200 user`                      | 401                     |
 
 `paynowMobile` must be a Singapore mobile number (`+65` and 8 digits starting with 8 or 9).
 
@@ -95,6 +97,8 @@ Built in KAN-81 (slimmed):
   - `POST /me/phone` texts a 6-digit code to `phone`. Only the code's SHA-256 hash is stored (salted with the user id); it lasts 10 minutes and is used up after 5 wrong tries. Asking again replaces the code. Limits, because each SMS costs money: 3 calls per 10 minutes per IP, and one SMS a minute per account (`429 Wait N seconds…`). `409` if that number is already the checked one; `503` if the SMS could not be sent (the code is then forgotten, so they can try again at once).
   - `POST /me/phone/verify` with the right code moves the number into `paynowMobile` and sets `phoneVerifiedAt`. Until then the old number (if any) stays as it was. A wrong code says how many tries are left (10 calls a minute).
   - `DELETE /me/phone` removes the number and any code waiting for one.
+  - **Or through Telegram, for free.** `POST /me/phone/telegram` gives a one-time `url` (`https://t.me/<bot>?start=<token>`, 10 minutes; only the token's SHA-256 is stored; 5 calls per 10 minutes per IP). In Telegram the user presses Start and then _Share my phone number_; the bot checks the shared contact is their own (`contact.user_id` = sender) and is the same number, then sets `paynowMobile` and `phoneVerifiedAt` like a right SMS code. A leaked link is no use to anyone else: their Telegram number would not match. Starting one way cancels a waiting check of the other way. `503` if the bot is not set up.
+  - `GET /me/phone/methods` says which ways work on this server: `telegram` when the bot is set up, `sms` when texts really go out (`SMS_PROVIDER=sns`) or the server is not the live one. The Profile screen only offers those.
   - The guest view of a bill only shows the owner's number, and only builds PayNow QRs, when `phoneVerifiedAt` is set, so a typo can't send a friend's money to a stranger.
   - `SMS_PROVIDER=fake` (tests, CI, local) logs the code; `sns` sends it through Amazon SNS with the EC2 instance's IAM role (no key stored), see [infra.md](infra.md).
 - The response is the same safe user as `GET /me`, never the password hash. `404` if the account behind the token no longer exists.
@@ -260,20 +264,20 @@ The deploy pipeline calls this after each release; anything other than `200` tri
 
 ## MVP features → endpoints
 
-| Feature                            | Endpoints                                                                                       |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Sign up, log in, verify email      | `/auth/*`                                                                                       |
-| Set and check the PayNow number    | `POST /me/phone`, `POST /me/phone/verify`, `DELETE /me/phone` (QR upload was cut)               |
-| Create a bill                      | `POST /bills`                                                                                   |
-| Scan or paste a receipt, then edit | `POST /bills/:id/receipt`, `POST /bills/:id/receipt-text`, `POST/PATCH/DELETE /bills/:id/items` |
-| Service charge and GST             | `PATCH /bills/:id` (`serviceBp`, `gstBp`)                                                       |
-| Share link / QR / join code        | `shareToken` and `joinCode` from `POST /bills`, `GET /join/:code`, `GET /share/:token`          |
-| Friends join without sign-up       | `POST /share/:token/participants`                                                               |
-| Tap items, adjust split            | `POST/PATCH/DELETE /share/:token/claims`                                                        |
-| See what each person owes          | `GET /bills/:id/summary`, `GET /share/:token/summary`                                           |
-| Pay back by PayNow                 | `paynow` in `GET /share/:token/summary`                                                         |
-| Lock bill, track payments          | `POST /bills/:id/lock`, `PATCH /bills/:id/payments/:participantId`                              |
-| Share auto-logged to my expenses   | `POST /bills/:id/lock` creates `BILL_SHARE` expenses                                            |
-| Monthly expenses and chart         | `GET /expenses`, `GET /expenses/summary`                                                        |
-| Add expense manually or by scan    | `POST /expenses`, `POST /expenses/receipt`                                                      |
-| Deploy health check                | `GET /health`                                                                                   |
+| Feature                            | Endpoints                                                                                                    |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Sign up, log in, verify email      | `/auth/*`                                                                                                    |
+| Set and check the PayNow number    | `POST /me/phone/telegram`, `POST /me/phone`, `POST /me/phone/verify`, `DELETE /me/phone` (QR upload was cut) |
+| Create a bill                      | `POST /bills`                                                                                                |
+| Scan or paste a receipt, then edit | `POST /bills/:id/receipt`, `POST /bills/:id/receipt-text`, `POST/PATCH/DELETE /bills/:id/items`              |
+| Service charge and GST             | `PATCH /bills/:id` (`serviceBp`, `gstBp`)                                                                    |
+| Share link / QR / join code        | `shareToken` and `joinCode` from `POST /bills`, `GET /join/:code`, `GET /share/:token`                       |
+| Friends join without sign-up       | `POST /share/:token/participants`                                                                            |
+| Tap items, adjust split            | `POST/PATCH/DELETE /share/:token/claims`                                                                     |
+| See what each person owes          | `GET /bills/:id/summary`, `GET /share/:token/summary`                                                        |
+| Pay back by PayNow                 | `paynow` in `GET /share/:token/summary`                                                                      |
+| Lock bill, track payments          | `POST /bills/:id/lock`, `PATCH /bills/:id/payments/:participantId`                                           |
+| Share auto-logged to my expenses   | `POST /bills/:id/lock` creates `BILL_SHARE` expenses                                                         |
+| Monthly expenses and chart         | `GET /expenses`, `GET /expenses/summary`                                                                     |
+| Add expense manually or by scan    | `POST /expenses`, `POST /expenses/receipt`                                                                   |
+| Deploy health check                | `GET /health`                                                                                                |
