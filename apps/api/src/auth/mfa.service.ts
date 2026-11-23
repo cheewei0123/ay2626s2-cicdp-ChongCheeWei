@@ -139,11 +139,11 @@ export class MfaService {
       throw new UnauthorizedException('That code is not right');
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { ...SAFE_USER, sessionVersion: true },
+      select: { ...SAFE_USER, sessionVersion: true, deletedAt: true },
     });
-    if (!user)
+    if (!user || user.deletedAt)
       throw new UnauthorizedException('This login took too long. Start again.');
-    const { sessionVersion, ...safe } = user;
+    const { sessionVersion, deletedAt: _gone, ...safe } = user;
     return this.auth.withToken(safe, sessionVersion);
   }
 
@@ -151,7 +151,7 @@ export class MfaService {
   // again in the same or an older 30-second step; a backup code works once.
   // Both are claimed with a conditional update, so two requests at the same time
   // can't both use one code.
-  private async useCode(userId: string, code: string): Promise<boolean> {
+  async useCode(userId: string, code: string): Promise<boolean> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { mfaSecret: true, mfaEnabledAt: true, mfaLastStep: true },

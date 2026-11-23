@@ -1,4 +1,10 @@
-import { IsJWT, IsNotEmpty, IsString, Matches } from 'class-validator';
+import {
+  IsJWT,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+} from 'class-validator';
 
 // A 6-digit code from the app, or a backup code like "abcd-efgh" (KAN-92)
 const CODE = /^(\d{6}|[a-z0-9]{4}[\s-]?[a-z0-9]{4})$/i;
@@ -22,6 +28,13 @@ export class MfaEnableDto {
 export class MfaDisableDto extends MfaPasswordDto {
   @Matches(CODE, { message: CODE_MESSAGE })
   code!: string;
+}
+
+// DELETE /api/me (KAN-93): the code is needed only when two-step login is on
+export class DeleteAccountDto extends MfaPasswordDto {
+  @IsOptional()
+  @Matches(CODE, { message: CODE_MESSAGE })
+  code?: string;
 }
 
 // POST /api/auth/mfa: the second step of logging in

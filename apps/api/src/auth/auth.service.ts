@@ -77,14 +77,20 @@ export class AuthService {
   async login(dto: LoginDto) {
     const found = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      select: { ...SAFE_USER, passwordHash: true, sessionVersion: true },
+      select: {
+        ...SAFE_USER,
+        passwordHash: true,
+        sessionVersion: true,
+        deletedAt: true,
+      },
     });
     const ok = await verifyPassword(
       dto.password,
       found?.passwordHash ?? NO_USER_HASH,
     );
-    // Same message for both cases, so nobody can find out which emails have accounts
-    if (!found || !ok) {
+    // Same message for every case, so nobody can find out which emails have accounts.
+    // A deleted account (KAN-93) can't log in, even with the right password.
+    if (!found || !ok || found.deletedAt) {
       throw new UnauthorizedException('Invalid email or password');
     }
     // Two-step login on (KAN-92): the password alone is not a login. A half-way
@@ -96,7 +102,12 @@ export class AuthService {
         mfaToken: await this.jwt.signAsync(payload, { expiresIn: '5m' }),
       };
     }
-    const { passwordHash: _hash, sessionVersion, ...user } = found;
+    const {
+      passwordHash: _hash,
+      sessionVersion,
+      deletedAt: _gone,
+      ...user
+    } = found;
     return this.withToken(user, sessionVersion);
   }
 

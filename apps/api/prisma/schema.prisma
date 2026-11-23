@@ -63,6 +63,9 @@ model User {
   mfaEnabledAt      DateTime?
   // The last 30-second step a code was accepted for, so a seen code can't be used twice
   mfaLastStep       Int?
+  // Set when the user deletes their account (KAN-93): they can't log in, the email stays
+  // taken, and a daily job wipes the account and everything it owns 6 months later
+  deletedAt         DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -76,6 +79,8 @@ model User {
   phoneVerification   PhoneVerification?
   sessions            Session[]
   mfaBackupCodes      MfaBackupCode[]
+
+  @@index([deletedAt])
 }
 
 // One-time codes for when the phone with the authenticator app is lost (KAN-92).
@@ -142,7 +147,7 @@ model Bill {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
-  owner         User           @relation(fields: [ownerId], references: [id])
+  owner         User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   items         Item[]
   participants  Participant[]
   payments      Payment[]
@@ -240,7 +245,7 @@ model Expense {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  user          User           @relation(fields: [userId], references: [id])
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   bill          Bill?          @relation(fields: [billId], references: [id], onDelete: Cascade)
   receiptImages ReceiptImage[]
 
@@ -256,7 +261,7 @@ model MerchantCategory {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, merchantKey])
 }

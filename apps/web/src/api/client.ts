@@ -9,7 +9,7 @@ export class ApiError extends Error {
   }
 }
 
-// The login token (a JWT that lasts 1 hour) is kept in localStorage, so a refresh keeps you logged in
+// The login token (a JWT that lasts 14 days, KAN-97) is kept in localStorage, so a refresh keeps you logged in
 const TOKEN_KEY = 'splitlah.token';
 export const tokenStore = {
   get: () => localStorage.getItem(TOKEN_KEY),

@@ -2,6 +2,15 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-93: deleting an account, and keeping it for 6 months first
+
+- **Two parts:** pressing delete marks the account (`deletedAt`) and closes every way in at once; the data stays for 6 months, then a daily job wipes it. The hold keeps the records for a while in case they are needed, for example a question about who paid what.
+- **"Closed" had more doors than login.** I listed them: login, a token already issued, a token mid-way through two-step login, forgot-password, a reset link already sent, share links and join codes to the user's bills. Each one is checked, and the e2e test tries every one after deleting.
+- **The schema did the wiping.** Bills, expenses and saved categories did not cascade from the user, so deleting a user would have failed. Adding `onDelete: Cascade` makes the purge one `deleteMany`.
+- **The cascade nearly took other people's data.** A friend's share of my bill is an expense linked to the bill, and expenses cascade with their bill. So the friend's spending would have vanished when my account was wiped. The purge first unlinks those expenses (the app already shows an expense without a bill), and the e2e test checks the friend's row survives.
+- **No scheduler library:** the job is a `setInterval` of one day, plus one run at start-up (every deploy restarts the API). `unref()` keeps it from holding the process open, and the cut-off is calendar months (`setMonth(-6)`), not 180 days.
+- **A race the tests caught:** the first version sent the user to the login page with a "deleted" message, but the app's own "you're logged out" redirect got there first and the message was lost. The message now lives in the auth context, so whichever redirect wins, the login page shows it.
+
 ## KAN-92: two-step login with an authenticator app
 
 - **What it is:** after the password, the app asks for the 6-digit code from Google Authenticator (or any TOTP app). A stolen password alone no longer opens the account. It is only asked when logging in, as wanted, so with the 14-day sessions (KAN-97) it is asked about once a fortnight per device.

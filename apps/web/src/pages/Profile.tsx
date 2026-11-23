@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/context';
 import { validateProfile, type FieldErrors } from '../auth/validation';
+import { DeleteAccount } from '../components/DeleteAccount';
 import { Field } from '../components/Field';
 import { FormError } from '../components/FormError';
 import { PhoneCheck } from '../components/PhoneCheck';
@@ -70,6 +71,7 @@ export default function Profile() {
       <button type="button" onClick={logout} className={plainButton}>
         Log out
       </button>
+      <DeleteAccount />
     </Page>
   );
 }

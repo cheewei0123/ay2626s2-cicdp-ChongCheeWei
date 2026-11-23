@@ -7,6 +7,7 @@ import type { PhoneVerificationService } from './phone-verification.service.js';
 import type { VerificationService } from './verification.service.js';
 import type { TelegramService } from '../telegram/telegram.service.js';
 import type { MfaService } from './mfa.service.js';
+import type { AccountDeletionService } from './account-deletion.service.js';
 
 // A fake AuthService: the controllers should only pass work on to it
 const auth = {
@@ -40,6 +41,7 @@ const mfaMock = {
   backupCodesLeft: vi.fn(),
 };
 const mfa = mfaMock as unknown as MfaService;
+const deletionMock = { delete: vi.fn() };
 const me = () =>
   new MeController(
     service,
@@ -47,6 +49,7 @@ const me = () =>
     phonesMock as unknown as PhoneVerificationService,
     telegramMock as unknown as TelegramService,
     mfa,
+    deletionMock as unknown as AccountDeletionService,
   );
 const user = { id: 'u1', email: 'chee@example.com', sessionId: 's1' };
 
@@ -189,6 +192,11 @@ describe('Two-step login routes (KAN-92)', () => {
     expect(mfaMock.setup).toHaveBeenCalledWith('u1', 'pw');
     expect(mfaMock.enable).toHaveBeenCalledWith('u1', '123456');
     expect(mfaMock.disable).toHaveBeenCalledWith('u1', 'pw', 'abcd-efgh');
+  });
+
+  it('DELETE /me passes the password and code on (KAN-93)', async () => {
+    await me().deleteAccount(user, { password: 'pw', code: '123456' });
+    expect(deletionMock.delete).toHaveBeenCalledWith('u1', 'pw', '123456');
   });
 
   it('GET /me/mfa says whether it is on and how many backup codes are left', async () => {

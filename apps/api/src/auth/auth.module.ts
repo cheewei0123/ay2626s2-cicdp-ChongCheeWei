@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { requireEnv } from '../common/env.js';
 import { EmailModule } from '../email/email.module.js';
+import { AccountDeletionService } from './account-deletion.service.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
@@ -35,6 +36,7 @@ import { PhoneVerificationService } from './phone-verification.service.js';
     PasswordResetService,
     PhoneVerificationService,
     MfaService,
+    AccountDeletionService, // deletes accounts, and wipes them 6 months later (KAN-93)
     JwtAuthGuard,
   ],
   exports: [JwtAuthGuard],

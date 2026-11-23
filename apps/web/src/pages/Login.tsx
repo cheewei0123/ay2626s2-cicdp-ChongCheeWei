@@ -8,7 +8,7 @@ import { FormError } from '../components/FormError';
 import { plainButton, primaryButton } from '../components/Page';
 
 export default function Login() {
-  const { user, login, loginWithCode } = useAuth();
+  const { user, login, loginWithCode, notice } = useAuth();
   const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -100,6 +100,12 @@ export default function Login() {
   return (
     <AuthLayout>
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+        {/* e.g. after deleting the account (KAN-93) */}
+        {notice && (
+          <p role="status" className="px-2 font-medium text-ok">
+            {notice}
+          </p>
+        )}
         <Field
           label="Email"
           name="email"
