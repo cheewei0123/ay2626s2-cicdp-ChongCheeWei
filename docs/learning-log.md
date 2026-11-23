@@ -2,6 +2,15 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-91: when SMS was not possible, Telegram did the same job for free
+
+- **The plan met the account:** the SNS console said the account "needs a subscription for the service". New AWS accounts on the free account plan can't send SMS at all; it needs the paid plan. WhatsApp's free test number only reaches 5 hand-added numbers, and Twilio's trial only texts numbers verified in its console, so neither works for real users.
+- **What actually needs proving** is that the person holds the number, not that a text arrived. Telegram already checked the number by SMS when the account was made, and its _Share my phone number_ button only ever sends the user's own contact. So: SplitLah gives a one-time `t.me` link, the user presses Start and shares, and the bot compares the shared number with the one typed in.
+- **A forwarded contact is not proof:** anyone can send someone else's contact card. The bot only accepts it when `contact.user_id` is the sender's own id, and a test sends a card with the right number from the wrong account to prove it is refused.
+- **A leaked link is harmless:** the link only says which check to continue; the number still has to match the Telegram account that shares it.
+- **Webhook safety:** Telegram returns a secret header on every call, compared in constant time; replies go back in the webhook's own answer, so no outgoing call is needed while checking. The API registers the webhook itself at start-up, but only for an https address, so a local run never contacts Telegram.
+- **Honest UI:** the live site still has the fake SMS sender, which only writes to the server log. `GET /me/phone/methods` tells the screen which ways really work, so it never offers "Text me a code" when no text would arrive.
+
 ## KAN-91: a PayNow number has to be proved, not typed
 
 - **Why it matters:** the guest's QR sends real money to the owner's number. Before this, a typo in Profile meant a friend's money went to a stranger's PayNow, and nothing ever checked it. Now the guest view only shows a number that was proved by an SMS code.

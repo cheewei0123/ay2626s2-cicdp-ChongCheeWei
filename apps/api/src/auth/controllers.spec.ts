@@ -5,6 +5,7 @@ import { MeController } from './me.controller.js';
 import type { PasswordResetService } from './password-reset.service.js';
 import type { PhoneVerificationService } from './phone-verification.service.js';
 import type { VerificationService } from './verification.service.js';
+import type { TelegramService } from '../telegram/telegram.service.js';
 
 // A fake AuthService: the controllers should only pass work on to it
 const auth = {
@@ -22,12 +23,19 @@ const passwordsMock = {
   change: vi.fn(),
 };
 const passwords = passwordsMock as unknown as PasswordResetService;
-const phonesMock = { sendCode: vi.fn(), verify: vi.fn(), remove: vi.fn() };
+const phonesMock = {
+  sendCode: vi.fn(),
+  verify: vi.fn(),
+  remove: vi.fn(),
+  smsReady: true,
+};
+const telegramMock = { startLink: vi.fn(), enabled: false };
 const me = () =>
   new MeController(
     service,
     passwords,
     phonesMock as unknown as PhoneVerificationService,
+    telegramMock as unknown as TelegramService,
   );
 const user = { id: 'u1', email: 'chee@example.com' };
 
@@ -135,5 +143,14 @@ describe('MeController: the PayNow number (KAN-91)', () => {
     expect(phonesMock.sendCode).toHaveBeenCalledWith('u1', '+6591234567');
     expect(phonesMock.verify).toHaveBeenCalledWith('u1', '123456');
     expect(phonesMock.remove).toHaveBeenCalledWith('u1');
+  });
+
+  it('says which ways of checking work, and passes the Telegram link on', async () => {
+    expect(me().phoneMethods()).toEqual({ telegram: false, sms: true });
+    telegramMock.startLink.mockResolvedValue('link');
+    expect(await me().startTelegram(user, { phone: '+6591234567' })).toBe(
+      'link',
+    );
+    expect(telegramMock.startLink).toHaveBeenCalledWith('u1', '+6591234567');
   });
 });

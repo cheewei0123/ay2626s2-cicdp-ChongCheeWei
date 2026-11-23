@@ -10,11 +10,14 @@ import { PasswordResetService } from './password-reset.service.js';
 import { VerificationService } from './verification.service.js';
 
 import { SmsModule } from '../sms/sms.module.js';
+import { TelegramModule } from '../telegram/telegram.module.js';
 import { PhoneVerificationService } from './phone-verification.service.js';
+
 @Module({
   imports: [
     EmailModule, // sends the verify-your-email link (KAN-77)
     SmsModule, // texts the code that checks a PayNow number (KAN-91)
+    TelegramModule, // or checks it for free through the Telegram bot
     // global: true lets JwtAuthGuard be used in any module, since it needs JwtService
     JwtModule.registerAsync({
       global: true,
