@@ -71,7 +71,7 @@ export class AuthService {
   async login(dto: LoginDto) {
     const found = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      select: { ...SAFE_USER, passwordHash: true },
+      select: { ...SAFE_USER, passwordHash: true, sessionVersion: true },
     });
     const ok = await verifyPassword(
       dto.password,
@@ -81,13 +81,16 @@ export class AuthService {
     if (!found || !ok) {
       throw new UnauthorizedException('Invalid email or password');
     }
-    return this.withToken({
-      id: found.id,
-      email: found.email,
-      displayName: found.displayName,
-      emailVerifiedAt: found.emailVerifiedAt,
-      paynowMobile: found.paynowMobile,
-    });
+    return this.withToken(
+      {
+        id: found.id,
+        email: found.email,
+        displayName: found.displayName,
+        emailVerifiedAt: found.emailVerifiedAt,
+        paynowMobile: found.paynowMobile,
+      },
+      found.sessionVersion,
+    );
   }
 
   findSafeUser(id: string) {
@@ -115,9 +118,14 @@ export class AuthService {
     }
   }
 
-  // The token proves who the user is for the next hour (expiry is set in AuthModule)
-  private async withToken(user: SafeUser) {
-    const payload: JwtPayload = { sub: user.id, email: user.email };
+  // The token proves who the user is for the next hour (expiry is set in AuthModule).
+  // `ver` ties it to the current password: see sessionVersion (KAN-90).
+  async withToken(user: SafeUser, sessionVersion = 0) {
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      ver: sessionVersion,
+    };
     return { user, accessToken: await this.jwt.signAsync(payload) };
   }
 }

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate, useLocation } from 'react-router';
+import { Link, Navigate, useLocation } from 'react-router';
 import { useAuth } from '../auth/context';
 import { validateLogin, type FieldErrors } from '../auth/validation';
 import { AuthLayout } from '../components/AuthLayout';
@@ -58,6 +58,12 @@ export default function Login() {
           onChange={(e) => setPassword(e.target.value)}
           error={errors.password}
         />
+        <Link
+          to="/forgot-password"
+          className="self-end px-2 text-sm font-medium text-muted"
+        >
+          Forgot password?
+        </Link>
         <FormError message={formError} />
         <button type="submit" disabled={busy} className={primaryButton}>
           {busy ? 'Logging in…' : 'Log in'}

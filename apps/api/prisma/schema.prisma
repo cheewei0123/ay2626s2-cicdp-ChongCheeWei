@@ -54,15 +54,30 @@ model User {
   paynowMobile      String?
   paynowQrPayload   String?
   paynowQrImagePath String?
+  // Goes up by one when the password changes; login tokens carry it, so older tokens stop working (KAN-90)
+  sessionVersion    Int       @default(0)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  verificationTokens EmailVerificationToken[]
-  bills              Bill[]
-  participants       Participant[]
-  expenses           Expense[]
-  merchantCategories MerchantCategory[]
-  aiScanCounts       AiScanCount[]
+  verificationTokens  EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  bills               Bill[]
+  participants        Participant[]
+  expenses            Expense[]
+  merchantCategories  MerchantCategory[]
+  aiScanCounts        AiScanCount[]
+}
+
+// A one-time "reset your password" link (KAN-90). Only the hash is stored, like email verification.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model EmailVerificationToken {

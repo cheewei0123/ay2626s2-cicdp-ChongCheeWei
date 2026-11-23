@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router';
 import { useAuth } from '../auth/context';
 import { validateProfile, type FieldErrors } from '../auth/validation';
 import { Field } from '../components/Field';
@@ -76,6 +77,9 @@ export default function Profile() {
           {busy ? 'Saving…' : 'Save'}
         </button>
       </form>
+      <Link to="/profile/password" className={plainButton}>
+        Change password
+      </Link>
       <button type="button" onClick={logout} className={plainButton}>
         Log out
       </button>

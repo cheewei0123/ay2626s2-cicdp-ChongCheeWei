@@ -134,6 +134,15 @@ describe('errorMessage()', () => {
     expect(
       errorMessage(429, { message: 'ThrottlerException: Too Many Requests' }),
     ).toBe('Too many tries. Wait a minute and try again.');
+    // Our own 429 message (the daily AI scan cap, KAN-88) is shown as it is
+    expect(
+      errorMessage(429, {
+        message:
+          'You have used all 20 receipt scans for today. Type it in, or scan again tomorrow.',
+      }),
+    ).toBe(
+      'You have used all 20 receipt scans for today. Type it in, or scan again tomorrow.',
+    );
     expect(errorMessage(500, { message: 'Internal server error' })).toBe(
       'Something went wrong on our side. Please try again.',
     );

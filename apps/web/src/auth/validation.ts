@@ -8,6 +8,11 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SG_MOBILE = /^[89]\d{7}$/;
 const MOBILE_ERROR = '8 digits, starting with 8 or 9';
 
+// Just the email check, for Forgot password (KAN-90): '' when it looks fine
+export function validateEmail(email: string): string {
+  return EMAIL.test(email.trim()) ? '' : 'Enter a valid email address';
+}
+
 export function validateLogin(input: {
   email: string;
   password: string;
@@ -50,5 +55,20 @@ export function validateProfile(input: {
     errors.displayName = 'Enter a name (up to 50 characters)';
   const mobile = input.paynowMobile;
   if (mobile && !SG_MOBILE.test(mobile)) errors.paynowMobile = MOBILE_ERROR;
+  return errors;
+}
+
+// Choosing a new password (reset or change, KAN-90): same length rules as Register,
+// typed twice so a typo doesn't lock you out
+export function validateNewPassword(input: {
+  password: string;
+  confirm: string;
+}): FieldErrors {
+  const errors: FieldErrors = {};
+  if (input.password.length < 8) errors.password = 'At least 8 characters';
+  else if (input.password.length > 128)
+    errors.password = 'At most 128 characters';
+  else if (input.confirm !== input.password)
+    errors.confirm = 'The two passwords are different';
   return errors;
 }

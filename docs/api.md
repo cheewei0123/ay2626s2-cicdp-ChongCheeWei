@@ -59,6 +59,8 @@ Every endpoint can also return `500` for unexpected errors (same format).
 | POST   | `/auth/login`               | `public` | `{ email, password }`                             | `200 { user, accessToken }` | 400, 401, 429 |
 | POST   | `/auth/verify-email`        | `public` | `{ token }` (from the email link)                 | `204`                       | 400, 429      |
 | POST   | `/auth/resend-verification` | `JWT`    | none                                              | `204`                       | 401, 409, 429 |
+| POST   | `/auth/forgot-password`     | `public` | `{ email }`                                       | `204` (always)              | 400, 429      |
+| POST   | `/auth/reset-password`      | `public` | `{ token, password }` (from the email link)       | `204`                       | 400, 429      |
 
 - Emails are trimmed and lower-cased, so `Chee@Example.com` and `chee@example.com` are one account.
 - Passwords: 8 to 128 characters. Only a salted scrypt hash is stored.
@@ -70,13 +72,16 @@ Every endpoint can also return `500` for unexpected errors (same format).
 - `resend-verification` is limited to 3 an hour, so it can't flood an inbox, and answers `409` once verified.
 - If the email fails to send, the account is still created (the error is logged) and "Send again" can retry.
 - `EMAIL_PROVIDER=fake` (tests, CI, local) logs the link instead of sending it; `smtp` sends through Gmail with an app password.
+- **Forgot and reset password (KAN-90):** `forgot-password` always answers `204`, so it never shows which emails have accounts; the email goes out in the background so the timing doesn't either. It is limited to 5 an hour per IP. The link `APP_URL/reset-password?token=…` works once and expires after 30 minutes; only its SHA-256 hash is stored. Resetting also marks the email verified (the link proved it) and uses up every other reset link for the account.
+- **Ending old logins:** each user has a `sessionVersion`, copied into the login token as `ver`. Resetting or changing the password raises it, and `JwtAuthGuard` refuses a token whose `ver` is out of date (`401 Your session has ended. Log in again.`), so every other device is logged out at once.
 
 ## Profile
 
-| Method | Path  | Who   | Request body                      | Response   | Errors        |
-| ------ | ----- | ----- | --------------------------------- | ---------- | ------------- |
-| GET    | `/me` | `JWT` | none                              | `200 user` | 401           |
-| PATCH  | `/me` | `JWT` | `{ displayName?, paynowMobile? }` | `200 user` | 400, 401, 404 |
+| Method | Path           | Who   | Request body                       | Response                    | Errors        |
+| ------ | -------------- | ----- | ---------------------------------- | --------------------------- | ------------- |
+| GET    | `/me`          | `JWT` | none                               | `200 user`                  | 401           |
+| PATCH  | `/me`          | `JWT` | `{ displayName?, paynowMobile? }`  | `200 user`                  | 400, 401, 404 |
+| POST   | `/me/password` | `JWT` | `{ currentPassword, newPassword }` | `200 { user, accessToken }` | 400, 401, 429 |
 
 `paynowMobile` must be a Singapore mobile number (`+65` and 8 digits starting with 8 or 9).
 
@@ -85,6 +90,7 @@ Built in KAN-81 (slimmed):
 - `PATCH /me` changes only the fields that are sent. `paynowMobile: null` removes the number; `displayName` is trimmed and must be 1 to 50 characters. Any other field (such as `email`) gives `400`.
 - The response is the same safe user as `GET /me`, never the password hash. `404` if the account behind the token no longer exists.
 - Cut to fit the deadline: uploading and decoding a PayNow QR (`POST /me/paynow-qr`) and the phone field. The number alone is enough to build each friend's QR (KAN-48).
+- `POST /me/password` (KAN-90) needs the current password (`401` if wrong, 5 tries a minute). It logs out every other device and returns a fresh token, so this one stays logged in.
 
 ## Bills (owner)
 
@@ -112,7 +118,7 @@ Built in KAN-81 (slimmed):
 - Built in KAN-27: `GET /share/:token`, `POST /share/:token/participants` and `GET /join/:code`. Join and join-code lookups are limited to 20 per minute per IP. A repeated name gets a suffix: `Ben`, `Ben (2)`.
 - Built in KAN-28: `POST /share/:token/claims` (`{ itemId, shares? }`, upsert so claiming twice never duplicates), `DELETE /share/:token/claims/:itemId`, and `POST /bills/:id/lock` and `/unlock`. Claim routes need the guest token in an `X-Guest-Token` header, and it must be for this bill (`403` otherwise). Lock only works on an `OPEN` bill and unlock only on a `LOCKED` one (`409` otherwise). Logging each share as an expense on lock is KAN-79.
 - **Scanned or pasted items are never saved straight away.** `POST /receipt` and `POST /receipt-text` return a draft for the owner to check and edit, then each item is saved with `POST /items`.
-- Built in KAN-33: `POST /bills/:id/receipt` reads the photo with the provider in `OCR_PROVIDER` (Gemini in production, the Fake in tests and CI). Only the AI's answer is kept (`ReceiptImage.rawJson`), not the photo. 5 uploads per minute, the same as Gemini's free limit.
+- Built in KAN-33: `POST /bills/:id/receipt` reads the photo with the provider in `OCR_PROVIDER` (Gemini in production, the Fake in tests and CI). Only the AI's answer is kept (`ReceiptImage.rawJson`), not the photo. 5 uploads per minute, the same as Gemini's free limit, and at most `AI_DAILY_LIMIT` scans (default 20) per account per Singapore day across both receipt routes (KAN-88, `429` with a message saying so).
   - `serviceBp` and `gstBp` are suggestions: `0` when the receipt shows no service charge, and `0` GST when the printed total equals the items' sum (GST already included, as at fast food and food courts).
   - `check` helps the owner spot mistakes: `subtotalMatches` (items vs the printed subtotal) and `totalMatches` (our total vs the printed total); `null` when the receipt doesn't show that number.
   - `409` locked bill (checked before calling the AI, so no quota is used), `413` over 5 MB, `422` the AI's answer failed validation, `429` free limit reached, `503` the AI is down or took over 60 s. Every error says the items can be added by hand.
