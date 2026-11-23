@@ -90,10 +90,10 @@ describe('Profile: setting the PayNow number', () => {
     const user = userEvent.setup();
     renderApp('/profile');
 
-    await user.type(await screen.findByLabelText('PayNow number'), '91234567');
+    await user.type(await screen.findByLabelText('PayNow number'), '1234 5678');
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(
-      screen.getByText('A Singapore mobile like +6591234567'),
+      screen.getByText('8 digits, starting with 8 or 9'),
     ).toBeInTheDocument();
     // Nothing was sent: the mistake is caught on the phone
     expect(
@@ -118,10 +118,10 @@ describe('validateProfile', () => {
       {},
     );
     expect(
-      validateProfile({ displayName: ' ', paynowMobile: '+6512345678' }),
+      validateProfile({ displayName: ' ', paynowMobile: '12345678' }),
     ).toEqual({
       displayName: 'Enter a name (up to 50 characters)',
-      paynowMobile: 'A Singapore mobile like +6591234567',
+      paynowMobile: '8 digits, starting with 8 or 9',
     });
   });
 });

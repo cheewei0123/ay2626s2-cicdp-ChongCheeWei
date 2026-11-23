@@ -66,7 +66,7 @@ describe('Register', () => {
     expect(screen.getByText('Enter a valid email address')).toBeInTheDocument();
     expect(screen.getByText('At least 8 characters')).toBeInTheDocument();
     expect(
-      screen.getByText('A Singapore mobile like +6591234567'),
+      screen.getByText('8 digits, starting with 8 or 9'),
     ).toBeInTheDocument();
     expect(screen.getByLabelText('Password')).toHaveAttribute(
       'aria-invalid',
