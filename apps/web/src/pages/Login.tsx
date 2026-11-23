@@ -5,22 +5,27 @@ import { validateLogin, type FieldErrors } from '../auth/validation';
 import { AuthLayout } from '../components/AuthLayout';
 import { Field } from '../components/Field';
 import { FormError } from '../components/FormError';
+import { GoogleButton } from '../components/GoogleButton';
 import { plainButton, primaryButton } from '../components/Page';
 
 export default function Login() {
-  const { user, login, loginWithCode, notice } = useAuth();
+  const { user, login, loginWithCode, loginWithGoogle, notice } = useAuth();
   const location = useLocation();
+  const state = location.state as { from?: string; mfaToken?: string } | null;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState('');
   const [busy, setBusy] = useState(false);
   // Set after a right password when two-step login is on: then a code is asked (KAN-92)
-  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  // (Register sends one here when Google found an account with two-step login on)
+  const [mfaToken, setMfaToken] = useState<string | null>(
+    state?.mfaToken ?? null,
+  );
   const [code, setCode] = useState('');
 
   // Logged in (just now, or already): go to the page you wanted, or My bills
-  const from = (location.state as { from?: string } | null)?.from ?? '/bills';
+  const from = state?.from ?? '/bills';
   if (user) return <Navigate to={from} replace />;
 
   async function onSubmit(event: FormEvent) {
@@ -37,6 +42,17 @@ export default function Login() {
       setFormError((err as Error).message); // api() always throws an ApiError with a readable message
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Google is the first step instead of the password (KAN-95)
+  async function onGoogle(credential: string) {
+    setFormError('');
+    try {
+      setMfaToken(await loginWithGoogle(credential));
+      setCode('');
+    } catch (err) {
+      setFormError((err as Error).message);
     }
   }
 
@@ -136,6 +152,7 @@ export default function Login() {
           {busy ? 'Logging in…' : 'Log in'}
         </button>
       </form>
+      <GoogleButton onCredential={(c) => void onGoogle(c)} />
     </AuthLayout>
   );
 }

@@ -15,6 +15,7 @@ const safeUser = {
   paynowMobile: '+6591234567',
   phoneVerifiedAt: null,
   mfaEnabledAt: null,
+  hasPassword: true,
 };
 
 const uniqueError = () =>

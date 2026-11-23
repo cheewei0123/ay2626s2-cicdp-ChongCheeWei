@@ -53,16 +53,18 @@ Every endpoint can also return `500` for unexpected errors (same format).
 
 ## Auth
 
-| Method | Path                        | Who      | Request body                                      | Response                                                       | Errors        |
-| ------ | --------------------------- | -------- | ------------------------------------------------- | -------------------------------------------------------------- | ------------- |
-| POST   | `/auth/register`            | `public` | `{ email, password, displayName, paynowMobile? }` | `201 { user, accessToken }`                                    | 400, 409, 429 |
-| POST   | `/auth/login`               | `public` | `{ email, password }`                             | `200 { user, accessToken }` or `200 { mfaRequired, mfaToken }` | 400, 401, 429 |
-| POST   | `/auth/mfa`                 | `public` | `{ mfaToken, code }`                              | `200 { user, accessToken }`                                    | 400, 401, 429 |
-| POST   | `/auth/logout`              | `JWT`    | none                                              | `204`                                                          | 401, 429      |
-| POST   | `/auth/verify-email`        | `public` | `{ token }` (from the email link)                 | `204`                                                          | 400, 429      |
-| POST   | `/auth/resend-verification` | `JWT`    | none                                              | `204`                                                          | 401, 409, 429 |
-| POST   | `/auth/forgot-password`     | `public` | `{ email }`                                       | `204` (always)                                                 | 400, 429      |
-| POST   | `/auth/reset-password`      | `public` | `{ token, password }` (from the email link)       | `204`                                                          | 400, 429      |
+| Method | Path                        | Who      | Request body                                      | Response                                                       | Errors             |
+| ------ | --------------------------- | -------- | ------------------------------------------------- | -------------------------------------------------------------- | ------------------ |
+| POST   | `/auth/register`            | `public` | `{ email, password, displayName, paynowMobile? }` | `201 { user, accessToken }`                                    | 400, 409, 429      |
+| POST   | `/auth/login`               | `public` | `{ email, password }`                             | `200 { user, accessToken }` or `200 { mfaRequired, mfaToken }` | 400, 401, 429      |
+| GET    | `/auth/google`              | `public` | none                                              | `200 { clientId }`                                             | none               |
+| POST   | `/auth/google`              | `public` | `{ credential }` (Google's ID token)              | like `/auth/login`                                             | 400, 401, 404, 429 |
+| POST   | `/auth/mfa`                 | `public` | `{ mfaToken, code }`                              | `200 { user, accessToken }`                                    | 400, 401, 429      |
+| POST   | `/auth/logout`              | `JWT`    | none                                              | `204`                                                          | 401, 429           |
+| POST   | `/auth/verify-email`        | `public` | `{ token }` (from the email link)                 | `204`                                                          | 400, 429           |
+| POST   | `/auth/resend-verification` | `JWT`    | none                                              | `204`                                                          | 401, 409, 429      |
+| POST   | `/auth/forgot-password`     | `public` | `{ email }`                                       | `204` (always)                                                 | 400, 429           |
+| POST   | `/auth/reset-password`      | `public` | `{ token, password }` (from the email link)       | `204`                                                          | 400, 429           |
 
 - Emails are trimmed and lower-cased, so `Chee@Example.com` and `chee@example.com` are one account.
 - Passwords: 8 to 128 characters. Only a salted scrypt hash is stored.
@@ -115,6 +117,12 @@ Built in KAN-81 (slimmed):
 - `POST /me/password` (KAN-90) needs the current password (`403 Your current password is wrong`, 5 tries a minute; it was `401` until KAN-92, which the web app treats as "logged out"). It logs out every other device and returns a fresh token, so this one stays logged in.
 - **Two-step login (KAN-92):** `setup` needs the password again (`403` if wrong) and returns a new secret and an `otpauth://` link for the QR; nothing is on yet. `enable` with the first right code turns it on and returns 10 backup codes, shown this once: only `sha256(userId:code)` is kept and each works once. `disable` needs the password and a code (`403` if either is wrong). `409` if it is already on (setup, enable). The secret is stored sealed with AES-256-GCM, using a key derived from `JWT_SECRET` (HKDF), so a database leak alone does not give the secrets away. Each route is limited to 5 calls a minute.
 - **Deleting the account (KAN-93):** `DELETE /me` needs the password, and a code from the app or a backup code when two-step login is on (`403` if either is wrong or the code is missing; 5 tries a minute). At once: every session ends (and `sessionVersion` goes up, so no old token works), the account can't log in (`401 Invalid email or password`, the same as a wrong password), the email stays taken (`409` on register), share links and join codes of its bills answer `404`, forgot-password sends nothing, and waiting reset links, email links and phone checks are removed. Nothing else is wiped yet. **6 calendar months later** a daily job (also run when the API starts) deletes the user, and the database cascades it to their bills, expenses and saved categories. What friends spent on those bills is theirs, so it is unlinked from the bill first and kept; in friends' own bills the user stays as a participant name only.
+- **Sign in with Google (KAN-95):** the web app asks `GET /auth/google` for the client ID (`null` = not set up, so the button is hidden). Google's button gives the browser an ID token, sent as `credential`. The API checks it with Google's library (signature, audience = `GOOGLE_CLIENT_ID`, issuer, expiry; `401 Google sign-in failed` otherwise) and refuses a Google email Google has not verified. Then:
+  - An account already linked to that Google account (`googleId`) logs in.
+  - A new email makes an account: email verified, name from Google, and a random password nobody knows (`hasPassword: false`). Two-step login and deleting the account need a password, so Profile offers the reset link to set one.
+  - An existing account with that email is linked. If its email was never proved, someone else may have signed up with it first, so its password, logins, two-step login and reset links are removed before linking: whoever made it can no longer get in.
+  - Then it goes the same way as a password login: `{ mfaRequired, mfaToken }` when two-step login is on, and a deleted account is refused (`401 This account has been deleted`).
+  - `user` now includes `hasPassword`.
 - **`403`, not `401`, for a wrong password or code while logged in:** the web app logs out on any `401`, so a typo must not end the session.
 
 ## Bills (owner)

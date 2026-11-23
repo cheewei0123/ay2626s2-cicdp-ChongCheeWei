@@ -55,22 +55,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(res.user);
       setNotice('');
     }
+    // A password or Google: logged in (null), or a half-way token when two-step
+    // login is on and a code is needed next (KAN-92)
+    async function firstStep(path: string, body: object) {
+      const res = await api<AuthResponse | MfaStep>(path, {
+        method: 'POST',
+        body,
+      });
+      if ('mfaRequired' in res) return res.mfaToken;
+      tokenStore.set(res.accessToken);
+      setUser(res.user);
+      setNotice('');
+      return null;
+    }
     return {
       user,
       loading,
       notice,
       logout,
-      login: async (email: string, password: string) => {
-        const res = await api<AuthResponse | MfaStep>('/auth/login', {
-          method: 'POST',
-          body: { email, password },
-        });
-        if ('mfaRequired' in res) return res.mfaToken;
-        tokenStore.set(res.accessToken);
-        setUser(res.user);
-        setNotice('');
-        return null;
-      },
+      login: (email: string, password: string) =>
+        firstStep('/auth/login', { email, password }),
+      loginWithGoogle: (credential: string) =>
+        firstStep('/auth/google', { credential }),
       loginWithCode: (mfaToken: string, code: string) =>
         signIn('/auth/mfa', { mfaToken, code }),
       register: (input: RegisterInput) => signIn('/auth/register', input),

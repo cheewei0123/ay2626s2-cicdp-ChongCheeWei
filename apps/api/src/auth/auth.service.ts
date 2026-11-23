@@ -23,6 +23,7 @@ export const SAFE_USER = {
   paynowMobile: true,
   phoneVerifiedAt: true, // null = the number was never checked by SMS (KAN-91)
   mfaEnabledAt: true, // null = two-step login is off (KAN-92)
+  hasPassword: true, // false = made with Google, no password yet (KAN-95)
 } as const;
 
 export type SafeUser = Prisma.UserGetPayload<{ select: typeof SAFE_USER }>;
@@ -93,21 +94,24 @@ export class AuthService {
     if (!found || !ok || found.deletedAt) {
       throw new UnauthorizedException('Invalid email or password');
     }
-    // Two-step login on (KAN-92): the password alone is not a login. A half-way
-    // token, good for 5 minutes, lets POST /auth/mfa finish it with a code.
-    if (found.mfaEnabledAt) {
-      const payload: MfaPayload = { sub: found.id, typ: 'mfa' };
+    const { passwordHash: _hash, deletedAt: _gone, ...user } = found;
+    return this.startLogin(user);
+  }
+
+  // The first factor was right (a password, or Google: KAN-95). With two-step login
+  // on (KAN-92) that is not a login yet: a half-way token, good for 5 minutes, lets
+  // POST /auth/mfa finish it with a code. Otherwise, a real login.
+  async startLogin({
+    sessionVersion,
+    ...user
+  }: SafeUser & { sessionVersion: number }) {
+    if (user.mfaEnabledAt) {
+      const payload: MfaPayload = { sub: user.id, typ: 'mfa' };
       return {
         mfaRequired: true as const,
         mfaToken: await this.jwt.signAsync(payload, { expiresIn: '5m' }),
       };
     }
-    const {
-      passwordHash: _hash,
-      sessionVersion,
-      deletedAt: _gone,
-      ...user
-    } = found;
     return this.withToken(user, sessionVersion);
   }
 

@@ -167,6 +167,15 @@ SMS turned out not to be possible on this AWS account: new accounts on AWS's **f
 
 The SMS code path stays in the code (`SMS_PROVIDER=sns` would switch it on); while the live site uses the fake sender, the Profile screen hides it.
 
+## Sign in with Google (KAN-95)
+
+| Part          | How                                                                                                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Google client | An OAuth client ID (type "Web application") in Google Cloud Console, allowed origin `https://splitlah.duckdns.org`. Free, no card                             |
+| Server        | `GOOGLE_CLIENT_ID` in `/opt/splitlah/.env`. Not a secret: the browser is given it. Without it, the button is hidden and `POST /api/auth/google` answers `404` |
+| Checking      | The API checks every ID token with Google's library (`google-auth-library`): Google's signature, our client ID as the audience, the issuer and the expiry     |
+| Data shared   | Google gives SplitLah the email, name and Google's account id; SplitLah sends Google nothing                                                                  |
+
 ## Cost
 
 | Item                               | Cost                                                         |
@@ -175,6 +184,7 @@ The SMS code path stays in the code (`SMS_PROVIDER=sns` would switch it on); whi
 | Public IPv4 address                | About US$0.005/hour (≈ US$3.60/month), paid from AWS credits |
 | RDS `db.t4g.micro`, 20 GB, backups | Free tier; no public IP, so no IPv4 charge                   |
 | Number checks (Telegram bot)       | Free                                                         |
+| Sign in with Google                | Free                                                         |
 | SMS codes (SNS, not switched on)   | Would be a few US cents each, capped at US$1/month           |
 | **Budget alert**                   | **US$10/month**, emails me before anything goes over         |
 

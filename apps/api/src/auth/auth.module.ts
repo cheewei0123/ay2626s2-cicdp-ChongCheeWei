@@ -5,6 +5,8 @@ import { EmailModule } from '../email/email.module.js';
 import { AccountDeletionService } from './account-deletion.service.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
+import { GoogleAuthService } from './google-auth.service.js';
+import { createGoogleVerifier, GOOGLE_VERIFIER } from './google.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { MeController } from './me.controller.js';
 import { MfaService } from './mfa.service.js';
@@ -37,6 +39,11 @@ import { PhoneVerificationService } from './phone-verification.service.js';
     PhoneVerificationService,
     MfaService,
     AccountDeletionService, // deletes accounts, and wipes them 6 months later (KAN-93)
+    GoogleAuthService, // "Continue with Google" (KAN-95)
+    {
+      provide: GOOGLE_VERIFIER,
+      useFactory: () => createGoogleVerifier(process.env), // null: not set up
+    },
     JwtAuthGuard,
   ],
   exports: [JwtAuthGuard],

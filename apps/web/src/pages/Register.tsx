@@ -1,16 +1,18 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react';
-import { Navigate } from 'react-router';
+import { Navigate, useNavigate } from 'react-router';
 import { useAuth } from '../auth/context';
 import { validateRegister, type FieldErrors } from '../auth/validation';
 import { AuthLayout } from '../components/AuthLayout';
 import { Field } from '../components/Field';
 import { FormError } from '../components/FormError';
+import { GoogleButton } from '../components/GoogleButton';
 import { toE164 } from '../auth/phone';
 import { PhoneField } from '../components/PhoneField';
 import { primaryButton } from '../components/Page';
 
 export default function Register() {
-  const { user, register } = useAuth();
+  const { user, register, loginWithGoogle } = useAuth();
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     displayName: '',
     email: '',
@@ -23,6 +25,18 @@ export default function Register() {
 
   // Registering also logs you in, so you land on My bills
   if (user) return <Navigate to="/bills" replace />;
+
+  // Google signs up and logs in at once (KAN-95). If the email already has an
+  // account with two-step login on, the code is asked on the Log in page.
+  async function onGoogle(credential: string) {
+    setFormError('');
+    try {
+      const mfaToken = await loginWithGoogle(credential);
+      if (mfaToken) navigate('/login', { state: { mfaToken } });
+    } catch (err) {
+      setFormError((err as Error).message);
+    }
+  }
 
   const set =
     (field: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
@@ -94,6 +108,7 @@ export default function Register() {
           {busy ? 'Creating account…' : 'Create account'}
         </button>
       </form>
+      <GoogleButton onCredential={(c) => void onGoogle(c)} />
     </AuthLayout>
   );
 }
