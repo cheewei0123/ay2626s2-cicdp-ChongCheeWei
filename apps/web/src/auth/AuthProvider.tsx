@@ -53,6 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       saveProfile: async (input: ProfileInput) =>
         setUser(await api<User>('/me', { method: 'PATCH', body: input })),
       refreshUser: async () => setUser(await api<User>('/me')),
+      // Answers with a new token: the old one stops working when the password changes
+      changePassword: (currentPassword: string, newPassword: string) =>
+        signIn('/me/password', { currentPassword, newPassword }),
     };
   }, [user, loading, logout]);
 

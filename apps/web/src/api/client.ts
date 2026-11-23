@@ -77,10 +77,16 @@ function readable(message: string) {
 
 // Turns the API's error JSON { statusCode, message, ... } into one sentence (or one per line)
 export function errorMessage(status: number, data: unknown): string {
-  if (status === 429) return 'Too many tries. Wait a minute and try again.';
+  const message = (data as { message?: unknown } | null)?.message;
+  // The rate limiter's own text is technical; a 429 with our own words
+  // (e.g. the daily receipt-scan cap, KAN-88) is shown as it is
+  if (
+    status === 429 &&
+    (typeof message !== 'string' || /too many requests/i.test(message))
+  )
+    return 'Too many tries. Wait a minute and try again.';
   if (status >= 500)
     return 'Something went wrong on our side. Please try again.';
-  const message = (data as { message?: unknown } | null)?.message;
   if (Array.isArray(message)) return message.map(readable).join('\n');
   if (typeof message === 'string') return readable(message);
   return 'Something went wrong. Please try again.';
