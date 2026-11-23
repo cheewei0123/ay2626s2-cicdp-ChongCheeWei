@@ -15,6 +15,7 @@ import {
   type OwnedBill as OwnedBillType,
 } from '../bills/guards/bill-owner.guard.js';
 import { OwnedBill } from '../bills/guards/owned-bill.decorator.js';
+import { AiQuotaGuard } from '../ocr/ai-quota.guard.js';
 import { ReceiptsService } from './receipts.service.js';
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -28,6 +29,8 @@ export class ReceiptsController {
   @Post()
   // Same as Gemini's free limit, so users hit our clear 429 before Google's
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  // ...and at most AI_DAILY_LIMIT scans a day per account (KAN-88)
+  @UseGuards(AiQuotaGuard)
   // Multer stops reading at 5 MB and answers 413, so a huge upload never fills memory
   @UseInterceptors(
     FileInterceptor('image', { limits: { fileSize: MAX_BYTES } }),

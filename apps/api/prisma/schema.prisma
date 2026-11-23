@@ -62,6 +62,7 @@ model User {
   participants       Participant[]
   expenses           Expense[]
   merchantCategories MerchantCategory[]
+  aiScanCounts       AiScanCount[]
 }
 
 model EmailVerificationToken {
@@ -208,4 +209,16 @@ model MerchantCategory {
   user User @relation(fields: [userId], references: [id])
 
   @@unique([userId, merchantKey])
+}
+
+// How many AI receipt scans a user made on one Singapore day (KAN-88).
+// Gemini usage costs quota, so each account gets a daily cap (AI_DAILY_LIMIT).
+model AiScanCount {
+  userId String
+  day    DateTime @db.Date
+  count  Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, day])
 }

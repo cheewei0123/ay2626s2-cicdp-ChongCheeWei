@@ -20,6 +20,7 @@ import type { AuthUser } from '../auth/auth-user.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { EmailVerifiedGuard } from '../auth/email-verified.guard.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { AiQuotaGuard } from '../ocr/ai-quota.guard.js';
 import {
   CategoryQueryDto,
   CreateExpenseDto,
@@ -67,6 +68,7 @@ export class ExpensesController {
   @Post('receipt')
   // Same limits as the bill receipt route (KAN-33): Gemini's free rate, 5 MB
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @UseGuards(AiQuotaGuard) // and a daily cap per account (KAN-88)
   @UseInterceptors(
     FileInterceptor('image', { limits: { fileSize: MAX_BYTES } }),
   )

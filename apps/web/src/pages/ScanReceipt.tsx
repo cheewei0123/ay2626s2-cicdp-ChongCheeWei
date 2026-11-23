@@ -73,6 +73,17 @@ export default function ScanReceipt() {
           onChange={(e) => choose(e.target.files?.[0])}
         />
       </label>
+      {/* No capture: the phone offers Photos, so a receipt can be added later (KAN-88) */}
+      <label className={plainButton}>
+        Upload from Photos
+        <input
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          disabled={busy}
+          onChange={(e) => choose(e.target.files?.[0])}
+        />
+      </label>
       {photo && (
         <button
           type="button"
