@@ -68,6 +68,20 @@ model User {
   merchantCategories  MerchantCategory[]
   aiScanCounts        AiScanCount[]
   phoneVerification   PhoneVerification?
+  sessions            Session[]
+}
+
+// One login on one device (KAN-97). The token carries the id, so this login can be
+// ended on its own (logout) without touching the user's other devices.
+model Session {
+  id        String    @id @default(cuid())
+  userId    String
+  expiresAt DateTime // 14 days after login; then the user logs in again
+  revokedAt DateTime? // set by logout
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // A one-time "reset your password" link (KAN-90). Only the hash is stored, like email verification.

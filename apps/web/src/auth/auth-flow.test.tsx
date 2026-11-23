@@ -234,7 +234,11 @@ describe('Staying logged in', () => {
 
   it('log out clears the token and goes back to log in', async () => {
     localStorage.setItem('splitlah.token', 'jwt-1');
-    fakeApi({ ...noBills, 'GET /api/me': { status: 200, body: chee } });
+    const fetchMock = fakeApi({
+      ...noBills,
+      'GET /api/me': { status: 200, body: chee },
+      'POST /api/auth/logout': { status: 204, body: undefined },
+    });
     const user = userEvent.setup();
     renderApp('/bills');
 
@@ -244,6 +248,14 @@ describe('Staying logged in', () => {
 
     expect(await logInButton()).toBeInTheDocument();
     expect(token()).toBeNull();
+    // The session ends on the server too, with the token it had (KAN-97)
+    const [, init] = fetchMock.mock.calls.find(
+      ([url]) => url === '/api/auth/logout',
+    )!;
+    expect(init).toMatchObject({
+      method: 'POST',
+      headers: { Authorization: 'Bearer jwt-1' },
+    });
   });
 });
 

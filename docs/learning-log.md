@@ -2,6 +2,15 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-97: staying logged in for 14 days without losing the ability to log someone out
+
+- **The complaint:** the token ran out after an hour, so the app asked for the password again all the time.
+- **Why not just make the JWT last 14 days:** a JWT is valid until it expires, whatever happens. "Log out" only deleted it from this browser; a copied token would have worked for two weeks. That is fine for an hour, not for 14 days.
+- **What I did instead:** every login is a `Session` row (expires in 14 days, `revokedAt` for logout), and the token carries its id. The guard already looked up the user for `sessionVersion` (KAN-90); it now looks up the session instead, with the user's `sessionVersion` joined in, so it is still one query per request.
+- **Two ways to end logins:** logout ends one session (this device); a password change or reset still raises `sessionVersion`, which ends them all.
+- **A loop I avoided:** the web app logs out on any `401`. If logout itself used the same `api()` helper, a `401` from `/auth/logout` would call logout again. It uses a plain `fetch` and ignores the answer.
+- **Trade-off:** the token still lives in `localStorage`, so it is as safe as the page is from XSS; React escapes what it shows, but an httpOnly cookie would be stronger. A longer login makes that matter more, which is why logout and session ending had to be real first.
+
 ## KAN-91: when SMS was not possible, Telegram did the same job for free
 
 - **The plan met the account:** the SNS console said the account "needs a subscription for the service". New AWS accounts on the free account plan can't send SMS at all; it needs the paid plan. WhatsApp's free test number only reaches 5 hand-added numbers, and Twilio's trial only texts numbers verified in its console, so neither works for real users.

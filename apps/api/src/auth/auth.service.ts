@@ -30,6 +30,10 @@ export type SafeUser = Prisma.UserGetPayload<{ select: typeof SAFE_USER }>;
 // so a wrong email takes as long as a wrong password and can't be told apart
 const NO_USER_HASH = `scrypt$${Buffer.alloc(16).toString('base64')}$${Buffer.alloc(64).toString('base64')}`;
 
+// How long a login lasts before the user logs in again (KAN-97)
+export const SESSION_DAYS = 14;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger('Auth');
@@ -120,14 +124,38 @@ export class AuthService {
     }
   }
 
-  // The token proves who the user is for the next hour (expiry is set in AuthModule).
+  // A new login: a Session row and a token for it, both good for 14 days (KAN-97).
   // `ver` ties it to the current password: see sessionVersion (KAN-90).
   async withToken(user: SafeUser, sessionVersion = 0) {
+    const now = new Date();
+    // Old logins of this user that have run out are no use to anyone
+    await this.prisma.session.deleteMany({
+      where: { userId: user.id, expiresAt: { lte: now } },
+    });
+    const session = await this.prisma.session.create({
+      data: {
+        userId: user.id,
+        expiresAt: new Date(now.getTime() + SESSION_DAYS * DAY_MS),
+      },
+      select: { id: true },
+    });
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
       ver: sessionVersion,
+      sid: session.id,
     };
-    return { user, accessToken: await this.jwt.signAsync(payload) };
+    const accessToken = await this.jwt.signAsync(payload, {
+      expiresIn: `${SESSION_DAYS}d`,
+    });
+    return { user, accessToken };
+  }
+
+  // Ends one login on the server, so its token stops working at once (KAN-97)
+  async logout(sessionId: string) {
+    await this.prisma.session.updateMany({
+      where: { id: sessionId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   }
 }

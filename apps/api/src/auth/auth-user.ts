@@ -2,15 +2,18 @@
 export interface AuthUser {
   id: string;
   email: string;
+  sessionId: string; // the Session row this login belongs to (KAN-97)
 }
 
 // What is inside a login token: `sub` (subject) is the standard JWT field for the user ID
 // `ver` is the user's sessionVersion when the token was made: changing the password
 // raises it, so every older token stops working (KAN-90)
+// `sid` is the Session row, so one login can be ended on its own (KAN-97)
 export interface JwtPayload {
   sub: string;
   email: string;
   ver?: number;
+  sid?: string;
   typ?: undefined;
 }
 

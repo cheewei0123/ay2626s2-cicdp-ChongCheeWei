@@ -3,7 +3,7 @@ import { ExpensesController } from './expenses.controller.js';
 import type { ExpensesService } from './expenses.service.js';
 
 describe('ExpensesController', () => {
-  const me: AuthUser = { id: 'u1', email: 'chee@example.com' };
+  const me: AuthUser = { id: 'u1', email: 'chee@example.com', sessionId: 's1' };
   const service = {
     list: vi.fn(),
     summary: vi.fn(),

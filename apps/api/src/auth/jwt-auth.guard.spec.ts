@@ -5,11 +5,35 @@ import type { PrismaService } from '../prisma/prisma.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 
 const jwt = new JwtService({ secret: 'test-secret' });
-// A fake database with one user, u1, whose password has been changed twice
+// A fake database: user u1's password has been changed twice (sessionVersion 2).
+// Session s1 is live; s-out was logged out; s-old ran out; s-other is someone else's.
+const HOUR = 60 * 60 * 1000;
+const sessions: Record<string, object> = {
+  s1: { userId: 'u1', revokedAt: null, expiresAt: new Date(Date.now() + HOUR) },
+  's-out': {
+    userId: 'u1',
+    revokedAt: new Date(),
+    expiresAt: new Date(Date.now() + HOUR),
+  },
+  's-old': {
+    userId: 'u1',
+    revokedAt: null,
+    expiresAt: new Date(Date.now() - 1),
+  },
+  's-other': {
+    userId: 'u2',
+    revokedAt: null,
+    expiresAt: new Date(Date.now() + HOUR),
+  },
+};
 const prisma = {
-  user: {
+  session: {
     findUnique: vi.fn(({ where }: { where: { id: string } }) =>
-      Promise.resolve(where.id === 'u1' ? { sessionVersion: 2 } : null),
+      Promise.resolve(
+        where.id in sessions
+          ? { ...sessions[where.id], user: { sessionVersion: 2 } }
+          : null,
+      ),
     ),
   },
 };
@@ -30,11 +54,16 @@ describe('JwtAuthGuard', () => {
       sub: 'u1',
       email: 'chee@example.com',
       ver: 2,
+      sid: 's1',
     });
     const { req, context } = contextWith(`Bearer ${token}`);
 
     expect(await guard.canActivate(context)).toBe(true);
-    expect(req.user).toEqual({ id: 'u1', email: 'chee@example.com' });
+    expect(req.user).toEqual({
+      id: 'u1',
+      email: 'chee@example.com',
+      sessionId: 's1',
+    });
   });
 
   it.each([
@@ -81,16 +110,30 @@ describe('JwtAuthGuard', () => {
     ).rejects.toThrow(UnauthorizedException);
   });
 
-  // KAN-90: changing the password raises sessionVersion, ending older tokens
+  it('rejects any other kind of token, e.g. the half-way MFA token', async () => {
+    const half = await jwt.signAsync({ sub: 'u1', typ: 'mfa' });
+    await expect(
+      guard.canActivate(contextWith(`Bearer ${half}`).context),
+    ).rejects.toThrow('This token cannot be used to log in');
+  });
+
+  // KAN-90: changing the password raises sessionVersion, ending older tokens.
+  // KAN-97: logging out or running out ends one session.
   it.each([
     [
       'a token from before the password changed',
-      { sub: 'u1', email: 'x', ver: 1 },
+      { sub: 'u1', email: 'x', ver: 1, sid: 's1' },
     ],
-    ['an old token with no version', { sub: 'u1', email: 'x' }],
+    ['a 1-hour token from before sessions', { sub: 'u1', email: 'x', ver: 2 }],
+    ['a logged-out session', { sub: 'u1', email: 'x', ver: 2, sid: 's-out' }],
+    ['a session that ran out', { sub: 'u1', email: 'x', ver: 2, sid: 's-old' }],
     [
-      'a token for an account that no longer exists',
-      { sub: 'gone', email: 'x', ver: 0 },
+      "another user's session",
+      { sub: 'u1', email: 'x', ver: 2, sid: 's-other' },
+    ],
+    [
+      'a session that no longer exists',
+      { sub: 'u1', email: 'x', ver: 2, sid: 'gone' },
     ],
   ])('rejects %s', async (_case, payload) => {
     const token = await jwt.signAsync(payload);
