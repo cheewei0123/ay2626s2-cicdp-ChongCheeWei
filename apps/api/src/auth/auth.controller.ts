@@ -34,6 +34,15 @@ export class AuthController {
     return this.auth.login(dto);
   }
 
+  // POST /api/auth/logout → 204: ends this login on the server (KAN-97). Other
+  // devices stay logged in.
+  @Post('logout')
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard)
+  logout(@CurrentUser() user: AuthUser) {
+    return this.auth.logout(user.sessionId);
+  }
+
   // POST /api/auth/verify-email { token } → 204. No login needed: the token is the proof.
   @Post('verify-email')
   @HttpCode(204)

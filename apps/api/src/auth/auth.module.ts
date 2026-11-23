@@ -23,7 +23,7 @@ import { PhoneVerificationService } from './phone-verification.service.js';
       global: true,
       useFactory: () => ({
         secret: requireEnv('JWT_SECRET'),
-        signOptions: { expiresIn: '1h' },
+        signOptions: { expiresIn: '14d' }, // a login lasts 14 days (KAN-97)
       }),
     }),
   ],

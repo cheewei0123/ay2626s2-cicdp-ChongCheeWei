@@ -20,9 +20,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // With a saved token, wait for GET /me before deciding if you are logged in
   const [loading, setLoading] = useState(() => tokenStore.get() !== null);
 
+  // Forgets the token here and ends the session on the server (KAN-97), so a copy
+  // of the token is no use either. Plain fetch, not api(): a 401 here (the session
+  // had already ended) must not call logout again.
   const logout = useCallback(() => {
+    const token = tokenStore.get();
     tokenStore.clear();
     setUser(null);
+    if (token)
+      void fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => undefined);
   }, []);
 
   useEffect(() => {

@@ -57,6 +57,7 @@ Every endpoint can also return `500` for unexpected errors (same format).
 | ------ | --------------------------- | -------- | ------------------------------------------------- | --------------------------- | ------------- |
 | POST   | `/auth/register`            | `public` | `{ email, password, displayName, paynowMobile? }` | `201 { user, accessToken }` | 400, 409, 429 |
 | POST   | `/auth/login`               | `public` | `{ email, password }`                             | `200 { user, accessToken }` | 400, 401, 429 |
+| POST   | `/auth/logout`              | `JWT`    | none                                              | `204`                       | 401, 429      |
 | POST   | `/auth/verify-email`        | `public` | `{ token }` (from the email link)                 | `204`                       | 400, 429      |
 | POST   | `/auth/resend-verification` | `JWT`    | none                                              | `204`                       | 401, 409, 429 |
 | POST   | `/auth/forgot-password`     | `public` | `{ email }`                                       | `204` (always)              | 400, 429      |
@@ -65,7 +66,8 @@ Every endpoint can also return `500` for unexpected errors (same format).
 - Emails are trimmed and lower-cased, so `Chee@Example.com` and `chee@example.com` are one account.
 - Passwords: 8 to 128 characters. Only a salted scrypt hash is stored.
 - A wrong password and an unknown email get the same `401 Invalid email or password`, so nobody can find out which emails have accounts.
-- The `accessToken` is a JWT that lasts 1 hour. Send it as `Authorization: Bearer <token>`.
+- The `accessToken` is a JWT that lasts **14 days** (KAN-97). Send it as `Authorization: Bearer <token>`.
+- **Sessions (KAN-97):** every login (and register) adds a `Session` row that ends 14 days later, and the token carries its id as `sid`. `JwtAuthGuard` checks that session on every request (one primary-key lookup), so `POST /auth/logout` ends this login at once on the server while other devices stay logged in. A token without `sid` (the old 1-hour kind) is refused, and run-out sessions are deleted at the user's next login.
 - Auth routes are limited to 10 requests per minute per IP.
 - **Email verification (KAN-77):** registering emails a link to `APP_URL/verify?token=…`. The token is 32 random bytes; only its SHA-256 hash is stored. It expires after 24 hours and works once. Unknown, used and expired tokens all get the same `400`.
 - Until verified, `POST /bills` and every `/expenses` route answer `403 Verify your email first…`. Reading your bills, guests and share links are not affected. Verifying takes effect at once: `EmailVerifiedGuard` reads the database, not the login token.
@@ -73,7 +75,7 @@ Every endpoint can also return `500` for unexpected errors (same format).
 - If the email fails to send, the account is still created (the error is logged) and "Send again" can retry.
 - `EMAIL_PROVIDER=fake` (tests, CI, local) logs the link instead of sending it; `smtp` sends through Gmail with an app password.
 - **Forgot and reset password (KAN-90):** `forgot-password` always answers `204`, so it never shows which emails have accounts; the email goes out in the background so the timing doesn't either. It is limited to 5 an hour per IP. The link `APP_URL/reset-password?token=…` works once and expires after 30 minutes; only its SHA-256 hash is stored. Resetting also marks the email verified (the link proved it) and uses up every other reset link for the account.
-- **Ending old logins:** each user has a `sessionVersion`, copied into the login token as `ver`. Resetting or changing the password raises it, and `JwtAuthGuard` refuses a token whose `ver` is out of date (`401 Your session has ended. Log in again.`), so every other device is logged out at once.
+- **Ending old logins:** each user has a `sessionVersion`, copied into the login token as `ver`. Resetting or changing the password raises it, and `JwtAuthGuard` refuses a token whose `ver` is out of date (`401 Your session has ended. Log in again.`), so every other device is logged out at once. With sessions (KAN-97) this still ends every session, because each session's token carries the old `ver`.
 
 ## Profile
 

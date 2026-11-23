@@ -3,7 +3,7 @@ import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { AuthService } from './auth.service.js';
+import { AuthService, SESSION_DAYS } from './auth.service.js';
 import { hashPassword } from './password.js';
 import { VerificationService } from './verification.service.js';
 
@@ -28,12 +28,14 @@ describe('AuthService (with a mocked database)', () => {
   // A fake PrismaService with only the two methods AuthService uses
   const prisma = {
     user: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+    session: { create: vi.fn(), deleteMany: vi.fn(), updateMany: vi.fn() },
   };
   const verification = { sendLink: vi.fn() };
 
   beforeEach(async () => {
     vi.resetAllMocks();
     verification.sendLink.mockResolvedValue(undefined);
+    prisma.session.create.mockResolvedValue({ id: 's1' });
     // Dependency injection: Nest builds the real AuthService but hands it the fake database
     const moduleRef = await Test.createTestingModule({
       imports: [JwtModule.register({ secret: 'test-secret' })],
@@ -109,6 +111,45 @@ describe('AuthService (with a mocked database)', () => {
           displayName: 'Chee',
         }),
       ).rejects.toThrow('db down');
+    });
+  });
+
+  describe('sessions (KAN-97)', () => {
+    it('each login is a 14-day session, and the token carries its id', async () => {
+      vi.useFakeTimers({
+        now: new Date('2026-11-23T00:00:00Z'),
+        toFake: ['Date'],
+      });
+      const { accessToken } = await service.withToken(safeUser, 3);
+      vi.useRealTimers();
+
+      // Old sessions of this user that have run out are cleared first
+      expect(prisma.session.deleteMany).toHaveBeenCalledWith({
+        where: {
+          userId: 'u1',
+          expiresAt: { lte: new Date('2026-11-23T00:00:00Z') },
+        },
+      });
+      expect(prisma.session.create).toHaveBeenCalledWith({
+        data: { userId: 'u1', expiresAt: new Date('2026-12-07T00:00:00Z') },
+        select: { id: true },
+      });
+      const payload = jwt.decode<{
+        sid: string;
+        ver: number;
+        iat: number;
+        exp: number;
+      }>(accessToken);
+      expect(payload).toMatchObject({ sid: 's1', ver: 3 });
+      expect(payload.exp - payload.iat).toBe(SESSION_DAYS * 24 * 60 * 60);
+    });
+
+    it('logout ends only that session', async () => {
+      await service.logout('s1');
+      expect(prisma.session.updateMany).toHaveBeenCalledWith({
+        where: { id: 's1', revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
     });
   });
 

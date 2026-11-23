@@ -26,7 +26,7 @@ const claims = {
 const claimsService = claims as unknown as ClaimsService;
 const summary = { forBill: vi.fn() };
 const summaryService = summary as unknown as SummaryService;
-const user = { id: 'u1', email: 'chee@example.com' };
+const user = { id: 'u1', email: 'chee@example.com', sessionId: 's1' };
 const bill: OwnedBill = { id: 'b1', ownerId: 'u1', status: 'OPEN' };
 const newBillsController = () =>
   new BillsController(service, claimsService, summaryService);

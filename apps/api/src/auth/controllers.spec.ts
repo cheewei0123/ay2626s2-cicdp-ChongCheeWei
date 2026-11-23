@@ -13,6 +13,7 @@ const auth = {
   login: vi.fn(),
   findSafeUser: vi.fn(),
   updateProfile: vi.fn(),
+  logout: vi.fn(),
 };
 const service = auth as unknown as AuthService;
 const verification = { verify: vi.fn(), resend: vi.fn() };
@@ -37,7 +38,7 @@ const me = () =>
     phonesMock as unknown as PhoneVerificationService,
     telegramMock as unknown as TelegramService,
   );
-const user = { id: 'u1', email: 'chee@example.com' };
+const user = { id: 'u1', email: 'chee@example.com', sessionId: 's1' };
 
 describe('AuthController', () => {
   beforeEach(() => vi.resetAllMocks());
@@ -52,6 +53,12 @@ describe('AuthController', () => {
       'registered',
     );
     expect(await controller.login(body)).toBe('logged in');
+  });
+
+  it('logout ends the session on the request (KAN-97)', async () => {
+    const controller = new AuthController(service, verifier, passwords);
+    await controller.logout(user);
+    expect(auth.logout).toHaveBeenCalledWith('s1');
   });
 
   it('passes verify-email and resend to VerificationService', async () => {

@@ -37,16 +37,39 @@ export class JwtAuthGuard implements CanActivate {
     if (payload.typ === 'guest') {
       throw new UnauthorizedException('A guest token cannot be used to log in');
     }
-    // The token must still match the account: one primary-key lookup. A password
-    // change (or reset) raises sessionVersion, which logs out every other device (KAN-90).
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      select: { sessionVersion: true },
-    });
-    if (!user || user.sessionVersion !== (payload.ver ?? 0)) {
+    // Any other kind of token (e.g. the half-way token while an MFA code is asked
+    // for) isn't a login either
+    if (payload.typ !== undefined) {
+      throw new UnauthorizedException('This token cannot be used to log in');
+    }
+    // The login must still be live: one primary-key lookup. Logout ends this
+    // session (KAN-97); a password change or reset raises sessionVersion, which
+    // ends every session (KAN-90). Tokens from before sessions have no `sid`.
+    const session = payload.sid
+      ? await this.prisma.session.findUnique({
+          where: { id: payload.sid },
+          select: {
+            userId: true,
+            revokedAt: true,
+            expiresAt: true,
+            user: { select: { sessionVersion: true } },
+          },
+        })
+      : null;
+    if (
+      !session ||
+      session.userId !== payload.sub ||
+      session.revokedAt ||
+      session.expiresAt <= new Date() ||
+      session.user.sessionVersion !== (payload.ver ?? 0)
+    ) {
       throw new UnauthorizedException('Your session has ended. Log in again.');
     }
-    req.user = { id: payload.sub, email: payload.email };
+    req.user = {
+      id: payload.sub,
+      email: payload.email,
+      sessionId: payload.sid!,
+    };
     return true;
   }
 }
