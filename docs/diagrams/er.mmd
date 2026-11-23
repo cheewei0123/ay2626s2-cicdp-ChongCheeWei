@@ -1,4 +1,6 @@
+%% "direction LR" puts the tables in columns, so the image fits a portrait page (needs Mermaid 11.6+)
 erDiagram
+  direction LR
   USER ||--o{ EMAIL_VERIFICATION_TOKEN : "verifies with"
   USER ||--o{ PASSWORD_RESET_TOKEN : "resets with"
   USER ||--o{ SESSION : "logs in as"
