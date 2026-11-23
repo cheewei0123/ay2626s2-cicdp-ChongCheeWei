@@ -1,4 +1,4 @@
-import { act, screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeApi, renderApp } from '../test-utils';
@@ -26,6 +26,15 @@ const sent = (calls: unknown[][], method: string, url: string) =>
       )![1] as RequestInit
     ).body as string,
   );
+// The "Text me a code" button, once the screen knows SMS works here
+async function smsButton(section: HTMLElement) {
+  const button = await within(section).findByRole('button', {
+    name: 'Text me a code',
+  });
+  await waitFor(() => expect(button).toBeEnabled());
+  return button;
+}
+
 const called = (calls: unknown[][], method: string, url: string) =>
   calls.some(
     ([u, init]) =>
@@ -102,8 +111,12 @@ describe('Profile: the name', () => {
 });
 
 describe('Profile: checking the PayNow number by SMS (KAN-91)', () => {
+  // The screen only offers ways the server says work; this server texts codes
+  const smsOnly = ok({ telegram: false, sms: true });
+
   it('adds a number: texts a code, then the right code checks it', async () => {
     const replies = {
+      'GET /api/me/phone/methods': smsOnly,
       'GET /api/me': ok(chee),
       'POST /api/me/phone': ok({
         phone: '+6591234567',
@@ -120,9 +133,7 @@ describe('Profile: checking the PayNow number by SMS (KAN-91)', () => {
     });
     // A typo is caught on the phone, before any SMS is paid for
     await user.type(within(section).getByLabelText('Mobile number'), '1234');
-    await user.click(
-      within(section).getByRole('button', { name: 'Text me a code' }),
-    );
+    await user.click(await smsButton(section));
     expect(
       within(section).getByText('8 digits, starting with 8 or 9'),
     ).toBeInTheDocument();
@@ -168,6 +179,7 @@ describe('Profile: checking the PayNow number by SMS (KAN-91)', () => {
 
   it('a number from sign-up says it is not checked, and can be checked', async () => {
     const fetchMock = fakeApi({
+      'GET /api/me/phone/methods': smsOnly,
       'GET /api/me': ok(unchecked),
       'POST /api/me/phone': ok({ phone: '+6591234567', expiresAt: 'x' }),
       'POST /api/me/phone/verify': ok(
@@ -185,9 +197,7 @@ describe('Profile: checking the PayNow number by SMS (KAN-91)', () => {
     expect(
       within(section).getByText(/Friends can't pay you by PayNow QR/),
     ).toBeVisible();
-    await user.click(
-      within(section).getByRole('button', { name: 'Text me a code' }),
-    );
+    await user.click(await smsButton(section));
     expect(sent(fetchMock.mock.calls, 'POST', '/api/me/phone')).toEqual({
       phone: '+6591234567',
     });
@@ -211,6 +221,7 @@ describe('Profile: checking the PayNow number by SMS (KAN-91)', () => {
   it('a new code can be asked for once the minute is up', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const fetchMock = fakeApi({
+      'GET /api/me/phone/methods': smsOnly,
       'GET /api/me': ok(unchecked),
       'POST /api/me/phone': ok({ phone: '+6591234567', expiresAt: 'x' }),
     });
@@ -233,6 +244,7 @@ describe('Profile: checking the PayNow number by SMS (KAN-91)', () => {
 
   it('a checked number can be changed (the old one stays meanwhile) or removed', async () => {
     const replies = {
+      'GET /api/me/phone/methods': smsOnly,
       'GET /api/me': ok(checked),
       'POST /api/me/phone': ok(
         {
@@ -267,9 +279,7 @@ describe('Profile: checking the PayNow number by SMS (KAN-91)', () => {
       within(section).getByLabelText('Mobile number'),
       '98765432',
     );
-    await user.click(
-      within(section).getByRole('button', { name: 'Text me a code' }),
-    );
+    await user.click(await smsButton(section));
     expect(await within(section).findByRole('alert')).toHaveTextContent(
       'The code could not be sent. Check the number and try again.',
     );
