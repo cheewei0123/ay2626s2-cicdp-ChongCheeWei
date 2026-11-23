@@ -31,6 +31,27 @@ const button = (page: Page, name: string) =>
 
 test.describe.configure({ mode: 'serial' });
 
+// The Content Security Policy from the Caddyfile (KAN-96) must not block anything the
+// app itself needs: the browser logs every blocked script, style or request
+const blocked: string[] = [];
+test.beforeEach(({ page }) => {
+  blocked.length = 0;
+  page.on('console', (m) => {
+    if (/Content Security Policy/i.test(m.text())) blocked.push(m.text());
+  });
+});
+test.afterEach(() => expect(blocked).toEqual([]));
+
+test('the web server sends the security headers', async ({ request }) => {
+  const h = (await request.get('/')).headers();
+  expect(h['content-security-policy']).toContain("script-src 'self'");
+  expect(h['content-security-policy']).toContain("frame-ancestors 'none'");
+  expect(h['x-frame-options']).toBe('DENY');
+  expect(h['x-content-type-options']).toBe('nosniff');
+  expect(h['strict-transport-security']).toContain('max-age=');
+  expect(h['server']).toBeUndefined();
+});
+
 test('owner: register, verify, scan a receipt, fix an item, share', async ({
   page,
 }) => {

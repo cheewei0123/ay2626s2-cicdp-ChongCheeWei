@@ -2,6 +2,14 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-96: Security checklist
+
+- **Going through a checklist finds what you forgot.** The API had `helmet`, but the pages themselves come from Caddy, which sent no security headers at all: no CSP, no HSTS, nothing against clickjacking. Every item from the OWASP Top 10 is now in `docs/security.md` with how SplitLah meets it, or why not.
+- **A CSP has to list every outside source the app really uses.** Ours: Google's sign-in script, its stylesheet and its button frame. The Vite build has no inline scripts (the PWA's registration is its own file, `registerSW.js`), so `script-src` needs no `'unsafe-inline'`. React's `style={{ width }}` sets the style from JavaScript, which a CSP doesn't block.
+- **Testing a CSP:** the CI browser test already runs the real Caddy image, so it now checks the headers are sent and fails if the browser logs any CSP block during the whole bill journey.
+- **Referrer-Policy matters for share links:** a path like `/share/<token>` is a key to the bill. `strict-origin-when-cross-origin` sends other sites only `https://splitlah.duckdns.org`, never the path. (`no-referrer` would break Google's button, which checks where it is shown.)
+- **A lockout is not always safer:** locking an account after 10 wrong passwords would let anyone lock a friend out. Per-IP limits, slow scrypt and two-step login do the job without that.
+
 ## KAN-95: "Continue with Google" without trusting the browser
 
 - **The browser is not proof.** Google's button hands the browser an ID token; anyone can send the API any string. So the API checks it with Google's own library: Google's signature, that it was made for _our_ client ID (a token for another app is refused), the issuer and the expiry. Only then is the email trusted, and only if Google says it is verified.
