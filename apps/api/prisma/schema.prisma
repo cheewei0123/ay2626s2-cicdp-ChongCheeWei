@@ -50,6 +50,7 @@ model User {
   passwordHash      String
   displayName       String
   phone             String?
+  // When paynowMobile was proved by an SMS code (KAN-91); null = not checked, so no PayNow QR
   phoneVerifiedAt   DateTime?
   paynowMobile      String?
   paynowQrPayload   String?
@@ -66,6 +67,7 @@ model User {
   expenses            Expense[]
   merchantCategories  MerchantCategory[]
   aiScanCounts        AiScanCount[]
+  phoneVerification   PhoneVerification?
 }
 
 // A one-time "reset your password" link (KAN-90). Only the hash is stored, like email verification.
@@ -236,4 +238,17 @@ model AiScanCount {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, day])
+}
+
+// A number waiting for its SMS code (KAN-91). One per user: asking again replaces it.
+// The verified number only moves into User.paynowMobile once the code is right,
+// so the old number keeps working until then.
+model PhoneVerification {
+  userId    String   @id
+  phone     String // +65 and 8 digits
+  codeHash  String // SHA-256 of the 6-digit code; the code itself is never stored
+  attempts  Int      @default(0) // wrong codes so far; 5 and the code is used up
+  expiresAt DateTime
+  createdAt DateTime @default(now()) // also when the last SMS went out, for the 60 s wait
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

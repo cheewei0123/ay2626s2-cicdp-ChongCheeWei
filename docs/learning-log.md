@@ -2,6 +2,16 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-91: a PayNow number has to be proved, not typed
+
+- **Why it matters:** the guest's QR sends real money to the owner's number. Before this, a typo in Profile meant a friend's money went to a stranger's PayNow, and nothing ever checked it. Now the guest view only shows a number that was proved by an SMS code.
+- **Old number until the new one is proved:** the number being checked waits in its own table (`PhoneVerification`, one per user) and only moves into `paynowMobile` when the code is right, so changing your number never leaves you without one.
+- **Same pattern a third time:** `SMS_PROVIDER` picks a fake sender (tests, CI, local; it logs the code) or Amazon SNS, exactly like `EMAIL_PROVIDER` and `OCR_PROVIDER`. CI never sends a real text.
+- **No AWS key anywhere:** SNS is called with the EC2 instance's IAM role, allowed only `sns:Publish`. A container is one network hop further than the instance, so the metadata hop limit has to be 2 or the SDK can't find the role.
+- **Rate limits because texts cost money:** 3 requests per 10 minutes per IP, one SMS a minute per account, 5 wrong codes per code, and the SNS spend limit of US$1 a month as the last line.
+- **The client was hiding the useful error:** it turned every 5xx into "Something went wrong on our side". A 503 from the SMS service says what to do ("check the number"), so a 503 with its own sentence is now shown as it is.
+- **A stale dev server looked like a bug:** the page said "Cannot POST /api/me/phone" because the watcher had compiled before `prisma generate`, and an old process still held port 3000. Restarting it cleanly fixed it; the tests had been right all along.
+
 ## KAN-94: a calendar and a chart that is honest about colour
 
 - **The API change was small:** the list and the summary take `from` and `to` as well as `month`, as whole Singapore days, and the summary adds a total per day. The rules (together, in order, 366 days at most) are checked once in the service and tested at both levels.

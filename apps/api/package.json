@@ -22,6 +22,7 @@
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-sns": "^3.1175.0",
     "@google/genai": "^3.0.0",
     "@nestjs/common": "^12.4.0",
     "@nestjs/core": "^12.4.0",

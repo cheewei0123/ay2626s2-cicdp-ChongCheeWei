@@ -85,7 +85,7 @@ describe('Paying the owner back by PayNow (guest Summary tab)', () => {
     await openSummaryTab('LOCKED', summary(ben({ paynowPayload: null }), null));
     expect(
       screen.getByText(
-        "Chee hasn't added a PayNow number yet. Ask them how to pay $9.59.",
+        "Chee hasn't added a checked PayNow number yet. Ask them how to pay $9.59.",
       ),
     ).toBeInTheDocument();
   });

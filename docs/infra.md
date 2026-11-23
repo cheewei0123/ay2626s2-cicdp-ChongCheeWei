@@ -102,6 +102,7 @@ What the script does:
 | `splitlah-actions` (private)      | GitHub Secret `EC2_SSH_KEY` (`production`) and my laptop | The deploy job's SSH login                                                                  |
 | `splitlah-actions.pub` (public)   | `/home/deploy/.ssh/authorized_keys` on the server        | Lets that key in as `deploy`                                                                |
 | IAM role `splitlah-github-deploy` | AWS; used by GitHub Actions through OIDC (no keys)       | Opening and closing port 22 for one deploy                                                  |
+| IAM role `splitlah-ec2-sms`       | Attached to the EC2 instance (no keys)                   | Only `sns:Publish`: texting the PayNow-number code (KAN-91)                                 |
 | `/opt/splitlah/.env`              | The server only, readable only by `deploy`               | `DATABASE_URL` (RDS `app` user), `JWT_SECRET`, Gemini key, Gmail app password (`SMTP_PASS`) |
 | RDS master password (`postgres`)  | My password manager only                                 | Creating the `app` user                                                                     |
 
@@ -137,14 +138,28 @@ Options I did not choose: opening SSH to the whole internet (simplest, but bots 
 | `api`     | `ghcr.io/cheewei0123/splitlah-api:<SHA>`     | Only the `web` container (`api:3000`)   |
 | `migrate` | `ghcr.io/cheewei0123/splitlah-migrate:<SHA>` | Runs once per deploy, then exits        |
 
+## Text messages (Amazon SNS, KAN-91)
+
+The code that checks a PayNow number is sent by **Amazon SNS** in Singapore (`ap-southeast-1`). The API calls it with the EC2 instance's IAM role, so no AWS key is stored in `.env`, git or GitHub.
+
+| Setting           | Value                                                                                                                                            | Why                                                                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Role              | `splitlah-ec2-sms`, attached to the instance; its policy allows only `sns:Publish` (`"Resource": "*"`, since a text to a phone has no topic ARN) | The smallest permission that can send a text                                                                                        |
+| Instance metadata | IMDSv2 required, **hop limit 2**                                                                                                                 | The API runs in a container, one network hop further than the instance; with hop limit 1 the SDK can't reach the role's credentials |
+| SNS account       | **Sandbox**: only numbers added under "Sandbox destination phone numbers" (up to 10) receive texts                                               | Enough for the demo and testing; no production request needed                                                                       |
+| SMS type          | `Transactional` (set on every message)                                                                                                           | Delivered first, never filtered as marketing                                                                                        |
+| Spend limit       | **US$1 a month** (the SNS default)                                                                                                               | A bug or an attack can't run up a bill; past it SNS stops sending and the app answers `503`                                         |
+| `.env`            | `SMS_PROVIDER=sns`, `AWS_REGION=ap-southeast-1`                                                                                                  | `fake` everywhere else                                                                                                              |
+
 ## Cost
 
-| Item                               | Cost                                                         |
-| ---------------------------------- | ------------------------------------------------------------ |
-| t3.micro, 20 GB gp3                | Free tier                                                    |
-| Public IPv4 address                | About US$0.005/hour (≈ US$3.60/month), paid from AWS credits |
-| RDS `db.t4g.micro`, 20 GB, backups | Free tier; no public IP, so no IPv4 charge                   |
-| **Budget alert**                   | **US$10/month**, emails me before anything goes over         |
+| Item                               | Cost                                                             |
+| ---------------------------------- | ---------------------------------------------------------------- |
+| t3.micro, 20 GB gp3                | Free tier                                                        |
+| Public IPv4 address                | About US$0.005/hour (≈ US$3.60/month), paid from AWS credits     |
+| RDS `db.t4g.micro`, 20 GB, backups | Free tier; no public IP, so no IPv4 charge                       |
+| SMS codes (SNS)                    | A few US cents each, capped at US$1/month, paid from AWS credits |
+| **Budget alert**                   | **US$10/month**, emails me before anything goes over             |
 
 The ticket suggested a US$1 alert. I set US$10 because the public IPv4 alone is about US$3.60 a month, so a US$1 alert would fire every month and stop meaning anything.
 

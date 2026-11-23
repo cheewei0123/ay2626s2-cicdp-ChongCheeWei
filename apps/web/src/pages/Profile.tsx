@@ -4,18 +4,14 @@ import { useAuth } from '../auth/context';
 import { validateProfile, type FieldErrors } from '../auth/validation';
 import { Field } from '../components/Field';
 import { FormError } from '../components/FormError';
-import { localDigits, toE164 } from '../auth/phone';
-import { PhoneField } from '../components/PhoneField';
+import { PhoneCheck } from '../components/PhoneCheck';
 import { Page, plainButton, primaryButton } from '../components/Page';
 
-// Wireframe #3 (slimmed): your name and the PayNow number friends pay you back on.
-// Uploading a PayNow QR was cut; the number is enough to build the QR (KAN-48).
+// Wireframe #3 (slimmed): your name, and the PayNow number friends pay you back on,
+// checked by SMS (KAN-91). Uploading a PayNow QR was cut; the number is enough (KAN-48).
 export default function Profile() {
   const { user, saveProfile, logout } = useAuth();
-  const [form, setForm] = useState({
-    displayName: user?.displayName ?? '',
-    paynowMobile: localDigits(user?.paynowMobile ?? ''),
-  });
+  const [form, setForm] = useState({ displayName: user?.displayName ?? '' });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -34,11 +30,7 @@ export default function Profile() {
     setBusy(true);
     setFormError('');
     try {
-      await saveProfile({
-        displayName: form.displayName.trim(),
-        // An empty box removes the number (null), rather than saving ""
-        paynowMobile: toE164(form.paynowMobile) || null,
-      });
+      await saveProfile({ displayName: form.displayName.trim() });
       setSaved(true);
     } catch (err) {
       setFormError((err as Error).message);
@@ -59,14 +51,6 @@ export default function Profile() {
           error={errors.displayName}
           hint="Friends see this on your bills"
         />
-        <PhoneField
-          label="PayNow number"
-          name="paynowMobile"
-          value={form.paynowMobile}
-          onChange={set('paynowMobile')}
-          error={errors.paynowMobile}
-          hint="Friends get a PayNow QR to this number. Leave it empty to remove it."
-        />
         <FormError message={formError} />
         {saved && (
           <p role="status" className="px-2 font-medium text-ok">
@@ -74,9 +58,10 @@ export default function Profile() {
           </p>
         )}
         <button type="submit" disabled={busy} className={primaryButton}>
-          {busy ? 'Saving…' : 'Save'}
+          {busy ? 'Saving…' : 'Save name'}
         </button>
       </form>
+      <PhoneCheck />
       <Link to="/profile/password" className={plainButton}>
         Change password
       </Link>

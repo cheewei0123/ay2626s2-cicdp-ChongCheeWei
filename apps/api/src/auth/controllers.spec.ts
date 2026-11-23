@@ -3,6 +3,7 @@ import { AuthController } from './auth.controller.js';
 import type { AuthService } from './auth.service.js';
 import { MeController } from './me.controller.js';
 import type { PasswordResetService } from './password-reset.service.js';
+import type { PhoneVerificationService } from './phone-verification.service.js';
 import type { VerificationService } from './verification.service.js';
 
 // A fake AuthService: the controllers should only pass work on to it
@@ -21,6 +22,13 @@ const passwordsMock = {
   change: vi.fn(),
 };
 const passwords = passwordsMock as unknown as PasswordResetService;
+const phonesMock = { sendCode: vi.fn(), verify: vi.fn(), remove: vi.fn() };
+const me = () =>
+  new MeController(
+    service,
+    passwords,
+    phonesMock as unknown as PhoneVerificationService,
+  );
 const user = { id: 'u1', email: 'chee@example.com' };
 
 describe('AuthController', () => {
@@ -66,7 +74,7 @@ describe('MeController', () => {
 
   it('returns the logged-in user', async () => {
     auth.findSafeUser.mockResolvedValue({ ...user, displayName: 'Chee' });
-    expect(await new MeController(service, passwords).me(user)).toMatchObject({
+    expect(await me().me(user)).toMatchObject({
       displayName: 'Chee',
     });
     expect(auth.findSafeUser).toHaveBeenCalledWith('u1');
@@ -74,18 +82,14 @@ describe('MeController', () => {
 
   it('answers 404 when the account behind a valid token no longer exists', async () => {
     auth.findSafeUser.mockResolvedValue(null);
-    await expect(new MeController(service, passwords).me(user)).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(me().me(user)).rejects.toThrow(NotFoundException);
   });
 
   it('saves profile changes for the logged-in user', async () => {
-    auth.updateProfile.mockResolvedValue({ ...user, paynowMobile: null });
-    const dto = { paynowMobile: null };
-    expect(
-      await new MeController(service, passwords).update(user, dto),
-    ).toMatchObject({
-      paynowMobile: null,
+    auth.updateProfile.mockResolvedValue({ ...user, displayName: 'Chee W' });
+    const dto = { displayName: 'Chee W' };
+    expect(await me().update(user, dto)).toMatchObject({
+      displayName: 'Chee W',
     });
     expect(auth.updateProfile).toHaveBeenCalledWith('u1', dto);
   });
@@ -93,7 +97,7 @@ describe('MeController', () => {
   it('answers 404 when updating an account that no longer exists', async () => {
     auth.updateProfile.mockResolvedValue(null);
     await expect(
-      new MeController(service, passwords).update(user, {
+      me().update(user, {
         displayName: 'Chee',
       }),
     ).rejects.toThrow(NotFoundException);
@@ -102,7 +106,7 @@ describe('MeController', () => {
   it('changes the password of the logged-in user (KAN-90)', async () => {
     passwordsMock.change.mockResolvedValue({ accessToken: 'new' });
     expect(
-      await new MeController(service, passwords).changePassword(user, {
+      await me().changePassword(user, {
         currentPassword: 'old password',
         newPassword: 'new password',
       }),
@@ -112,5 +116,24 @@ describe('MeController', () => {
       'old password',
       'new password',
     );
+  });
+});
+
+describe('MeController: the PayNow number (KAN-91)', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('passes sending, checking and removing the code to the service', async () => {
+    phonesMock.sendCode.mockResolvedValue('sent');
+    phonesMock.verify.mockResolvedValue('verified');
+    phonesMock.remove.mockResolvedValue('removed');
+
+    expect(await me().sendPhoneCode(user, { phone: '+6591234567' })).toBe(
+      'sent',
+    );
+    expect(await me().verifyPhone(user, { code: '123456' })).toBe('verified');
+    expect(await me().removePhone(user)).toBe('removed');
+    expect(phonesMock.sendCode).toHaveBeenCalledWith('u1', '+6591234567');
+    expect(phonesMock.verify).toHaveBeenCalledWith('u1', '123456');
+    expect(phonesMock.remove).toHaveBeenCalledWith('u1');
   });
 });

@@ -20,9 +20,11 @@ export class SummaryService {
 
   // A guest's view (share link): the same, plus the owner's PayNow details so they can
   // pay them back. Each guest who owes something gets a QR payload for exactly their amount.
+  // Only a number checked by SMS is shown (KAN-91): an unchecked one could be a typo,
+  // and the money would go to a stranger's PayNow.
   async forGuest(billId: string) {
     const { bill, summary } = await this.build(billId);
-    const mobile = bill.owner.paynowMobile;
+    const mobile = bill.owner.phoneVerifiedAt ? bill.owner.paynowMobile : null;
     const reference = `SplitLah ${bill.joinCode ?? ''}`;
     return {
       ...summary,
@@ -50,7 +52,13 @@ export class SummaryService {
         joinCode: true,
         serviceBp: true,
         gstBp: true,
-        owner: { select: { displayName: true, paynowMobile: true } },
+        owner: {
+          select: {
+            displayName: true,
+            paynowMobile: true,
+            phoneVerifiedAt: true,
+          },
+        },
         items: {
           orderBy: { createdAt: 'asc' },
           select: {

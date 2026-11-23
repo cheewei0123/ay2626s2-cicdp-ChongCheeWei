@@ -85,7 +85,9 @@ export function errorMessage(status: number, data: unknown): string {
     (typeof message !== 'string' || /too many requests/i.test(message))
   )
     return 'Too many tries. Wait a minute and try again.';
-  if (status >= 500)
+  // 503 is a service we rely on saying no (the SMS could not be sent, KAN-91): the API's
+  // sentence says what to do. Any other 5xx is a bug, and its text means nothing to a user.
+  if (status >= 500 && !(status === 503 && typeof message === 'string'))
     return 'Something went wrong on our side. Please try again.';
   if (Array.isArray(message)) return message.map(readable).join('\n');
   if (typeof message === 'string') return readable(message);

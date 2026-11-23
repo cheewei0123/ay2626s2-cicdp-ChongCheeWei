@@ -77,17 +77,26 @@ Every endpoint can also return `500` for unexpected errors (same format).
 
 ## Profile
 
-| Method | Path           | Who   | Request body                       | Response                    | Errors        |
-| ------ | -------------- | ----- | ---------------------------------- | --------------------------- | ------------- |
-| GET    | `/me`          | `JWT` | none                               | `200 user`                  | 401           |
-| PATCH  | `/me`          | `JWT` | `{ displayName?, paynowMobile? }`  | `200 user`                  | 400, 401, 404 |
-| POST   | `/me/password` | `JWT` | `{ currentPassword, newPassword }` | `200 { user, accessToken }` | 400, 401, 429 |
+| Method | Path               | Who   | Request body                       | Response                    | Errors                  |
+| ------ | ------------------ | ----- | ---------------------------------- | --------------------------- | ----------------------- |
+| GET    | `/me`              | `JWT` | none                               | `200 user`                  | 401                     |
+| PATCH  | `/me`              | `JWT` | `{ displayName? }`                 | `200 user`                  | 400, 401, 404           |
+| POST   | `/me/password`     | `JWT` | `{ currentPassword, newPassword }` | `200 { user, accessToken }` | 400, 401, 429           |
+| POST   | `/me/phone`        | `JWT` | `{ phone }`                        | `200 { phone, expiresAt }`  | 400, 401, 409, 429, 503 |
+| POST   | `/me/phone/verify` | `JWT` | `{ code }`                         | `200 user`                  | 400, 401, 429           |
+| DELETE | `/me/phone`        | `JWT` | none                               | `200 user`                  | 401                     |
 
 `paynowMobile` must be a Singapore mobile number (`+65` and 8 digits starting with 8 or 9).
 
 Built in KAN-81 (slimmed):
 
-- `PATCH /me` changes only the fields that are sent. `paynowMobile: null` removes the number; `displayName` is trimmed and must be 1 to 50 characters. Any other field (such as `email`) gives `400`.
+- `PATCH /me` changes only the name: `displayName` is trimmed and must be 1 to 50 characters. Any other field (such as `email`, or `paynowMobile` since KAN-91) gives `400`.
+- **Checking the PayNow number by SMS (KAN-91).** `user` now includes `phoneVerifiedAt` (`null` = never checked). A number typed in at sign-up is kept but not checked.
+  - `POST /me/phone` texts a 6-digit code to `phone`. Only the code's SHA-256 hash is stored (salted with the user id); it lasts 10 minutes and is used up after 5 wrong tries. Asking again replaces the code. Limits, because each SMS costs money: 3 calls per 10 minutes per IP, and one SMS a minute per account (`429 Wait N seconds…`). `409` if that number is already the checked one; `503` if the SMS could not be sent (the code is then forgotten, so they can try again at once).
+  - `POST /me/phone/verify` with the right code moves the number into `paynowMobile` and sets `phoneVerifiedAt`. Until then the old number (if any) stays as it was. A wrong code says how many tries are left (10 calls a minute).
+  - `DELETE /me/phone` removes the number and any code waiting for one.
+  - The guest view of a bill only shows the owner's number, and only builds PayNow QRs, when `phoneVerifiedAt` is set, so a typo can't send a friend's money to a stranger.
+  - `SMS_PROVIDER=fake` (tests, CI, local) logs the code; `sns` sends it through Amazon SNS with the EC2 instance's IAM role (no key stored), see [infra.md](infra.md).
 - The response is the same safe user as `GET /me`, never the password hash. `404` if the account behind the token no longer exists.
 - Cut to fit the deadline: uploading and decoding a PayNow QR (`POST /me/paynow-qr`) and the phone field. The number alone is enough to build each friend's QR (KAN-48).
 - `POST /me/password` (KAN-90) needs the current password (`401` if wrong, 5 tries a minute). It logs out every other device and returns a fresh token, so this one stays logged in.
@@ -254,7 +263,7 @@ The deploy pipeline calls this after each release; anything other than `200` tri
 | Feature                            | Endpoints                                                                                       |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
 | Sign up, log in, verify email      | `/auth/*`                                                                                       |
-| Set PayNow number or upload QR     | `PATCH /me`, `POST /me/paynow-qr`                                                               |
+| Set and check the PayNow number    | `POST /me/phone`, `POST /me/phone/verify`, `DELETE /me/phone` (QR upload was cut)               |
 | Create a bill                      | `POST /bills`                                                                                   |
 | Scan or paste a receipt, then edit | `POST /bills/:id/receipt`, `POST /bills/:id/receipt-text`, `POST/PATCH/DELETE /bills/:id/items` |
 | Service charge and GST             | `PATCH /bills/:id` (`serviceBp`, `gstBp`)                                                       |

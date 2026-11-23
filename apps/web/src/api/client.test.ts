@@ -146,6 +146,15 @@ describe('errorMessage()', () => {
     expect(errorMessage(500, { message: 'Internal server error' })).toBe(
       'Something went wrong on our side. Please try again.',
     );
+    // A 503 from a service we rely on (SMS, KAN-91) says what to do; without text it doesn't
+    expect(
+      errorMessage(503, {
+        message: 'The code could not be sent. Check the number and try again.',
+      }),
+    ).toBe('The code could not be sent. Check the number and try again.');
+    expect(errorMessage(503, null)).toBe(
+      'Something went wrong on our side. Please try again.',
+    );
   });
 
   it('falls back to a general message when there is none', () => {
