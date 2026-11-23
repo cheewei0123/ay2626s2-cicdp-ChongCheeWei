@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -13,13 +14,15 @@ import { formatCents } from '../split/money.js';
 import type {
   CreateExpenseDto,
   ListExpensesQueryDto,
+  PeriodQueryDto,
   UpdateExpenseDto,
 } from './dto/expense.dto.js';
 import { merchantKey, ruleCategory } from './categorise.js';
-import { currentMonth, monthRange } from './month.js';
+import { currentMonth, dayRange, daysIn, monthRange } from './month.js';
 import { summarise } from './summary.js';
 
 const DEFAULT_PAGE_SIZE = 50;
+const MAX_RANGE_DAYS = 366; // a year, leap years included
 
 // What the API returns for an expense: money also as text, and never the userId
 function toView(e: Expense) {
@@ -52,17 +55,37 @@ export class ExpensesService {
     @Inject(OCR_SERVICE) private readonly ocr: OcrService,
   ) {}
 
-  // Every query includes userId, so one user can never see another's expenses
-  private inMonth(userId: string, month: string) {
-    const { start, end } = monthRange(month);
-    return { userId, spentAt: { gte: start, lt: end } };
+  // Every query includes userId, so one user can never see another's expenses.
+  // label goes back in the answer: { month } or { from, to }, so the page knows what it got.
+  private inPeriod(userId: string, query: PeriodQueryDto) {
+    const { from, to } = query;
+    if (from === undefined && to === undefined) {
+      const month = query.month ?? currentMonth();
+      const { start, end } = monthRange(month);
+      return {
+        label: { month },
+        where: { userId, spentAt: { gte: start, lt: end } },
+      };
+    }
+    if (from === undefined || to === undefined || query.month !== undefined)
+      throw new BadRequestException('Send from and to together, without month');
+    const days = daysIn(from, to);
+    if (days < 1) throw new BadRequestException('to can’t be before from');
+    if (days > MAX_RANGE_DAYS)
+      throw new BadRequestException(
+        `A range can be at most ${MAX_RANGE_DAYS} days`,
+      );
+    const { start, end } = dayRange(from, to);
+    return {
+      label: { from, to },
+      where: { userId, spentAt: { gte: start, lt: end } },
+    };
   }
 
   async list(userId: string, query: ListExpensesQueryDto) {
-    const month = query.month ?? currentMonth();
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
-    const where = this.inMonth(userId, month);
+    const { label, where } = this.inPeriod(userId, query);
 
     const [totalCount, rows] = await Promise.all([
       this.prisma.expense.count({ where }),
@@ -74,15 +97,16 @@ export class ExpensesService {
         take: pageSize,
       }),
     ]);
-    return { month, page, pageSize, totalCount, items: rows.map(toView) };
+    return { ...label, page, pageSize, totalCount, items: rows.map(toView) };
   }
 
-  async summary(userId: string, month = currentMonth()) {
+  async summary(userId: string, query: PeriodQueryDto = {}) {
+    const { label, where } = this.inPeriod(userId, query);
     const rows = await this.prisma.expense.findMany({
-      where: this.inMonth(userId, month),
-      select: { category: true, amountCents: true },
+      where,
+      select: { category: true, amountCents: true, spentAt: true },
     });
-    return { month, ...summarise(rows) };
+    return { ...label, ...summarise(rows) };
   }
 
   async create(userId: string, dto: CreateExpenseDto) {

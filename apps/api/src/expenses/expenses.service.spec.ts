@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Logger,
   NotFoundException,
@@ -118,15 +119,23 @@ describe('ExpensesService (mocked database)', () => {
   describe('summary', () => {
     it('adds up my expenses in that month by category', async () => {
       prisma.expense.findMany.mockResolvedValue([
-        { category: 'FOOD_DRINKS', amountCents: 720 },
-        { category: 'FOOD_DRINKS', amountCents: 1250 },
+        {
+          category: 'FOOD_DRINKS',
+          amountCents: 720,
+          spentAt: new Date('2026-11-05T12:00:00+08:00'),
+        },
+        {
+          category: 'FOOD_DRINKS',
+          amountCents: 1250,
+          spentAt: new Date('2026-11-05T19:00:00+08:00'),
+        },
       ]);
 
-      const summary = await service().summary('u1', '2026-11');
+      const summary = await service().summary('u1', { month: '2026-11' });
 
       expect(prisma.expense.findMany).toHaveBeenCalledWith({
         where: { userId: 'u1', spentAt: november },
-        select: { category: true, amountCents: true },
+        select: { category: true, amountCents: true, spentAt: true },
       });
       expect(summary).toEqual({
         month: '2026-11',
@@ -140,7 +149,54 @@ describe('ExpensesService (mocked database)', () => {
             count: 2,
           },
         ],
+        byDay: [{ day: '2026-11-05', totalCents: 1970 }],
       });
+    });
+
+    it('takes a free range of days instead of a month (KAN-94)', async () => {
+      prisma.expense.findMany.mockResolvedValue([]);
+
+      const summary = await service().summary('u1', {
+        from: '2026-11-03',
+        to: '2026-11-09',
+      });
+
+      expect(prisma.expense.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId: 'u1',
+            spentAt: {
+              gte: new Date('2026-11-02T16:00:00.000Z'),
+              lt: new Date('2026-11-09T16:00:00.000Z'),
+            },
+          },
+        }),
+      );
+      expect(summary).toMatchObject({
+        from: '2026-11-03',
+        to: '2026-11-09',
+        totalCents: 0,
+      });
+      expect(summary).not.toHaveProperty('month');
+    });
+
+    it.each([
+      [{ from: '2026-11-03' }, 'Send from and to together, without month'],
+      [{ to: '2026-11-03' }, 'Send from and to together, without month'],
+      [
+        { month: '2026-11', from: '2026-11-01', to: '2026-11-02' },
+        'Send from and to together, without month',
+      ],
+      [{ from: '2026-11-09', to: '2026-11-03' }, 'to can’t be before from'],
+      [
+        { from: '2025-01-01', to: '2026-11-03' },
+        'A range can be at most 366 days',
+      ],
+    ])('refuses the range %o (400)', async (query, message) => {
+      await expect(service().summary('u1', query)).rejects.toThrow(
+        new BadRequestException(message),
+      );
+      expect(prisma.expense.findMany).not.toHaveBeenCalled();
     });
 
     it('uses the current Singapore month when no month is given', async () => {

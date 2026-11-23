@@ -10,20 +10,21 @@ Every colour is a named token in `apps/web/src/index.css` (`@theme`). Screens us
 
 The app is **dark only**: glass needs a dark page behind it.
 
-| Token                      | Value                           | Use it for                                 | Classes                       |
-| -------------------------- | ------------------------------- | ------------------------------------------ | ----------------------------- |
-| `bg`                       | `#080B18`                       | The page (midnight blue)                   | set on `html`                 |
-| `surface`                  | white 6%                        | Glass: cards, rows, inputs                 | `glass`, `bg-surface`         |
-| `raised`                   | white 13%                       | Brighter glass: the active tab, row badges | `bg-raised`                   |
-| `line`                     | white 12%                       | The thin edge of glass                     | `border-line`                 |
-| `ink`                      | `#F5F6FB`                       | Main text, amounts, **the main button**    | `text-ink`, `bg-ink`          |
-| `on-ink`                   | `#0B0F1F`                       | Text on the main button                    | `text-on-ink`                 |
-| `muted`                    | `#A8AEC4`                       | Labels, hints, second lines, `›`           | `text-muted`                  |
-| `faint`                    | `#6F7690`                       | Placeholders                               | `placeholder:text-faint`      |
-| `ok`                       | `#D9EE6A`                       | "All good" (our total matches the receipt) | `text-ok`                     |
-| `warn`                     | `#F5B454`                       | "Check this" (our total ≠ the receipt's)   | `text-warn`, `bg-warn/10`     |
-| `danger`                   | `#FF8F8F`                       | Errors, delete                             | `text-danger`, `bg-danger/10` |
-| `indigo`, `violet`, `teal` | `#2F3AA3`, `#A78BFA`, `#2DD4BF` | The glow, the hero card and the logo only  | through `hero`                |
+| Token                                | Value                            | Use it for                                 | Classes                        |
+| ------------------------------------ | -------------------------------- | ------------------------------------------ | ------------------------------ |
+| `bg`                                 | `#080B18`                        | The page (midnight blue)                   | set on `html`                  |
+| `surface`                            | white 6%                         | Glass: cards, rows, inputs                 | `glass`, `bg-surface`          |
+| `raised`                             | white 13%                        | Brighter glass: the active tab, row badges | `bg-raised`                    |
+| `line`                               | white 12%                        | The thin edge of glass                     | `border-line`                  |
+| `ink`                                | `#F5F6FB`                        | Main text, amounts, **the main button**    | `text-ink`, `bg-ink`           |
+| `on-ink`                             | `#0B0F1F`                        | Text on the main button                    | `text-on-ink`                  |
+| `muted`                              | `#A8AEC4`                        | Labels, hints, second lines, `›`           | `text-muted`                   |
+| `faint`                              | `#6F7690`                        | Placeholders                               | `placeholder:text-faint`       |
+| `ok`                                 | `#D9EE6A`                        | "All good" (our total matches the receipt) | `text-ok`                      |
+| `warn`                               | `#F5B454`                        | "Check this" (our total ≠ the receipt's)   | `text-warn`, `bg-warn/10`      |
+| `danger`                             | `#FF8F8F`                        | Errors, delete                             | `text-danger`, `bg-danger/10`  |
+| `indigo`, `violet`, `teal`           | `#2F3AA3`, `#A78BFA`, `#2DD4BF`  | The glow, the hero card and the logo only  | through `hero`                 |
+| `chart-1` … `chart-5`, `chart-other` | `#DDD6FE` … `#7C3AED`, `#565B73` | Chart marks only (see Charts)              | `bg-chart-3`, `stroke-chart-1` |
 
 - **One main button per screen** (`bg-ink text-on-ink`, solid white). Everything else is glass or plain text.
 - **Colour is atmosphere or meaning, never decoration on a control.** The glow, the hero card and the logo carry the colour; lime, amber and red mean ok, warning and error.
@@ -40,6 +41,22 @@ Three styles defined once in `index.css`:
 
 - The **glow** is three blurred colour clouds fixed behind every page (`body::before`). It needs no markup; do not add more glows inside screens.
 - Do not put glass on glass more than one level deep: it turns muddy and unreadable.
+
+## Charts (KAN-94)
+
+The Expenses page shows where the money went three ways, picked with a tab track: **Bars** (one bar per category, biggest first), **Pie** and **Over time** (one column per day, or per month for a range longer than 31 days). The phone remembers the last one picked.
+
+- **One violet ramp, not a rainbow.** The chart tokens are five steps of the brand's violet, brightest first, plus a grey. A single series (bars, columns) uses `chart-3`; the picked column turns `chart-1`.
+- **In the pie, colour means rank, not category:** the biggest slice is `chart-1`, the 5th `chart-5`, and everything after the 5th shares one grey slice (`chart-other`, named "3 more", or the category's own name if only one is left). With 10 categories, ten hues could never all be told apart (the colour-blind check fails past three), so the name always sits in the legend row beside the swatch, with its $ and %. At most 6 slices, and 2px of page between them.
+- **Every value can be read without hovering:** bars and the pie legend print $ and %; the over-time line above the chart says the biggest day until you tap, hover or use the arrow keys, and every expense is listed under the chart by day.
+- **Quiet chrome:** one hairline at the top value (labelled) and one at the baseline, no gridlines. Columns are at most 24px wide with a 4px round top and a square foot, and 2px of air between them. Labels stay inside the chart, the first and last lined up with its edges.
+- The colours were checked with the dataviz validator against the glass surface (`#161927`): the ramp passes as an ordinal ramp (one hue, even steps, the darkest still 3:1).
+
+## Choosing dates (KAN-94)
+
+- The period sits in the address bar: `?month=2026-11`, or `?from=2026-11-03&to=2026-11-09`. Tapping its name opens a sheet with four quick picks (This month, Last month, Last 7 days, Last 30 days) and a month calendar, Monday first.
+- Tap the first day, then the last (the same day twice for one day). The two ends are solid `ink` circles and the days between sit on a `surface` band that joins across the week. Today is underlined. The line under the calendar says what to do next, or the range and how many days; more than 366 days is a `warn` sentence and the button stays off.
+- `‹ ›` step a month, or a range by its own length (7 days back or forward).
 
 ## The logo
 

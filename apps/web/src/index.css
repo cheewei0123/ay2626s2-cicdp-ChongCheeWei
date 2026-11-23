@@ -26,6 +26,15 @@
   --color-indigo: #2f3aa3;
   --color-violet: #a78bfa;
   --color-teal: #2dd4bf;
+  /* Charts (KAN-94): one violet ramp, brightest first. A single series uses chart-3;
+     the pie gives the biggest slice chart-1 and the 5th chart-5, and the folded rest
+     chart-other. Checked with the dataviz validator (ordinal, on the glass surface). */
+  --color-chart-1: #ddd6fe;
+  --color-chart-2: #c4b5fd;
+  --color-chart-3: #a78bfa;
+  --color-chart-4: #8b5cf6;
+  --color-chart-5: #7c3aed;
+  --color-chart-other: #565b73;
 }
 
 @layer base {

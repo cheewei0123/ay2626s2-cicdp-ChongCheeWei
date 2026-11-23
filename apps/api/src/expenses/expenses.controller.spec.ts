@@ -34,7 +34,7 @@ describe('ExpensesController', () => {
     await controller.category(me, { merchant: 'Starbucks' });
 
     expect(service.list).toHaveBeenCalledWith('u1', { month: '2026-11' });
-    expect(service.summary).toHaveBeenCalledWith('u1', '2026-11');
+    expect(service.summary).toHaveBeenCalledWith('u1', { month: '2026-11' });
     expect(service.create).toHaveBeenCalledWith('u1', dto);
     expect(service.update).toHaveBeenCalledWith('u1', 'e1', { note: 'hi' });
     expect(service.remove).toHaveBeenCalledWith('u1', 'e1');

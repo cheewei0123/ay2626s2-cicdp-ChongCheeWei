@@ -33,16 +33,16 @@ export type Expense = {
   billId: string | null;
 };
 
+// Each answer echoes the period asked for: { month } or { from, to } (KAN-94)
 export type ExpensePage = {
-  month: string;
   totalCount: number;
   items: Expense[];
 };
 
 export type MonthSummary = {
-  month: string;
   totalCents: number;
   byCategory: { category: Category; totalCents: number; count: number }[];
+  byDay: { day: string; totalCents: number }[]; // only days with spending, oldest first
 };
 
 // GET /expenses/category?merchant=…: what you picked before, else keyword rules
