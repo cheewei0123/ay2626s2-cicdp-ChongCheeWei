@@ -52,12 +52,10 @@ describe('Summary (e2e, real database)', () => {
     owner = `Bearer ${res.body.accessToken}`;
     await markVerified(app, ownerEmail);
     // Guests only get a QR for a number checked by SMS (KAN-91); phone.e2e-spec.ts tests the code
-    await app
-      .get(PrismaService)
-      .user.update({
-        where: { email: ownerEmail },
-        data: { phoneVerifiedAt: new Date() },
-      });
+    await app.get(PrismaService).user.update({
+      where: { email: ownerEmail },
+      data: { phoneVerifiedAt: new Date() },
+    });
     bill = (
       await request(server())
         .post('/api/bills')
