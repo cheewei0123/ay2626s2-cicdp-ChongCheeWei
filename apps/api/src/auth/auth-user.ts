@@ -5,9 +5,12 @@ export interface AuthUser {
 }
 
 // What is inside a login token: `sub` (subject) is the standard JWT field for the user ID
+// `ver` is the user's sessionVersion when the token was made: changing the password
+// raises it, so every older token stops working (KAN-90)
 export interface JwtPayload {
   sub: string;
   email: string;
+  ver?: number;
   typ?: undefined;
 }
 
