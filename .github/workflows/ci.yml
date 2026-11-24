@@ -163,10 +163,20 @@ jobs:
           $COMPOSE up -d --wait db
           $COMPOSE run --rm migrate
           $COMPOSE up -d --wait api web
-      - run: npx playwright install --with-deps webkit
-        working-directory: apps/web
-      - run: npx playwright test
-        working-directory: apps/web
+          # The test reads the verify link from the API log; this keeps a copy in a file
+          nohup $COMPOSE logs -f --no-color api > api.log 2>&1 &
+      # Microsoft's Playwright image already has WebKit and the system libraries it
+      # needs. `playwright install --with-deps` downloaded those from the Ubuntu mirror,
+      # which took 30 minutes in two runs (KAN-100). The image tag follows the
+      # installed @playwright/test, so a Dependabot bump keeps the two in step.
+      - name: Run the browser tests in the Playwright image
+        run: |
+          version=$(node -p "require('@playwright/test/package.json').version")
+          docker run --rm --network host --ipc=host \
+            -e CI -e API_LOG=/work/api.log \
+            -v "$PWD":/work -w /work/apps/web \
+            "mcr.microsoft.com/playwright:v$version-noble" \
+            npx playwright test
       # On failure: the trace (open it at trace.playwright.dev) and the video
       - if: failure()
         uses: actions/upload-artifact@v7

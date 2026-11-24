@@ -2,6 +2,13 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-100: Browser tests in the Playwright image
+
+- **A slow run was one slow download.** Two CI runs took about 30 minutes instead of about 4. In both, `npx playwright install --with-deps webkit` spent about 30 minutes fetching Ubuntu packages (the libraries WebKit needs) from a slow mirror; the three browser tests themselves took 21 seconds.
+- **Use an image that already has them.** Microsoft's `mcr.microsoft.com/playwright` image has WebKit and its libraries built in, so the job now runs `npx playwright test` inside it with `docker run` (`--network host`, so `localhost:8080` is still the app). Nothing comes from the Ubuntu mirror any more.
+- **Keep the two versions in step.** The browsers in the image must match the `@playwright/test` version, or Playwright can't find them. The job reads the installed version and uses it as the tag, so a Dependabot bump changes both.
+- **The test used the `docker` command, which isn't in the image.** It read the verify link with `docker compose logs`. CI now streams the API log to `api.log`, and the test reads that file when `API_LOG` is set; on a laptop it still asks docker.
+
 ## KAN-99: "No receipt found" instead of a made-up bill
 
 - **The AI answers whatever it is asked.** Given a selfie, it still tried to fill in the receipt shape. The answer now starts with `isReceipt`, and the prompt says to set it to false for anything that is not a receipt or bill. The API then answers `422 No receipt found in this photo` and saves nothing. A receipt with no items to read gets the same answer, since a bill needs items.

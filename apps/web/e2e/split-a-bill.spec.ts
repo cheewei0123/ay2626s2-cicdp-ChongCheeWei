@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 
@@ -13,13 +14,17 @@ const email = `e2e-browser-${Date.now()}@example.com`;
 // Filled in by the owner test, used by the guest test
 const shared = { joinCode: '', total: '' };
 
-// The Fake email sender writes the link to the API log, so read it from there
+// The Fake email sender writes the link to the API log, so read it from there.
+// CI runs this test inside the Playwright image, which has no docker command, so it
+// streams the log to a file and sets API_LOG (KAN-100); on a laptop we ask docker.
 function verifyLinkFor(address: string) {
-  const logs = execFileSync(
-    'docker',
-    ['compose', '-f', compose, 'logs', '--no-color', 'api'],
-    { encoding: 'utf8' },
-  );
+  const logs = process.env.API_LOG
+    ? readFileSync(process.env.API_LOG, 'utf8')
+    : execFileSync(
+        'docker',
+        ['compose', '-f', compose, 'logs', '--no-color', 'api'],
+        { encoding: 'utf8' },
+      );
   const after = logs.slice(logs.lastIndexOf(`to ${address}`));
   const token = /verify\?token=([\w-]+)/.exec(after)?.[1];
   if (!token) throw new Error(`No verify email for ${address} in the API log`);
