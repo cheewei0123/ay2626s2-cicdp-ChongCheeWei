@@ -81,6 +81,13 @@ export class BillsService {
     return withTotals(updated);
   }
 
+  // Deletes an OPEN bill. Its items, people, claims and receipt answers go with it
+  // (onDelete: Cascade in the schema).
+  async remove(bill: OwnedBill) {
+    assertOpen(bill);
+    await this.prisma.bill.delete({ where: { id: bill.id } });
+  }
+
   async addItem(bill: OwnedBill, dto: CreateItemDto) {
     assertOpen(bill);
     return this.prisma.item.create({

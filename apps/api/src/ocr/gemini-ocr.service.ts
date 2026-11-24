@@ -11,12 +11,19 @@ import {
 } from '@google/genai';
 import { z } from 'zod';
 import { Category } from '../generated/prisma/enums.js';
-import type { OcrResult, OcrService } from './ocr.interface.js';
+import {
+  NO_RECEIPT,
+  type OcrResult,
+  type OcrService,
+} from './ocr.interface.js';
 
 // The shape Gemini must answer in. Used twice: sent to Gemini as the required
 // JSON schema, and used again to check the answer before anything is saved.
 const cents = z.number().int().nonnegative();
 const receiptSchema = z.object({
+  isReceipt: z
+    .boolean()
+    .describe('false if the photo is not a receipt or bill'),
   merchant: z.string().nullable(),
   date: z.string().nullable().describe('YYYY-MM-DD'),
   items: z.array(
@@ -41,7 +48,9 @@ subtract it from the price of the item it applies to (or the item above it).
 If a deal (e.g. "2 FOR $7.95") makes the price of one unit not a whole number of
 cents, return that line once: quantity 1, the deal's total price, and the count in
 the name (e.g. "2x BUTTER").
-Use null for anything the receipt does not show. Pick the category that fits the merchant.`;
+Use null for anything the receipt does not show. Pick the category that fits the merchant.
+If the photo is not a receipt or bill (a person, a menu, a screenshot), set isReceipt
+to false and return no items.`;
 
 // Only the part of the SDK this class needs, so tests can pass a pretend Gemini
 export type GenerateFn = (
@@ -78,6 +87,8 @@ export class GeminiOcrService implements OcrService {
     }
 
     const r = parsed.data;
+    // Not a receipt: say so, instead of a draft made up from whatever is in the photo
+    if (!r.isReceipt) throw new UnprocessableEntityException(NO_RECEIPT);
     return {
       merchant: r.merchant ?? undefined,
       date: r.date ?? undefined,

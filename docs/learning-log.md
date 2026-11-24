@@ -2,6 +2,13 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-99: "No receipt found" instead of a made-up bill
+
+- **The AI answers whatever it is asked.** Given a selfie, it still tried to fill in the receipt shape. The answer now starts with `isReceipt`, and the prompt says to set it to false for anything that is not a receipt or bill. The API then answers `422 No receipt found in this photo` and saves nothing. A receipt with no items to read gets the same answer, since a bill needs items.
+- **The bill was created too early.** Typing a name created the bill straight away, so a failed scan left an empty bill in My bills. Now the scan page creates it only when there is something to put in it: when you tap Read receipt (and deletes it again if the photo was not a receipt) or Type it in.
+- **A route the report already promised:** deleting a bill was in FR2, but there was no `DELETE /bills/:id`. It now exists, for open bills only, and the schema's cascades remove the items, people and claims with it.
+- **Tests:** the web tests check the exact calls in order (create, scan, delete), and that the scan's own error is still shown if the delete fails too.
+
 ## KAN-98: GST added to receipts that already include it
 
 - **An exact match was too strict.** After a scan, GST was ticked whenever the printed total was not exactly the items' sum. So a receipt with no total line, a service charge with GST inside the prices, or one item misread by 5 cents all got 9% added on top.

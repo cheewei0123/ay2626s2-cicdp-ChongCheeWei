@@ -32,6 +32,7 @@ describe('BillsService (with a mocked database)', () => {
       findMany: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
+      delete: vi.fn(),
     },
     item: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
   };
@@ -188,6 +189,11 @@ describe('BillsService (with a mocked database)', () => {
       });
     });
 
+    it('deletes the bill (KAN-99)', async () => {
+      await service.remove(open);
+      expect(prisma.bill.delete).toHaveBeenCalledWith({ where: { id: 'b1' } });
+    });
+
     it('only deletes an item that belongs to this bill', async () => {
       prisma.item.delete.mockResolvedValue(items[0]);
       await service.deleteItem(open, 'i1');
@@ -214,6 +220,8 @@ describe('BillsService (with a mocked database)', () => {
       await expect(service.deleteItem(closed, 'i1')).rejects.toThrow(
         ConflictException,
       );
+      await expect(service.remove(closed)).rejects.toThrow(ConflictException);
+      expect(prisma.bill.delete).not.toHaveBeenCalled();
       expect(prisma.bill.update).not.toHaveBeenCalled();
       expect(prisma.item.create).not.toHaveBeenCalled();
       expect(prisma.item.update).not.toHaveBeenCalled();
