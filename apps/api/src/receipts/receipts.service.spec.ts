@@ -3,7 +3,7 @@ import type { OwnedBill } from '../bills/guards/bill-owner.guard.js';
 import { FakeOcrService } from '../ocr/fake-ocr.service.js';
 import type { OcrResult, OcrService } from '../ocr/ocr.interface.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import { ReceiptsService } from './receipts.service.js';
+import { ReceiptsService, suggestCharges } from './receipts.service.js';
 
 const open: OwnedBill = { id: 'b1', ownerId: 'u1', status: 'OPEN' };
 const photo = Buffer.from('photo');
@@ -87,6 +87,34 @@ describe('ReceiptsService (mocked database)', () => {
     expect(draft.gstBp).toBe(0);
   });
 
+  // KAN-98: GST used to be ticked whenever the total wasn't exactly the items' sum
+  it('ticks only service when GST is already inside the prices', async () => {
+    const draft = await service(
+      readerOf({
+        items: [{ name: 'Set lunch', unitPriceCents: 1000, quantity: 1 }],
+        serviceCents: 100,
+        totalCents: 1100,
+      }),
+    ).draftFromPhoto(open, photo, 'image/jpeg');
+    expect(draft).toMatchObject({ serviceBp: 1000, gstBp: 0 });
+    expect(draft.check.totalMatches).toBe(true);
+  });
+
+  it('does not tick GST when the receipt prints no total', async () => {
+    const draft = await service(
+      readerOf({ items: [kopi], gstCents: 12 }),
+    ).draftFromPhoto(open, photo, 'image/jpeg');
+    expect(draft).toMatchObject({ serviceBp: 0, gstBp: 0 });
+  });
+
+  it('does not tick GST because one item was misread by a few cents', async () => {
+    const draft = await service(
+      readerOf({ items: [kopi], totalCents: 145 }),
+    ).draftFromPhoto(open, photo, 'image/jpeg');
+    expect(draft).toMatchObject({ serviceBp: 0, gstBp: 0 });
+    expect(draft.check.totalMatches).toBe(false); // the owner is still warned
+  });
+
   it('warns when an item was misread (sum differs from the subtotal)', async () => {
     const draft = await service(
       readerOf({ items: [kopi], subtotalCents: 300 }),
@@ -120,5 +148,45 @@ describe('ReceiptsService (mocked database)', () => {
     ).rejects.toThrow(ConflictException);
     expect(extract).not.toHaveBeenCalled();
     expect(prisma.receiptImage.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('suggestCharges (KAN-98)', () => {
+  it.each([
+    ['no charges', 1000, {}, 0, 0],
+    ['GST only', 1000, { totalCents: 1090 }, 0, 900],
+    ['service only', 1000, { totalCents: 1100 }, 1000, 0],
+    ['service and GST', 1000, { totalCents: 1199 }, 1000, 900],
+    [
+      'a printed service line with no total',
+      1000,
+      { serviceCents: 100 },
+      1000,
+      0,
+    ],
+  ])('%s', (_name, subtotal, receipt, serviceBp, gstBp) => {
+    expect(suggestCharges(subtotal, receipt)).toEqual({ serviceBp, gstBp });
+  });
+
+  it('picks the closest total, so a few cents off still counts', () => {
+    expect(suggestCharges(1000, { totalCents: 1093 })).toEqual({
+      serviceBp: 0,
+      gstBp: 900,
+    });
+  });
+
+  it('starts from the printed subtotal when an item was misread', async () => {
+    // Items add up to 10.00 (one misread), the receipt says 10.50 + 9% GST = 11.45.
+    // From 10.00, service only (11.00) would be closer than GST only (10.90).
+    const prisma = { receiptImage: { create: vi.fn() } };
+    const draft = await new ReceiptsService(
+      prisma as unknown as PrismaService,
+      readerOf({
+        items: [{ name: 'Nasi lemak', unitPriceCents: 1000, quantity: 1 }],
+        subtotalCents: 1050,
+        totalCents: 1145,
+      }),
+    ).draftFromPhoto(open, photo, 'image/jpeg');
+    expect(draft).toMatchObject({ serviceBp: 0, gstBp: 900 });
   });
 });

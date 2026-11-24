@@ -2,6 +2,13 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-98: GST added to receipts that already include it
+
+- **An exact match was too strict.** After a scan, GST was ticked whenever the printed total was not exactly the items' sum. So a receipt with no total line, a service charge with GST inside the prices, or one item misread by 5 cents all got 9% added on top.
+- **Compare all four choices instead.** No charges, service only, GST only, or both: the app works out each total and ticks the one closest to the printed total, with a tie going to fewer charges. It starts from the printed subtotal when there is one, so a misread item doesn't tip the choice.
+- **No total, no guess:** a "GST" line can mean "GST incl.", so without a total GST stays off and the owner ticks it. A service charge line is never inside the prices, so that one is still ticked.
+- **Tests first, on the old code:** the three new tests failed on the old rule and pass on the new one, so they really cover the bug.
+
 ## KAN-96: Security checklist
 
 - **Going through a checklist finds what you forgot.** The API had `helmet`, but the pages themselves come from Caddy, which sent no security headers at all: no CSP, no HSTS, nothing against clickjacking. Every item from the OWASP Top 10 is now in `docs/security.md` with how SplitLah meets it, or why not.

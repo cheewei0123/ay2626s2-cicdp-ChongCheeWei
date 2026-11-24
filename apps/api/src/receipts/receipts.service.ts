@@ -38,13 +38,10 @@ export class ReceiptsService {
       0,
     );
 
-    // Suggested charges. Many receipts (fast food, food courts, cafés) have no
-    // service charge and GST already inside the total. Compared with the items'
-    // sum, because some receipts print no subtotal line.
-    const serviceBp =
-      receipt.serviceCents === undefined ? 0 : DEFAULT_SERVICE_BP;
-    const gstBp =
-      receipt.totalCents === itemsSubtotalCents ? 0 : DEFAULT_GST_BP;
+    const { serviceBp, gstBp } = suggestCharges(
+      receipt.subtotalCents ?? itemsSubtotalCents,
+      receipt,
+    );
 
     // Two checks for the owner: items vs the printed subtotal (a misread line),
     // and our computed total vs the printed total (wrong service or GST)
@@ -66,6 +63,36 @@ export class ReceiptsService {
       },
     };
   }
+}
+
+// The 4 ways a receipt adds charges, fewest first, so a tie picks fewer charges
+const CHOICES = [
+  { serviceBp: 0, gstBp: 0 },
+  { serviceBp: 0, gstBp: DEFAULT_GST_BP },
+  { serviceBp: DEFAULT_SERVICE_BP, gstBp: 0 },
+  { serviceBp: DEFAULT_SERVICE_BP, gstBp: DEFAULT_GST_BP },
+];
+
+// Which charges to tick after a scan (KAN-98). Many receipts (fast food, food
+// courts, cafés) already have GST inside their prices, so GST is only ticked when
+// adding it is what makes the printed total. The choice whose total is closest
+// wins, so a misread item a few cents off doesn't switch GST on.
+// No printed total: nothing to compare, so only a printed service charge line is
+// ticked; GST stays off for the owner to tick (a "GST" line may be "GST incl.").
+export function suggestCharges(
+  subtotalCents: number,
+  receipt: { serviceCents?: number; totalCents?: number },
+) {
+  const printed = receipt.totalCents;
+  if (printed === undefined) {
+    return {
+      serviceBp: receipt.serviceCents ? DEFAULT_SERVICE_BP : 0,
+      gstBp: 0,
+    };
+  }
+  const off = (c: (typeof CHOICES)[number]) =>
+    Math.abs(billTotals(subtotalCents, c.serviceBp, c.gstBp).total - printed);
+  return CHOICES.reduce((best, c) => (off(c) < off(best) ? c : best));
 }
 
 // null when the receipt doesn't show the number, so there is nothing to compare
