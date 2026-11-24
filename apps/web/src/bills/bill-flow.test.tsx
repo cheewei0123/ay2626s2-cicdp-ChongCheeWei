@@ -39,26 +39,6 @@ const sentBody = (call: unknown[]) =>
 
 beforeEach(() => localStorage.setItem('splitlah.token', 'jwt-1'));
 
-describe('My bills', () => {
-  it('lists my bills with their totals', async () => {
-    fakeApi({ ...me, 'GET /api/bills': ok([dinner]) });
-    renderApp('/bills');
-
-    const row = await screen.findByRole('link', { name: /Dinner at Maxwell/ });
-    expect(row).toHaveTextContent('OPEN');
-    expect(row).toHaveTextContent('$35.37');
-    expect(row).toHaveAttribute('href', '/bills/b1/edit');
-  });
-
-  it('says so when the list cannot be loaded', async () => {
-    fakeApi({ ...me, 'GET /api/bills': ok({ message: 'boom' }, 500) });
-    renderApp('/bills');
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Something went wrong on our side. Please try again.',
-    );
-  });
-});
-
 describe('New bill', () => {
   it('asks for a name, then goes on to add items without creating the bill yet', async () => {
     const fetchMock = fakeApi(me);

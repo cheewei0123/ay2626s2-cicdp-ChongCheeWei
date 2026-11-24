@@ -16,6 +16,9 @@ export type Bill = {
   id: string;
   title: string;
   status: 'OPEN' | 'LOCKED' | 'SETTLED';
+  date?: string; // the bill's day, "2026-11-24T00:00:00.000Z"
+  createdAt?: string;
+  pinnedAt?: string | null; // pinned to the top of My bills (KAN-101)
   serviceBp: number; // basis points: 1000 = 10%
   gstBp: number;
   items: Item[];

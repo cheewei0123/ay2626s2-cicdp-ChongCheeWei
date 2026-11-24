@@ -2,6 +2,14 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-101: Swipe a bill to pin, share or delete
+
+- **Pointer events cover touch and mouse.** One set of handlers (`pointerdown`, `move`, `up`) works for a finger and for a mouse. The first 8 px decide: mostly sideways is a swipe, mostly up or down is the page scrolling. `touch-action: pan-y` lets the browser keep scrolling while the row gets the sideways moves.
+- **A swipe must not also be a tap.** A mouse drag ends in a click on the link, so the row swallows the next click. A test then caught a bug: a finger sends no click after a swipe, so the swallow stayed armed and ate the next real tap. Each new touch now resets it.
+- **Undo instead of "Are you sure?".** The row goes at once and the delete is only sent after 5 seconds, or when you leave the page. That is safer than a confirm box people tap through, and the API rule stays: a locked bill (maybe paid) can't be deleted.
+- **Pinning is a column, not a list.** `pinnedAt` (null = not pinned) sorts the list in one query: `ORDER BY pinnedAt DESC NULLS LAST, createdAt DESC`. It is its own route, not part of `PATCH /bills/:id`, because a locked bill can't be edited but can still be pinned.
+- **Gestures are hidden, so there is always another way:** a long press, and a "More" button for keyboards and screen readers.
+
 ## KAN-100: Browser tests in the Playwright image
 
 - **A slow run was one slow download.** Two CI runs took about 30 minutes instead of about 4. In both, `npx playwright install --with-deps webkit` spent about 30 minutes fetching Ubuntu packages (the libraries WebKit needs) from a slow mirror; the three browser tests themselves took 21 seconds.

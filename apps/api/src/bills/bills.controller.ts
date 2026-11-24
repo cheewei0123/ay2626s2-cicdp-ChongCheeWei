@@ -95,6 +95,21 @@ export class BillsController {
     return this.bills.remove(bill);
   }
 
+  // POST /api/bills/:id/pin → 204: listed first in My bills; DELETE unpins (KAN-101)
+  @Post(':id/pin')
+  @HttpCode(204)
+  @UseGuards(BillOwnerGuard)
+  pin(@OwnedBill() bill: OwnedBillType) {
+    return this.bills.pin(bill, true);
+  }
+
+  @Delete(':id/pin')
+  @HttpCode(204)
+  @UseGuards(BillOwnerGuard)
+  unpin(@OwnedBill() bill: OwnedBillType) {
+    return this.bills.pin(bill, false);
+  }
+
   // POST /api/bills/:id/lock → 200 { id, status: "LOCKED" }; 409 if it isn't OPEN
   @Post(':id/lock')
   @UseGuards(BillOwnerGuard)

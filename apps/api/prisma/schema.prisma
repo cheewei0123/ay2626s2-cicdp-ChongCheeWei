@@ -149,6 +149,8 @@ model Bill {
   // Optional so the migration only adds a column (bills made before it have none).
   joinCode   String?    @unique
   status     BillStatus @default(OPEN)
+  // When the owner pinned it to the top of My bills; null = not pinned (KAN-101)
+  pinnedAt   DateTime?
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 

@@ -49,10 +49,14 @@ export class BillsService {
     }
   }
 
+  // Pinned bills first (the latest pin on top), then the newest bills (KAN-101)
   async listMine(ownerId: string) {
     const bills = await this.prisma.bill.findMany({
       where: { ownerId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [
+        { pinnedAt: { sort: 'desc', nulls: 'last' } },
+        { createdAt: 'desc' },
+      ],
       include: { items: true },
     });
     return bills.map(withTotals);
@@ -86,6 +90,14 @@ export class BillsService {
   async remove(bill: OwnedBill) {
     assertOpen(bill);
     await this.prisma.bill.delete({ where: { id: bill.id } });
+  }
+
+  // Pinning only changes where the bill sits in My bills, so it works in any status
+  async pin(bill: OwnedBill, pinned: boolean) {
+    await this.prisma.bill.update({
+      where: { id: bill.id },
+      data: { pinnedAt: pinned ? new Date() : null },
+    });
   }
 
   async addItem(bill: OwnedBill, dto: CreateItemDto) {

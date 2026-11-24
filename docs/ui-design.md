@@ -58,6 +58,16 @@ The Expenses page shows where the money went three ways, picked with a tab track
 - Tap the first day, then the last (the same day twice for one day). The two ends are solid `ink` circles and the days between sit on a `surface` band that joins across the week. Today is underlined. The line under the calendar says what to do next, or the range and how many days; more than 366 days is a `warn` sentence and the button stays off.
 - `‹ ›` step a month, or a range by its own length (7 days back or forward).
 
+## Swipe rows (KAN-101)
+
+My bills rows can be swiped, like in iPhone Mail: right shows **Pin** (`raised` glass), left shows **Share** and **Delete** (`danger`, solid). `<SwipeRow>` (`components/SwipeRow.tsx`) does the gesture for any list.
+
+- **A long swipe does the action at once** (past 60% of the row): right pins, left deletes. Only a `danger` action fills the row this way; a locked bill has no Delete, so a long swipe left just opens it.
+- **Delete always has Undo:** the row goes at once, an Undo bar sits at the bottom for 5 seconds, and only then is the delete sent. Nothing asks "Are you sure?".
+- **Swiping is never the only way.** A long press (or right-click) opens the same actions in a sheet, and a "More for …" button, hidden until it has keyboard focus, opens it for keyboards and screen readers.
+- Only one row is open at a time; a tap on an open row closes it. Mostly up-and-down movement is left to the page (`touch-pan-y`), so scrolling still works.
+- A one-line tip under the list says you can swipe, until the first swipe.
+
 ## The logo
 
 - **The idea:** one circle (the bill) split into two halves (the shares). One half is violet, the other teal, tilted with a gap between them.
@@ -103,6 +113,7 @@ All in `components/Page.tsx` unless a file is named.
 | The logo                   | `<Brand />`, `<Logo size moving>` (`components/Logo.tsx`)                                                                                |
 | A text input with a label  | `<Field label name error hint>` (`components/Field.tsx`)                                                                                 |
 | An API error for the form  | `<FormError message>` (`components/FormError.tsx`)                                                                                       |
+| A row you can swipe        | `<SwipeRow start end side onSide onHold>` (`components/SwipeRow.tsx`), with a sheet for the same actions (`components/BillActions.tsx`)  |
 | A sheet over the page      | Like `AdjustSplit`: `role="dialog"` with an `aria-label`, a dark scrim, a panel rising from the bottom, one main button and Cancel       |
 | Two tabs on one page       | A `glass` pill track with `role="tablist"`; each `role="tab"` is `h-11`, the chosen one `bg-raised` (the guest page: My items / Summary) |
 | What each person owes      | `<SummaryView>` (`components/SummaryView.tsx`): one `<PersonCard>` per person, then the totals in the `hero` card                        |

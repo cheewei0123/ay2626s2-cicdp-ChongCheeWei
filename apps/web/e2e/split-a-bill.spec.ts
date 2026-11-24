@@ -123,6 +123,18 @@ test('owner: register, verify, scan a receipt, fix an item, share', async ({
       .innerText()
   ).trim();
   expect(shared.joinCode).toMatch(/^[2-9A-HJ-NP-Z]{5}$/);
+
+  // KAN-101: in My bills, a long swipe right pins the bill to the top
+  await page.goto('/bills');
+  const row = page.getByRole('link', { name: /Dinner at Maxwell/ });
+  const box = (await row.boundingBox())!;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(box.x + 20, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.9, y, { steps: 10 });
+  await page.mouse.up();
+  await expect(page.getByRole('heading', { name: /Pinned/ })).toBeVisible();
+  await expect(page).toHaveURL(/\/bills$/); // the swipe did not open the bill
 });
 
 // Each test gets a fresh browser context: like a different phone, with no login
