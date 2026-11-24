@@ -1,20 +1,18 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
-import { api } from '../api/client';
-import type { Bill } from '../bills/types';
 import { Field } from '../components/Field';
-import { FormError } from '../components/FormError';
 import { Page, primaryButton } from '../components/Page';
 
 // Step 1 of a new bill: give it a name. Then choose how to add the items.
+// The bill is only created on the next page, once there is something to put in it
+// (a receipt that was read, or "Type it in"), so a photo that isn't a receipt
+// leaves no empty bill behind (KAN-99).
 export default function NewBill() {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [titleError, setTitleError] = useState('');
-  const [formError, setFormError] = useState('');
-  const [busy, setBusy] = useState(false);
 
-  async function onSubmit(event: FormEvent) {
+  function onSubmit(event: FormEvent) {
     event.preventDefault();
     const name = title.trim();
     // The same rule as the API's CreateBillDto
@@ -24,18 +22,7 @@ export default function NewBill() {
         : '';
     setTitleError(problem);
     if (problem) return;
-    setBusy(true);
-    setFormError('');
-    try {
-      const bill = await api<Bill>('/bills', {
-        method: 'POST',
-        body: { title: name },
-      });
-      navigate(`/bills/${bill.id}/scan`);
-    } catch (err) {
-      setFormError((err as Error).message);
-      setBusy(false);
-    }
+    navigate('/bills/new/scan', { state: { title: name } });
   }
 
   return (
@@ -49,9 +36,8 @@ export default function NewBill() {
           onChange={(e) => setTitle(e.target.value)}
           error={titleError || undefined}
         />
-        <FormError message={formError} />
-        <button type="submit" disabled={busy} className={primaryButton}>
-          {busy ? 'Creating…' : 'Next: add items'}
+        <button type="submit" className={primaryButton}>
+          Next: add items
         </button>
       </form>
     </Page>

@@ -1,8 +1,16 @@
-import { Inject, Injectable } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { assertOpen } from '../bills/bill-status.js';
 import type { OwnedBill } from '../bills/guards/bill-owner.guard.js';
 import type { Prisma } from '../generated/prisma/client.js';
-import { OCR_SERVICE, type OcrService } from '../ocr/ocr.interface.js';
+import {
+  NO_RECEIPT,
+  OCR_SERVICE,
+  type OcrService,
+} from '../ocr/ocr.interface.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { billTotals } from '../split/money.js';
 
@@ -23,6 +31,8 @@ export class ReceiptsService {
   async draftFromPhoto(bill: OwnedBill, image: Buffer, mimeType: string) {
     assertOpen(bill); // before calling the AI, so a locked bill uses no free quota
     const { raw, items, ...receipt } = await this.ocr.extract(image, mimeType);
+    // A bill needs items: a photo with none to read is not a receipt we can split
+    if (items.length === 0) throw new UnprocessableEntityException(NO_RECEIPT);
 
     // Keep what the AI answered, to debug a bad read later (the photo is not kept)
     await this.prisma.receiptImage.create({

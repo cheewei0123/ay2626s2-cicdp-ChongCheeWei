@@ -31,7 +31,7 @@ export const routes: RouteObject[] = [
   { path: '/expenses', element: needsLogin(<Expenses />) },
   { path: '/expenses/new', element: needsLogin(<AddExpense />) },
   { path: '/bills/new', element: needsLogin(<NewBill />) },
-  { path: '/bills/:id/scan', element: needsLogin(<ScanReceipt />) },
+  { path: '/bills/new/scan', element: needsLogin(<ScanReceipt />) },
   { path: '/bills/:id/edit', element: needsLogin(<EditBill />) },
   { path: '/bills/:id/share', element: needsLogin(<Share />) },
   { path: '/bills/:id/summary', element: needsLogin(<Summary />) },

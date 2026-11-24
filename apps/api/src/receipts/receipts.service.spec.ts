@@ -1,7 +1,14 @@
-import { ConflictException } from '@nestjs/common';
+import {
+  ConflictException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import type { OwnedBill } from '../bills/guards/bill-owner.guard.js';
 import { FakeOcrService } from '../ocr/fake-ocr.service.js';
-import type { OcrResult, OcrService } from '../ocr/ocr.interface.js';
+import {
+  NO_RECEIPT,
+  type OcrResult,
+  type OcrService,
+} from '../ocr/ocr.interface.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { ReceiptsService, suggestCharges } from './receipts.service.js';
 
@@ -134,6 +141,15 @@ describe('ReceiptsService (mocked database)', () => {
     );
     expect(draft.check.subtotalMatches).toBeNull();
     expect(draft.check.totalMatches).toBeNull();
+  });
+
+  it('says "No receipt found" and saves nothing when no item can be read (KAN-99)', async () => {
+    const draft = service(
+      readerOf({ items: [], totalCents: 1500 }),
+    ).draftFromPhoto(open, photo, 'image/jpeg');
+    await expect(draft).rejects.toThrow(UnprocessableEntityException);
+    await expect(draft).rejects.toThrow(NO_RECEIPT);
+    expect(prisma.receiptImage.create).not.toHaveBeenCalled();
   });
 
   it('refuses a locked bill before calling the AI, so no free quota is used', async () => {

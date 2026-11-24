@@ -3,6 +3,7 @@ import { ApiError } from '@google/genai';
 import ntuc from './fixtures/gemini-ntuc-response.json' with { type: 'json' };
 import sample from './fixtures/gemini-response.json' with { type: 'json' };
 import { GeminiOcrService, type GenerateFn } from './gemini-ocr.service.js';
+import { NO_RECEIPT } from './ocr.interface.js';
 
 const photo = Buffer.from('fake jpeg bytes');
 
@@ -135,6 +136,20 @@ describe('GeminiOcrService', () => {
   ])('rejects %s with 422 instead of saving bad data', async (_case, text) => {
     const ocr = new GeminiOcrService(geminiReturning(text), 'm');
     expect(await statusOf(ocr.extract(photo, 'image/jpeg'))).toBe(422);
+  });
+
+  // KAN-99: a selfie or a menu must not become a made-up bill
+  it('says "No receipt found" when Gemini says the photo is not a receipt', async () => {
+    const selfie = { ...sample, isReceipt: false, items: [] };
+    const ocr = new GeminiOcrService(
+      geminiReturning(JSON.stringify(selfie)),
+      'm',
+    );
+    const error = await ocr
+      .extract(photo, 'image/jpeg')
+      .catch((e: unknown) => e);
+    expect((error as HttpException).getStatus()).toBe(422);
+    expect((error as HttpException).message).toBe(NO_RECEIPT);
   });
 
   it('answers 429 with a friendly message when the free limit is reached', async () => {

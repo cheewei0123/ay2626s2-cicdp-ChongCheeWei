@@ -86,6 +86,15 @@ export class BillsController {
     return this.bills.update(bill, dto);
   }
 
+  // DELETE /api/bills/:id → 204. Only while OPEN: a locked bill may already be paid.
+  // The web app uses it to drop a new bill when its photo was not a receipt (KAN-99).
+  @Delete(':id')
+  @HttpCode(204)
+  @UseGuards(BillOwnerGuard)
+  remove(@OwnedBill() bill: OwnedBillType) {
+    return this.bills.remove(bill);
+  }
+
   // POST /api/bills/:id/lock → 200 { id, status: "LOCKED" }; 409 if it isn't OPEN
   @Post(':id/lock')
   @UseGuards(BillOwnerGuard)

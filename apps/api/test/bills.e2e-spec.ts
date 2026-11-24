@@ -160,6 +160,7 @@ describe('Bills and items (e2e, real database)', () => {
     const asOther = (req: request.Test) => req.set('Authorization', other);
     const tries = [
       () => asOther(request(server).get(`/api/bills/${bill.body.id}`)),
+      () => asOther(request(server).delete(`/api/bills/${bill.body.id}`)),
       () =>
         asOther(request(server).patch(`/api/bills/${bill.body.id}`)).send({
           title: 'Mine now',
@@ -255,6 +256,48 @@ describe('Bills and items (e2e, real database)', () => {
       .send({ name: 'Late', unitPriceCents: 100 })
       .expect(409);
     expect(res.body.message).toBe('Bill is locked; unlock it to make changes');
+  });
+
+  // KAN-99: the web app drops a new bill whose photo was not a receipt
+  it('deletes an OPEN bill with its items, and refuses a locked one', async () => {
+    const server = app.getHttpServer();
+    const prisma = app.get(PrismaService);
+    const bill = await request(server)
+      .post('/api/bills')
+      .set('Authorization', owner)
+      .send({ title: 'Not a receipt' })
+      .expect(201);
+    await request(server)
+      .post(`/api/bills/${bill.body.id}/items`)
+      .set('Authorization', owner)
+      .send({ name: 'Kopi', unitPriceCents: 150 })
+      .expect(201);
+
+    await request(server)
+      .delete(`/api/bills/${bill.body.id}`)
+      .set('Authorization', owner)
+      .expect(204);
+    await request(server)
+      .get(`/api/bills/${bill.body.id}`)
+      .set('Authorization', owner)
+      .expect(404);
+    expect(await prisma.item.count({ where: { billId: bill.body.id } })).toBe(
+      0,
+    );
+
+    const locked = await request(server)
+      .post('/api/bills')
+      .set('Authorization', owner)
+      .send({ title: 'Locked' })
+      .expect(201);
+    await prisma.bill.update({
+      where: { id: locked.body.id },
+      data: { status: 'LOCKED' },
+    });
+    await request(server)
+      .delete(`/api/bills/${locked.body.id}`)
+      .set('Authorization', owner)
+      .expect(409);
   });
 
   it('needs a login token', async () => {

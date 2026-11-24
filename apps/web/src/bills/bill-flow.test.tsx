@@ -60,8 +60,8 @@ describe('My bills', () => {
 });
 
 describe('New bill', () => {
-  it('creates the bill and goes on to add items', async () => {
-    const fetchMock = fakeApi({ ...me, 'POST /api/bills': ok(dinner, 201) });
+  it('asks for a name, then goes on to add items without creating the bill yet', async () => {
+    const fetchMock = fakeApi(me);
     const user = userEvent.setup();
     const router = renderApp('/bills/new');
 
@@ -74,17 +74,14 @@ describe('New bill', () => {
     expect(
       await screen.findByRole('heading', { name: 'Add items' }),
     ).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/bills/b1/scan');
-    expect(sentBody(fetchMock.mock.calls[1])).toEqual({
-      title: 'Dinner at Maxwell',
-    });
+    expect(router.state.location.pathname).toBe('/bills/new/scan');
+    expect(router.state.location.state).toEqual({ title: 'Dinner at Maxwell' });
+    // KAN-99: nothing is created until there is something to put in the bill
+    expect(fetchMock).toHaveBeenCalledTimes(1); // only GET /me
   });
 
-  it('needs a name, and shows an API error in words', async () => {
-    const fetchMock = fakeApi({
-      ...me,
-      'POST /api/bills': ok({ message: 'Too Many Requests' }, 429),
-    });
+  it('needs a name', async () => {
+    const fetchMock = fakeApi(me);
     const user = userEvent.setup();
     renderApp('/bills/new');
 
@@ -95,12 +92,6 @@ describe('New bill', () => {
       screen.getByText('Enter a name (up to 80 characters)'),
     ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1); // only GET /me
-
-    await user.type(screen.getByLabelText('What is this bill for?'), 'Kopi');
-    await user.click(screen.getByRole('button', { name: 'Next: add items' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Too many tries. Wait a minute and try again.',
-    );
   });
 });
 
@@ -108,11 +99,20 @@ describe('Scan receipt', () => {
   const photo = new File(['fake photo'], 'IMG_0001.jpg', {
     type: 'image/jpeg',
   });
+  const scanPage = {
+    pathname: '/bills/new/scan',
+    state: { title: 'Dinner at Maxwell' },
+  };
+  const created = { 'POST /api/bills': ok(dinner, 201) };
+  const callsOf = (fetchMock: ReturnType<typeof fakeApi>) =>
+    fetchMock.mock.calls.map(
+      ([url, init]) => `${(init as RequestInit).method} ${url}`,
+    );
 
   it('can pick a photo from the gallery instead of the camera (KAN-88)', async () => {
     fakeApi(me);
     const user = userEvent.setup();
-    renderApp('/bills/b1/scan');
+    renderApp(scanPage);
 
     const camera = await screen.findByLabelText('Scan receipt');
     const gallery = screen.getByLabelText('Upload from Photos');
@@ -132,16 +132,17 @@ describe('Scan receipt', () => {
     check: { receiptTotalCents: 3537 },
   };
 
-  it('uploads the photo, saves what the AI read and shows it for checking', async () => {
+  it('creates the bill, uploads the photo, saves what the AI read and shows it for checking', async () => {
     const fetchMock = fakeApi({
       ...me,
+      ...created,
       'POST /api/bills/b1/receipt': ok(draft, 201),
       'POST /api/bills/b1/items': ok({}, 201),
       'PATCH /api/bills/b1': ok(dinner),
       'GET /api/bills/b1': ok(dinner),
     });
     const user = userEvent.setup();
-    const router = renderApp('/bills/b1/scan');
+    const router = renderApp(scanPage);
 
     await user.upload(await screen.findByLabelText('Scan receipt'), photo);
     expect(screen.getByAltText('Your receipt')).toHaveAttribute(
@@ -158,11 +159,9 @@ describe('Scan receipt', () => {
       await screen.findByText('Receipt says $35.37 ✓'),
     ).toBeInTheDocument();
 
-    const calls = fetchMock.mock.calls.map(
-      ([url, init]) => `${(init as RequestInit).method} ${url}`,
-    );
-    expect(calls).toEqual([
+    expect(callsOf(fetchMock)).toEqual([
       'GET /api/me',
+      'POST /api/bills',
       'POST /api/bills/b1/receipt',
       'POST /api/bills/b1/items',
       'POST /api/bills/b1/items',
@@ -170,24 +169,31 @@ describe('Scan receipt', () => {
       'PATCH /api/bills/b1',
       'GET /api/bills/b1',
     ]);
+    expect(sentBody(fetchMock.mock.calls[1])).toEqual({
+      title: 'Dinner at Maxwell',
+    });
     // The photo goes as a form upload, in the field the API expects
-    const upload = (fetchMock.mock.calls[1][1] as RequestInit).body as FormData;
+    const upload = (fetchMock.mock.calls[2][1] as RequestInit).body as FormData;
     expect(upload.get('image')).toBeInstanceOf(File);
-    expect(sentBody(fetchMock.mock.calls[4])).toEqual({
+    expect(sentBody(fetchMock.mock.calls[5])).toEqual({
       name: 'Tiger Beer',
       unitPriceCents: 800,
       quantity: 2,
     });
-    expect(sentBody(fetchMock.mock.calls[5])).toEqual({
+    expect(sentBody(fetchMock.mock.calls[6])).toEqual({
       serviceBp: 1000,
       gstBp: 900,
     });
   });
 
   it('shows "Reading receipt…" while the AI works', async () => {
-    fakeApi({ ...me, 'POST /api/bills/b1/receipt': new Promise(() => {}) });
+    fakeApi({
+      ...me,
+      ...created,
+      'POST /api/bills/b1/receipt': new Promise(() => {}),
+    });
     const user = userEvent.setup();
-    renderApp('/bills/b1/scan');
+    renderApp(scanPage);
 
     await user.upload(await screen.findByLabelText('Scan receipt'), photo);
     await user.click(screen.getByRole('button', { name: 'Read receipt' }));
@@ -197,37 +203,110 @@ describe('Scan receipt', () => {
     ).toBeDisabled();
   });
 
-  it('when the AI fails, says why and still lets you type the items in', async () => {
-    fakeApi({
+  // KAN-99: a photo that isn't a receipt must not leave a bill behind
+  it('says "No receipt found", removes the new bill and stays on the page', async () => {
+    const fetchMock = fakeApi({
       ...me,
+      ...created,
       'POST /api/bills/b1/receipt': ok(
         {
           message:
-            'The receipt reader is busy. Try again in a minute, or add the items by hand.',
+            'No receipt found in this photo. Try another photo, or add it by hand.',
         },
         422,
       ),
+      'DELETE /api/bills/b1': ok(undefined, 204),
     });
     const user = userEvent.setup();
-    renderApp('/bills/b1/scan');
+    const router = renderApp(scanPage);
 
     await user.upload(await screen.findByLabelText('Scan receipt'), photo);
     await user.click(screen.getByRole('button', { name: 'Read receipt' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'add the items by hand',
+      'No receipt found in this photo',
     );
+    expect(callsOf(fetchMock)).toEqual([
+      'GET /api/me',
+      'POST /api/bills',
+      'POST /api/bills/b1/receipt',
+      'DELETE /api/bills/b1',
+    ]);
+    expect(router.state.location.pathname).toBe('/bills/new/scan');
+    // Try another photo, or type it in
     expect(screen.getByRole('button', { name: 'Read receipt' })).toBeEnabled();
-    expect(screen.getByRole('link', { name: 'Type it in' })).toHaveAttribute(
-      'href',
-      '/bills/b1/edit',
+    expect(screen.getByRole('button', { name: 'Type it in' })).toBeEnabled();
+  });
+
+  it('still shows why the scan failed if removing the bill fails too', async () => {
+    fakeApi({
+      ...me,
+      ...created,
+      'POST /api/bills/b1/receipt': ok(
+        { message: 'The receipt reader is not answering.' },
+        503,
+      ),
+      'DELETE /api/bills/b1': ok({ message: 'boom' }, 500),
+    });
+    const user = userEvent.setup();
+    renderApp(scanPage);
+
+    await user.upload(await screen.findByLabelText('Scan receipt'), photo);
+    await user.click(screen.getByRole('button', { name: 'Read receipt' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The receipt reader is not answering.',
     );
+  });
+
+  it('"Type it in" creates the bill and opens it for typing the items', async () => {
+    const fetchMock = fakeApi({
+      ...me,
+      ...created,
+      'GET /api/bills/b1': ok({ ...dinner, items: [] }),
+    });
+    const user = userEvent.setup();
+    const router = renderApp(scanPage);
+
+    await user.click(await screen.findByRole('button', { name: 'Type it in' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Check items' }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/bills/b1/edit');
+    expect(sentBody(fetchMock.mock.calls[1])).toEqual({
+      title: 'Dinner at Maxwell',
+    });
+  });
+
+  it('shows an API error in words when the bill cannot be created', async () => {
+    fakeApi({
+      ...me,
+      'POST /api/bills': ok({ message: 'Too Many Requests' }, 429),
+    });
+    const user = userEvent.setup();
+    renderApp(scanPage);
+
+    await user.click(await screen.findByRole('button', { name: 'Type it in' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Too many tries. Wait a minute and try again.',
+    );
+    expect(screen.getByRole('button', { name: 'Type it in' })).toBeEnabled();
+  });
+
+  it('goes back to naming the bill when opened without a name', async () => {
+    fakeApi(me);
+    const router = renderApp('/bills/new/scan');
+    expect(
+      await screen.findByLabelText('What is this bill for?'),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/bills/new');
   });
 
   it('does nothing when the camera is cancelled', async () => {
     fakeApi(me);
     const user = userEvent.setup();
-    renderApp('/bills/b1/scan');
+    renderApp(scanPage);
 
     await user.upload(await screen.findByLabelText('Scan receipt'), []);
     expect(

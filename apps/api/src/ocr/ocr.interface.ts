@@ -21,6 +21,10 @@ export interface OcrResult {
   raw: unknown; // the provider's own answer, kept for debugging
 }
 
+// Said when the photo is not a receipt, or no item on it can be read (KAN-99)
+export const NO_RECEIPT =
+  'No receipt found in this photo. Try another photo, or add it by hand.';
+
 // The contract every OCR provider follows (Fake, Gemini, Tesseract maybe)
 export interface OcrService {
   readonly provider: string; // saved with each receipt, e.g. 'gemini'
