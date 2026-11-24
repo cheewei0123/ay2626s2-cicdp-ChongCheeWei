@@ -25,6 +25,7 @@
 - **Every item went through the same 13 required checks** and was checked on the live site after its deploy.
 - **Fixed after the freeze (24 Nov): KAN-98.** Testing scans on the live site showed GST being added to receipts that already include it: GST was ticked whenever the printed total wasn't exactly the items' sum. The scan now ticks the charges (none, service, GST or both) whose total is closest to the printed total. A fix, so it fits the freeze rule of "only fixes and the report".
 - **Fixed after the freeze (24 Nov): KAN-99.** Scanning a photo that wasn't a receipt still gave a bill with made-up items, and a failed scan left an empty bill behind. The AI now says whether the photo is a receipt; if not, the app says "No receipt found" and no bill is kept.
+- **Faster pipeline (24 Nov): KAN-100.** 4 of the 11 CI runs before it took 10 to 41 minutes instead of about 4, because installing WebKit's system libraries for the browser tests came from a slow Ubuntu mirror. The browser tests now run in Microsoft's Playwright image, which already has them.
 - **Not done:** SMS codes are built and tested but not switched on, because AWS's free account plan can't send SMS (see [infra.md](../infra.md)). The live site checks numbers with the Telegram bot instead.
 
 **Numbers:** 17 PRs merged to `main` from the start of the sprint to 24 Nov, 2 am. 528 API unit tests (98.7% lines, 95.9% branches), 22 API e2e files, 224 web tests and 3 browser tests, all green.
