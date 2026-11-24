@@ -24,13 +24,14 @@ Splitting a restaurant bill in Singapore is awkward:
 
 ## What SplitLah does
 
-- 📸 **AI receipt scanning:** take a photo; Gemini fills in the items, prices, service charge and GST, and you check them against the printed total
+- 📸 **AI receipt scanning:** take a photo or pick one from Photos; Gemini fills in the items and prices, service charge and GST are ticked only when the printed total needs them, and you check everything against that total. A photo that isn't a receipt gets "No receipt found", and each account can scan 20 receipts a day
 - 🔗 **Invite by link, QR or a 5-character code:** friends join with just a name, no sign-up
 - ✋ **Claim your items:** tap what you had; a shared item splits equally, or by %, shares or exact amounts
 - 🧮 **Fair to the cent:** integer-cent maths with largest-remainder rounding, so the shares always add up to the receipt total
-- 💸 **PayNow QR:** each friend gets a QR for their exact amount; the owner ticks who has paid
-- 📊 **Personal expenses:** your share is logged to your monthly expenses when the bill is locked; add your own expenses by hand or by photo, with the category guessed and your corrections remembered
+- 💸 **PayNow QR:** each friend gets a QR for their exact amount; the owner ticks who has paid. The owner's PayNow number is checked first, by a Telegram bot
+- 📊 **Personal expenses:** your share is logged to your expenses when the bill is locked; add your own by hand or by photo, with the category guessed and your corrections remembered; see any date range as bars, a pie or over time
 - ✉️ **Email verification:** a one-time link before you can start bills or log expenses
+- 🔐 **Account safety:** forgot, reset and change password (other devices are logged out), two-step login with an authenticator app and backup codes, Continue with Google, 14-day logins that logout really ends, and deleting your account (closed at once, wiped after 6 months)
 - 📱 **Installable PWA:** add it to the iPhone home screen, no App Store needed
 
 ## Architecture
@@ -44,29 +45,35 @@ flowchart LR
   end
   DB[(PostgreSQL<br/>Amazon RDS)]
   G[Gemini<br/>receipt OCR]
-  E[Gmail SMTP<br/>verify emails]
+  E[Gmail SMTP<br/>emails]
+  T[Telegram bot<br/>PayNow number check]
+  GO[Google<br/>sign-in]
 
   U -->|HTTPS| C
   C -->|/api| A
   A --> DB
   A --> G
   A --> E
+  A <-->|webhook| T
+  U -.->|Continue with Google| GO
+  A -->|check ID token| GO
 ```
 
-Caddy serves the React app and passes `/api/*` to the API; only Caddy faces the internet. Receipt reading and email sit behind interfaces (`OCR_SERVICE`, `EMAIL_SERVICE`), so tests and CI use fakes and never call Gemini or send email. More in [docs/architecture.md](docs/architecture.md).
+Caddy serves the React app, adds the security headers (CSP, HSTS) and passes `/api/*` to the API; only Caddy faces the internet. Receipt reading, email and text messages sit behind interfaces (`OCR_SERVICE`, `EMAIL_SERVICE`, `SMS_SERVICE`), so tests and CI use fakes and never call Gemini, send email or text anyone. More in [docs/architecture.md](docs/architecture.md).
 
 ## Tech stack
 
-| Layer      | Technology                                                                     |
-| ---------- | ------------------------------------------------------------------------------ |
-| Backend    | NestJS 12 (TypeScript), Prisma 7                                               |
-| Database   | PostgreSQL 18 (Docker locally, Amazon RDS in production)                       |
-| Frontend   | React 19, Vite 8, Tailwind CSS 4, PWA (vite-plugin-pwa)                        |
-| AI / email | Google Gemini (receipt reading), Gmail SMTP with nodemailer (verify emails)    |
-| Testing    | Vitest, Supertest, Testing Library, fast-check, Playwright (WebKit, iPhone 14) |
-| CI/CD      | GitHub Actions → GitHub Container Registry → AWS EC2 over SSH, AWS OIDC        |
-| Hosting    | Docker Compose + Caddy (automatic HTTPS) on EC2, `splitlah.duckdns.org`        |
-| Security   | Gitleaks, Dependabot, CodeQL, Trivy, npm audit (audit-ci)                      |
+| Layer      | Technology                                                                                                                                                                           |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Backend    | NestJS 12 (TypeScript), Prisma 7                                                                                                                                                     |
+| Database   | PostgreSQL 18 (Docker locally, Amazon RDS in production)                                                                                                                             |
+| Frontend   | React 19, Vite 8, Tailwind CSS 4, PWA (vite-plugin-pwa)                                                                                                                              |
+| AI / email | Google Gemini (receipt reading), Gmail SMTP with nodemailer (verify and reset)                                                                                                       |
+| Accounts   | scrypt passwords, server-side sessions, TOTP two-step login (RFC 6238, `node:crypto`), Google sign-in (`google-auth-library`), Telegram bot for PayNow numbers                       |
+| Testing    | Vitest, Supertest, Testing Library, fast-check, Playwright (WebKit, iPhone 14)                                                                                                       |
+| CI/CD      | GitHub Actions → GitHub Container Registry → AWS EC2 over SSH, AWS OIDC                                                                                                              |
+| Hosting    | Docker Compose + Caddy (automatic HTTPS) on EC2, `splitlah.duckdns.org`                                                                                                              |
+| Security   | Gitleaks, Dependabot, CodeQL, Trivy, npm audit (audit-ci); CSP and security headers in Caddy; rate limits per route (OWASP Top 10 checklist in [docs/security.md](docs/security.md)) |
 
 ## Run it locally
 
@@ -103,19 +110,23 @@ Open <http://localhost:5173> and **Register**. With the default `EMAIL_PROVIDER=
 
 ### Environment variables (`apps/api/.env`)
 
-| Name                                   | What it's for                                                 | Example / default                                        |
-| -------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------- |
-| `PORT`                                 | Port the API listens on                                       | `3000`                                                   |
-| `DATABASE_URL`                         | PostgreSQL connection                                         | `postgresql://splitlah:splitlah@localhost:5433/splitlah` |
-| `WEB_ORIGIN`                           | The only browser origin allowed to call the API (CORS)        | `http://localhost:5173`                                  |
-| `JWT_SECRET`                           | Signs login and guest tokens; 32+ random characters           | _(generate one)_                                         |
-| `OCR_PROVIDER`                         | Receipt reader: `fake` or `gemini`                            | `fake`                                                   |
-| `GEMINI_API_KEY`                       | Only with `gemini`; free key from Google AI Studio            | _(empty)_                                                |
-| `GEMINI_MODEL`                         | Gemini model name                                             | `gemini-3.5-flash-lite`                                  |
-| `EMAIL_PROVIDER`                       | Verify emails: `fake` (logged) or `smtp`                      | `fake`                                                   |
-| `SMTP_USER`, `SMTP_PASS`               | Only with `smtp`: Gmail address and a Google **app password** | _(empty)_                                                |
-| `APP_URL`                              | Where the link in the verify email points                     | `http://localhost:5173`                                  |
-| `SMTP_HOST`, `SMTP_PORT`, `EMAIL_FROM` | Optional SMTP overrides                                       | `smtp.gmail.com`, `465`                                  |
+| Name                                                                     | What it's for                                                                                                      | Example / default                                        |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| `PORT`                                                                   | Port the API listens on                                                                                            | `3000`                                                   |
+| `DATABASE_URL`                                                           | PostgreSQL connection                                                                                              | `postgresql://splitlah:splitlah@localhost:5433/splitlah` |
+| `WEB_ORIGIN`                                                             | The only browser origin allowed to call the API (CORS)                                                             | `http://localhost:5173`                                  |
+| `JWT_SECRET`                                                             | Signs login and guest tokens; 32+ random characters                                                                | _(generate one)_                                         |
+| `OCR_PROVIDER`                                                           | Receipt reader: `fake` or `gemini`                                                                                 | `fake`                                                   |
+| `GEMINI_API_KEY`                                                         | Only with `gemini`; free key from Google AI Studio                                                                 | _(empty)_                                                |
+| `GEMINI_MODEL`                                                           | Gemini model name                                                                                                  | `gemini-3.5-flash-lite`                                  |
+| `AI_DAILY_LIMIT`                                                         | Most receipt scans one account can make per Singapore day                                                          | `20`                                                     |
+| `EMAIL_PROVIDER`                                                         | Verify and reset emails: `fake` (logged) or `smtp`                                                                 | `fake`                                                   |
+| `SMTP_USER`, `SMTP_PASS`                                                 | Only with `smtp`: Gmail address and a Google **app password**                                                      | _(empty)_                                                |
+| `APP_URL`                                                                | Where the links in emails point                                                                                    | `http://localhost:5173`                                  |
+| `SMTP_HOST`, `SMTP_PORT`, `EMAIL_FROM`                                   | Optional SMTP overrides                                                                                            | `smtp.gmail.com`, `465`                                  |
+| `SMS_PROVIDER`, `AWS_REGION`                                             | Texts for the PayNow number check: `fake` or `sns` (built, off on the live site: the free AWS plan can't send SMS) | `fake`, `ap-southeast-1`                                 |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` | The Telegram bot that checks PayNow numbers; leave all empty to turn it off                                        | _(empty)_                                                |
+| `GOOGLE_CLIENT_ID`                                                       | Continue with Google; public, not a secret; empty hides the button                                                 | _(empty)_                                                |
 
 Real values live only in the server's `/opt/splitlah/.env` and in GitHub Secrets, never in git. See [docs/pipeline.md](docs/pipeline.md#secrets).
 
@@ -183,18 +194,18 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the details, and [docs/sprints/](docs
 │   └── web/        # React PWA, component tests, Playwright tests (e2e/)
 ├── infra/          # Docker Compose files (dev, CI, production), deploy and server scripts
 ├── docs/           # Architecture, API, data model, ADRs, sprints, evidence
-└── .github/        # Workflows (CI, CodeQL, deploy), PR template, Dependabot
+└── .github/        # Workflows (CI, CodeQL, deploy, k6 load test), PR template, Dependabot
 ```
 
 ## Project status
 
-| Milestone                         | Target | Status         |
-| --------------------------------- | ------ | -------------- |
-| M1: CI + split engine             | 8 Nov  | ✅ Met         |
-| M2: API deployed to AWS           | 15 Nov | ✅ Met         |
-| M3: PWA live on iPhone over HTTPS | 22 Nov | ✅ Met         |
-| M4: Feature freeze                | 24 Nov | 🟡 In progress |
-| M5: Report submitted              | 27 Nov | ⚪ Not started |
+| Milestone                         | Target | Status                    |
+| --------------------------------- | ------ | ------------------------- |
+| M1: CI + split engine             | 8 Nov  | ✅ Met                    |
+| M2: API deployed to AWS           | 15 Nov | ✅ Met                    |
+| M3: PWA live on iPhone over HTTPS | 22 Nov | ✅ Met                    |
+| M4: Feature freeze                | 24 Nov | ✅ Met (only fixes since) |
+| M5: Report submitted              | 27 Nov | 🟡 In progress            |
 
 ---
 
