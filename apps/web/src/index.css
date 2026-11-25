@@ -93,9 +93,11 @@
   box-shadow: 0 24px 60px rgb(124 108 240 / 0.22);
 }
 
-/* Pages rise in gently when they open */
+/* Pages rise in gently when they open. `backwards`, not `both`: a transform left
+   on the page after the animation would pin "fixed" sheets to the page instead of
+   the screen, so on a long page their bottom ended up below the screen (KAN-101). */
 @utility rise {
-  animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
 @keyframes rise {
   from {

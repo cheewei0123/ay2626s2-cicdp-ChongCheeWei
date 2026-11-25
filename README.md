@@ -25,6 +25,7 @@ Splitting a restaurant bill in Singapore is awkward:
 ## What SplitLah does
 
 - 📸 **AI receipt scanning:** take a photo or pick one from Photos; Gemini fills in the items and prices, service charge and GST are ticked only when the printed total needs them, and you check everything against that total. A photo that isn't a receipt gets "No receipt found", and each account can scan 20 receipts a day
+- 👆 **Swipe your bills:** swipe right to pin a bill to the top, left to share or delete it (with Undo); press and hold for a menu, and search once the list grows
 - 🔗 **Invite by link, QR or a 5-character code:** friends join with just a name, no sign-up
 - ✋ **Claim your items:** tap what you had; a shared item splits equally, or by %, shares or exact amounts
 - 🧮 **Fair to the cent:** integer-cent maths with largest-remainder rounding, so the shares always add up to the receipt total

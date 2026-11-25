@@ -300,6 +300,56 @@ describe('Bills and items (e2e, real database)', () => {
       .expect(409);
   });
 
+  // KAN-101: pinned bills come first in My bills, in any status
+  it('pins a bill to the top of the list and unpins it', async () => {
+    const server = app.getHttpServer();
+    const create = (title: string) =>
+      request(server)
+        .post('/api/bills')
+        .set('Authorization', owner)
+        .send({ title })
+        .expect(201);
+    const older = await create('Pin me');
+    await create('Newer');
+    const titles = async () =>
+      (
+        await request(server)
+          .get('/api/bills')
+          .set('Authorization', owner)
+          .expect(200)
+      ).body.map((b: { title: string }) => b.title);
+
+    expect((await titles())[0]).toBe('Newer');
+    await app.get(PrismaService).bill.update({
+      where: { id: older.body.id },
+      data: { status: 'LOCKED' },
+    });
+    await request(server)
+      .post(`/api/bills/${older.body.id}/pin`)
+      .set('Authorization', owner)
+      .expect(204);
+    expect((await titles())[0]).toBe('Pin me');
+
+    await request(server)
+      .delete(`/api/bills/${older.body.id}/pin`)
+      .set('Authorization', owner)
+      .expect(204);
+    expect((await titles())[0]).toBe('Newer');
+  });
+
+  it('answers 403 when someone else pins my bill', async () => {
+    const server = app.getHttpServer();
+    const bill = await request(server)
+      .post('/api/bills')
+      .set('Authorization', owner)
+      .send({ title: 'Mine' })
+      .expect(201);
+    await request(server)
+      .post(`/api/bills/${bill.body.id}/pin`)
+      .set('Authorization', other)
+      .expect(403);
+  });
+
   it('needs a login token', async () => {
     await request(app.getHttpServer()).get('/api/bills').expect(401);
   });

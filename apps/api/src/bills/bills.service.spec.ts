@@ -148,6 +148,38 @@ describe('BillsService (with a mocked database)', () => {
         ownerId: 'u1',
       });
     });
+
+    it('lists pinned bills first, then the newest (KAN-101)', async () => {
+      prisma.bill.findMany.mockResolvedValue([]);
+      await service.listMine('u1');
+      expect(prisma.bill.findMany.mock.calls[0][0].orderBy).toEqual([
+        { pinnedAt: { sort: 'desc', nulls: 'last' } },
+        { createdAt: 'desc' },
+      ]);
+    });
+  });
+
+  // KAN-101: pinning only moves the bill in My bills, so a locked bill can be pinned too
+  describe('pin', () => {
+    const locked: OwnedBill = { ...open, status: 'LOCKED' };
+
+    it('pins a bill now, even a locked one', async () => {
+      vi.useFakeTimers({ now: new Date('2026-11-24T09:00:00Z') });
+      await service.pin(locked, true);
+      vi.useRealTimers();
+      expect(prisma.bill.update).toHaveBeenCalledWith({
+        where: { id: 'b1' },
+        data: { pinnedAt: new Date('2026-11-24T09:00:00Z') },
+      });
+    });
+
+    it('unpins a bill', async () => {
+      await service.pin(open, false);
+      expect(prisma.bill.update).toHaveBeenCalledWith({
+        where: { id: 'b1' },
+        data: { pinnedAt: null },
+      });
+    });
   });
 
   it('answers 404 if the bill was deleted after the guard checked it', async () => {

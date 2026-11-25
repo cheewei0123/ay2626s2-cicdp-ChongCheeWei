@@ -30,6 +30,15 @@ export function monthLabel(month: string): string {
   }).format(new Date(`${month}-01T00:00:00Z`));
 }
 
+// A bill's date from the API, "2026-11-24T00:00:00.000Z" → "24 Nov"
+export function shortDay(date: string): string {
+  return new Intl.DateTimeFormat('en-SG', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(date));
+}
+
 // "2026-11-21" → "Sat 21 Nov"
 export function dayLabel(day: string): string {
   return new Intl.DateTimeFormat('en-SG', {
