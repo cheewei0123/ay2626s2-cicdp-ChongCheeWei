@@ -182,6 +182,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the details, and [docs/sprints/](docs
 | [UI design](docs/ui-design.md)       | Colours, glass components, layout rules                |
 | [Pipeline](docs/pipeline.md)         | Every CI job, the deploy, secrets, browser tests       |
 | [Security](docs/security.md)         | Scans, findings and accepted risks                     |
+| [QA report](docs/qa-report.md)       | Test results, coverage, load, defects found, gaps      |
 | [Infrastructure](docs/infra.md)      | EC2, RDS, Caddy, OIDC setup                            |
 | [Evaluation](docs/evaluation.md)     | Strengths, limits, bottlenecks, trade-offs, next steps |
 | [Learning log](docs/learning-log.md) | What I learned and what went wrong, per ticket         |
