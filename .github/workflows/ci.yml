@@ -232,6 +232,9 @@ jobs:
       - run: npm ci
       - run: npx stryker run
         working-directory: apps/api
+        # Vitest adds a job summary on GitHub; Stryker runs it once per change, so turn it off
+        env:
+          GITHUB_ACTIONS: 'false'
       - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:

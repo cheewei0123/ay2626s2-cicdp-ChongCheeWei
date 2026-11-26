@@ -42,6 +42,14 @@ test.describe.configure({ mode: 'serial' });
 // contrast, names for buttons and images, headings, focus). Soft, so one run lists
 // every screen with a problem; any violation still fails the test.
 async function expectAccessible(page: Page, screen: string) {
+  // Pages fade in (the `rise` animation); half-faded text fails the contrast check,
+  // so wait for the fade to end. The logo's endless animation is left running.
+  // (A string: it runs in the page, and these tests are typed without the DOM.)
+  await page.evaluate(
+    `Promise.all(document.getAnimations()
+      .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+      .map((a) => a.finished.catch(() => {})))`,
+  );
   const { violations } = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
     .analyze();
