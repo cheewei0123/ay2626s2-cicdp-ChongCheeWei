@@ -6,24 +6,24 @@ What was tested, how, the results, the bugs testing found, and what is still not
 
 ## Summary
 
-| Area                                   | Result                                                                                                               | Status                     |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| API unit tests                         | 544 tests in 54 files, all pass; 98.4% lines, 95.9% branches                                                         | Pass                       |
-| Web tests                              | 256 tests in 22 files, all pass; 99.0% lines, 97.3% branches                                                         | Pass                       |
-| API end-to-end tests                   | 122 tests in 22 files against a real Postgres 18, all pass in CI                                                     | Pass                       |
-| Browser tests                          | 3 tests each on an iPhone 14 (WebKit) and a Pixel 7 (Chromium) on the real Docker images, plus an accessibility test | Pass                       |
-| Split correct to the cent              | The brief's bill gives 720 / 899 / 959 / 959 = 3,537 cents; 1,000 random bills add up exactly on every run           | Pass                       |
-| Coverage gate                          | 90% lines and branches per business folder (API) and for the whole web app; CI fails below                           | Pass                       |
-| Load (k6, live site, 10 users)         | p95 229.71 ms (target under 500 ms), 0% failed                                                                       | Pass                       |
-| Rate limit (k6, live site)             | Join-code guesses: first 20 get `404`, the rest `429`                                                                | Pass                       |
-| Receipt reading (Gemini)               | 35 / 35 items, 5 / 5 totals on 5 real receipts                                                                       | Pass                       |
-| Security scans                         | 0 HIGH or CRITICAL with a fix in both images; npm audit clean; CodeQL findings fixed                                 | Pass                       |
-| Accessibility (axe, WCAG 2.1 AA)       | Login, register, join, password reset, My bills, check items, share and the guest screen, in both browsers           | See the live page          |
-| Mutation testing (Stryker)             | 90.32% of 217 changes to the split engine caught by a test (26 Nov); 21 survived, listed in the report               | Pass (break at 70%)        |
-| Security scan of the running app (ZAP) | Baseline scan of the CI copy of the app on every PR                                                                  | See the live page          |
-| Lighthouse (login page, phone)         | Performance, accessibility, best practice and SEO scores on every PR                                                 | See the live page          |
-| PayNow QR in a real bank app           | Not tested                                                                                                           | Gap (see Known gaps)       |
-| SMS code on the live site              | Not possible on the free AWS plan; Telegram is used instead                                                          | Gap (replaced by Telegram) |
+| Area                                   | Result                                                                                                                                                         | Status                     |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| API unit tests                         | 544 tests in 54 files, all pass; 98.4% lines, 95.9% branches                                                                                                   | Pass                       |
+| Web tests                              | 256 tests in 22 files, all pass; 99.0% lines, 97.3% branches                                                                                                   | Pass                       |
+| API end-to-end tests                   | 122 tests in 22 files against a real Postgres 18, all pass in CI                                                                                               | Pass                       |
+| Browser tests                          | 3 tests each on an iPhone 14 (WebKit) and a Pixel 7 (Chromium) on the real Docker images, plus an accessibility test                                           | Pass                       |
+| Split correct to the cent              | The brief's bill gives 720 / 899 / 959 / 959 = 3,537 cents; 1,000 random bills add up exactly on every run                                                     | Pass                       |
+| Coverage gate                          | 90% lines and branches per business folder (API) and for the whole web app; CI fails below                                                                     | Pass                       |
+| Load (k6, live site, 10 users)         | p95 229.71 ms (target under 500 ms), 0% failed                                                                                                                 | Pass                       |
+| Rate limit (k6, live site)             | Join-code guesses: first 20 get `404`, the rest `429`                                                                                                          | Pass                       |
+| Receipt reading (Gemini)               | 35 / 35 items, 5 / 5 totals on 5 real receipts                                                                                                                 | Pass                       |
+| Security scans                         | 0 HIGH or CRITICAL with a fix in both images; npm audit clean; CodeQL findings fixed                                                                           | Pass                       |
+| Accessibility (axe, WCAG 2.1 AA)       | Login, register, join, password reset, My bills, check items, share and the guest screen, on both phones; no violations (26 Nov) after two fixes (see Defects) | Pass                       |
+| Mutation testing (Stryker)             | 90.32% of 217 changes to the split engine caught by a test (26 Nov); 21 survived, listed in the report                                                         | Pass (break at 70%)        |
+| Security scan of the running app (ZAP) | Baseline scan of the CI copy of the app on every PR: 0 high, 0 medium, 2 low, 4 informational alerts (26 Nov)                                                  | Pass                       |
+| Lighthouse (login page, phone)         | Performance 100, accessibility 100, best practice 100, SEO 82 (26 Nov), on every PR                                                                            | Pass                       |
+| PayNow QR in a real bank app           | Not tested                                                                                                                                                     | Gap (see Known gaps)       |
+| SMS code on the live site              | Not possible on the free AWS plan; Telegram is used instead                                                                                                    | Gap (replaced by Telegram) |
 
 ## Test strategy
 
@@ -107,22 +107,23 @@ The OWASP Top 10 checklist is in [security.md](../docs/security.md).
 
 Bugs that a test or a check caught before users did. Each one is in the [learning log](../docs/learning-log.md) under its ticket.
 
-| Defect                                                                              | Found by                                 | Fix                                                 | Ticket  |
-| ----------------------------------------------------------------------------------- | ---------------------------------------- | --------------------------------------------------- | ------- |
-| Split crashed on a very large bill: numbers grew past what JavaScript holds exactly | Property test (fast-check)               | `BigInt` for that step, plus a regression test      | KAN-21  |
-| Summary listed the owner last instead of first, except on the first call            | API e2e test                             | Owner always first                                  | KAN-29  |
-| The image ran with the wrong `dotenv` version and only worked by luck               | Container crash after slimming the image | Copy both `node_modules` folders                    | KAN-36  |
-| An Express 5 route parameter had the wrong type                                     | Type check in CI (all tests had passed)  | Correct type                                        | KAN-26  |
-| Scanned receipts: discounts, "2 FOR $7.95" deals, GST already inside prices         | Accuracy test on real receipts           | Prompt rules; compare the total with the items' sum | KAN-33  |
-| A test pattern change quietly dropped a test file                                   | Web test count fell from 168 to 164      | Pattern includes root `*.test.ts`                   | KAN-53  |
-| One wrong current password logged the user out (`401`)                              | Found while testing two-step login       | Answer `403` for wrong passwords while logged in    | KAN-92  |
-| "Account deleted" message lost to the app's own logout redirect                     | Web test                                 | Message kept in the auth context                    | KAN-93  |
-| Google's button never came back after its script failed to load once                | Web test that fails the load first       | Reset after the failure is stored                   | KAN-95  |
-| GST added on top of receipts that already include it                                | Real scans                               | Pick the closest of four charge choices             | KAN-98  |
-| A photo that is not a receipt became a made-up bill                                 | Real scans                               | `isReceipt` in the answer; `422 No receipt found`   | KAN-99  |
-| After a touch swipe, the next real tap on a bill was swallowed                      | Web test                                 | Reset the flag on every new touch                   | KAN-101 |
-| Hovering the mouse over a bill slid it open                                         | Using the live site with a mouse         | Only swipe while a pointer is pressed; 2 tests      | KAN-101 |
-| `vitest` and its coverage plugin on different versions after Dependabot updates     | `test-web` red on the Dependabot PRs     | Update both together; `npm dedupe`                  | KAN-22  |
+| Defect                                                                                                    | Found by                                 | Fix                                                 | Ticket  |
+| --------------------------------------------------------------------------------------------------------- | ---------------------------------------- | --------------------------------------------------- | ------- |
+| Split crashed on a very large bill: numbers grew past what JavaScript holds exactly                       | Property test (fast-check)               | `BigInt` for that step, plus a regression test      | KAN-21  |
+| Summary listed the owner last instead of first, except on the first call                                  | API e2e test                             | Owner always first                                  | KAN-29  |
+| The image ran with the wrong `dotenv` version and only worked by luck                                     | Container crash after slimming the image | Copy both `node_modules` folders                    | KAN-36  |
+| An Express 5 route parameter had the wrong type                                                           | Type check in CI (all tests had passed)  | Correct type                                        | KAN-26  |
+| Scanned receipts: discounts, "2 FOR $7.95" deals, GST already inside prices                               | Accuracy test on real receipts           | Prompt rules; compare the total with the items' sum | KAN-33  |
+| A test pattern change quietly dropped a test file                                                         | Web test count fell from 168 to 164      | Pattern includes root `*.test.ts`                   | KAN-53  |
+| One wrong current password logged the user out (`401`)                                                    | Found while testing two-step login       | Answer `403` for wrong passwords while logged in    | KAN-92  |
+| "Account deleted" message lost to the app's own logout redirect                                           | Web test                                 | Message kept in the auth context                    | KAN-93  |
+| Google's button never came back after its script failed to load once                                      | Web test that fails the load first       | Reset after the failure is stored                   | KAN-95  |
+| GST added on top of receipts that already include it                                                      | Real scans                               | Pick the closest of four charge choices             | KAN-98  |
+| A photo that is not a receipt became a made-up bill                                                       | Real scans                               | `isReceipt` in the answer; `422 No receipt found`   | KAN-99  |
+| After a touch swipe, the next real tap on a bill was swallowed                                            | Web test                                 | Reset the flag on every new touch                   | KAN-101 |
+| Hovering the mouse over a bill slid it open                                                               | Using the live site with a mouse         | Only swipe while a pointer is pressed; 2 tests      | KAN-101 |
+| `vitest` and its coverage plugin on different versions after Dependabot updates                           | `test-web` red on the Dependabot PRs     | Update both together; `npm dedupe`                  | KAN-22  |
+| Item buttons on Check items were named "Edit Laksa", hiding the quantity and price they show (WCAG 2.5.3) | axe in the browser tests                 | Named by their content, with a hidden "Edit"        | KAN-103 |
 
 Some checks were run the other way round, to prove a gate works: a broken split engine (PR #45) turned `test-api` and `test-e2e` red and disabled the merge button; a fake key was blocked by push protection and Gitleaks; a lint error blocked a PR. Screenshots are in [docs/evidence](../docs/evidence/).
 

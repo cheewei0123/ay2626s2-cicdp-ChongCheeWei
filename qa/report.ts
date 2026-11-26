@@ -312,7 +312,11 @@ function accessibility() {
   const axe = tests.browser.filter((t) => t.tags.includes('@a11y'));
   if (!axe.length) return '<p class="muted">Not run.</p>';
   const t = tally(axe);
-  return `<p>${badge(!t.failed, 'No violations', 'Violations found')} axe (WCAG 2.1 A and AA) on the main screens, in ${plural(axe.length, 'browser')}: ${t.passed} of ${axe.length} passed.
+  // A test's name ends with its browser project, e.g. "owner: … (Pixel 7)"
+  const devices = [
+    ...new Set(axe.map((c) => /\(([^)]+)\)$/.exec(c.name)?.[1])),
+  ];
+  return `<p>${badge(!t.failed, 'No violations', 'Violations found')} axe (WCAG 2.1 A and AA) on the main screens, in ${plural(axe.length, 'browser test')} on ${devices.join(' and ')}: ${t.passed} of ${axe.length} passed.
     Any violation fails the browser-test job, a required check. Details are in the <a href="browser-tests/index.html">browser-test report</a>.</p>`;
 }
 
