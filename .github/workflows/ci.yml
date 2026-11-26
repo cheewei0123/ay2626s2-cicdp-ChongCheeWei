@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 # Every job's token can only read the code, unless the job asks for more itself
-# (gitleaks: comment on the PR; trivy: upload to the Security tab)
+# (gitleaks: comment on the PR; trivy: upload to the Security tab; publish QA report: Pages)
 permissions:
   contents: read
 
@@ -59,11 +59,16 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run test:cov -w apps/api
-      - uses: actions/upload-artifact@v7
+      # Also writes the counts as JSON and coverage/lcov.info for the QA report (KAN-102)
+      - run: npm run test:cov -w apps/api -- --reporter=default --reporter=json --outputFile.json=test-results.json
+      # Uploaded even when a test fails, so the QA report shows the failure
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-api
-          path: apps/api/coverage
+          path: |
+            apps/api/coverage
+            apps/api/test-results.json
 
   test-web:
     runs-on: ubuntu-latest
@@ -74,7 +79,14 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm test -w apps/web
+      - run: npm test -w apps/web -- --reporter=default --reporter=json --outputFile.json=test-results.json
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-web
+          path: |
+            apps/web/coverage
+            apps/web/test-results.json
 
   # Builds the API image (no push), so a broken Dockerfile is caught before merging
   docker-build:
@@ -142,7 +154,12 @@ jobs:
       # Same command production will use: apply every committed migration in order
       - run: npx prisma migrate deploy
         working-directory: apps/api
-      - run: npm run test:e2e -w apps/api
+      - run: npm run test:e2e -w apps/api -- --reporter=default --reporter=json --outputFile.json=e2e-results.json
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results
+          path: apps/api/e2e-results.json
 
   # The top of the test pyramid (KAN-53): the real images (Caddy, API, Postgres) in Docker,
   # driven by a real WebKit browser sized like an iPhone 14
@@ -177,6 +194,14 @@ jobs:
             -v "$PWD":/work -w /work/apps/web \
             "mcr.microsoft.com/playwright:v$version-noble" \
             npx playwright test
+      # Playwright's HTML report and its counts, for the QA report (KAN-102)
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report
+            apps/web/playwright-results.json
       # On failure: the trace (open it at trace.playwright.dev) and the video
       - if: failure()
         uses: actions/upload-artifact@v7
@@ -186,6 +211,69 @@ jobs:
           retention-days: 7
       - if: failure()
         run: $COMPOSE logs api
+
+  # The QA report (KAN-102): reads the test jobs' results and lcov.info files and builds
+  # the site in qa/site. It runs even when a test job failed, so the report shows it.
+  qa-report:
+    name: QA report
+    needs: [test-api, test-web, test-e2e, e2e-browser]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # The report's own code is checked like the apps' code
+      - run: npx prettier --check qa
+      - run: npm run qa:typecheck
+      - run: npm run qa:test
+      # Each artifact goes back where its job wrote it; one that is missing (its job
+      # stopped early) shows as "Not run" on the page instead of stopping the report
+      - uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: coverage-api
+          path: apps/api
+      - uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: coverage-web
+          path: apps/web
+      - uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: e2e-results
+          path: apps/api
+      - uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: playwright-report
+          path: apps/web
+      - run: npm run qa:report
+      # Saved as the github-pages artifact; only a push to main publishes it (below)
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: qa/site
+
+  # Publishes the QA report to GitHub Pages after a merge to main. Pull requests only
+  # build it: their report can be downloaded from the run as the github-pages artifact.
+  publish-qa-report:
+    name: publish QA report
+    needs: qa-report
+    if: ${{ !cancelled() && needs.qa-report.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write # publish to Pages
+      id-token: write # prove to Pages that the upload came from this workflow
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
 
   # Known vulnerabilities in our npm packages (the lockfile), fails on HIGH or CRITICAL
   npm-audit:

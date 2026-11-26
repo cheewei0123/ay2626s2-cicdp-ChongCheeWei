@@ -67,10 +67,8 @@ Screenshots used in the report, named `kan-<ticket>-<what>.png`.
 | `kan-46-iphone-home-screen.png`           | KAN-46 | SplitLah installed on the iPhone home screen with its own icon and name (cropped to the top row)                               |
 | `kan-46-iphone-standalone.png`            | KAN-46 | SplitLah opened from the home screen: full-screen, no Safari address bar                                                       |
 | `kan-40-deploy-disk-full-steps.png`       | KAN-40 | Same failed deploy, job steps: the error, "Close SSH again" still runs, "Check it is live" skipped                             |
-| `kan-50-api-coverage-2026-11-22.txt`      | KAN-50 | `npm run test:cov -w apps/api` on `main`: 404 tests pass, 97.91% lines and 95.02% branches                                     |
 | `kan-51-er-diagram.png`                   | KAN-51 | ER diagram of all 10 tables, drawn from the current `schema.prisma` (replaces `kan-70-er-diagram.png`)                         |
 | `kan-51-pipeline-diagram.png`             | KAN-51 | The pipeline: 13 PR checks in parallel, then build, OIDC, deploy, health check and rollback                                    |
-| `k6-2026-11-22.txt`                       | KAN-55 | k6 load test output and server stats from the run on 22 Nov                                                                    |
 | `kan-57-deployment-diagram.png`           | KAN-57 | Deployment: one EC2 running Caddy, the web and API containers, RDS in private subnets                                          |
 | `kan-57-modules-diagram.png`              | KAN-57 | NestJS module map and what each module depends on                                                                              |
 | `kan-57-lifecycle-diagram.png`            | KAN-57 | One request through middleware, guards, interceptor, pipes, controller and service                                             |
@@ -85,3 +83,5 @@ Screenshots used in the report, named `kan-<ticket>-<what>.png`.
 | `kan-60-sprint-3-burndown.png`            | KAN-60 | Sprint 3 burndown: 52 points, above the guideline from 11 Nov, down to 37 on 17 Nov and 9 on 22 Nov                            |
 | `kan-50-codeql-alert-dismissed.png`       | KAN-50 | Code scanning on `main`: 0 open, alert #5 closed as a false positive                                                           |
 | `kan-60-gantt.png`                        | KAN-60 | Gantt: sprints planned vs actual, milestones, and first to last merge per epic (Jira sprint dates, git merge dates)            |
+
+The text results (API coverage on 22 Nov, the k6 load test) moved to [qa/results](../../qa/results/) with the rest of the QA files (KAN-102).

@@ -146,6 +146,7 @@ From the repo root:
 | `npm run test:e2e -w apps/api`            | API end-to-end tests against the local Postgres                |
 | `npm test -w apps/web`                    | Web component tests with the 90% coverage gate                 |
 | `npm run test:browser -w apps/web`        | Playwright browser tests (start the Docker stack first, below) |
+| `npm run qa:report`                       | Builds the QA report from the last test run into `qa/site`     |
 
 The browser tests run against the real images in Docker. How to start them is in [docs/pipeline.md](docs/pipeline.md#browser-tests-playwright-kan-53).
 
@@ -154,6 +155,8 @@ The browser tests run against the real images in Docker. How to start them is in
 **On every pull request**, 13 required checks run in parallel (about 4 minutes): Gitleaks, lint + format + typecheck + build for each app, API and web unit tests with 90% coverage gates, API end-to-end tests against Postgres 18, Playwright browser tests as an iPhone 14, the Docker builds, npm audit, Trivy image scans and CodeQL. `main` is protected: nothing merges until every check is green, and there is no bypass.
 
 **On merge to `main`**: build and push the images to GHCR (tagged with the commit SHA) → SSH to EC2 using AWS OIDC (no stored AWS keys) → `prisma migrate deploy` on RDS → start → health check → automatic rollback to the previous image if it fails. Merge to live takes about 2½ minutes.
+
+**QA report:** after the tests, CI builds a report from the results and the `lcov.info` coverage files; on `main` it is published to GitHub Pages: **[cheewei0123.github.io/ay2626s2-cicdp-ChongCheeWei](https://cheewei0123.github.io/ay2626s2-cicdp-ChongCheeWei/)** (test counts, coverage per folder against the gates, line-by-line coverage, the browser-test report). See [qa/](qa/).
 
 **By hand:** a k6 load test against the live site (`k6.yml`, 10 users for 1 minute, with latency and error thresholds).
 
@@ -171,21 +174,22 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the details, and [docs/sprints/](docs
 
 ## Documentation
 
-| Doc                                  | What's in it                                           |
-| ------------------------------------ | ------------------------------------------------------ |
-| [Diagrams](docs/diagrams/)           | Mermaid sources for every diagram                      |
-| [Architecture](docs/architecture.md) | Containers, NestJS modules, one request step by step   |
-| [API](docs/api.md)                   | Every endpoint, who can call it, errors                |
-| [Data model](docs/data-model.md)     | Tables, relations, money as integer cents              |
-| [ADRs](docs/adr/)                    | Why NestJS, integer cents, OCR and email interfaces    |
-| [User flows](docs/user-flows.md)     | Owner and guest journeys                               |
-| [UI design](docs/ui-design.md)       | Colours, glass components, layout rules                |
-| [Pipeline](docs/pipeline.md)         | Every CI job, the deploy, secrets, browser tests       |
-| [Security](docs/security.md)         | Scans, findings and accepted risks                     |
-| [Infrastructure](docs/infra.md)      | EC2, RDS, Caddy, OIDC setup                            |
-| [Evaluation](docs/evaluation.md)     | Strengths, limits, bottlenecks, trade-offs, next steps |
-| [Learning log](docs/learning-log.md) | What I learned and what went wrong, per ticket         |
-| [Evidence](docs/evidence/)           | Screenshots used in the report                         |
+| Doc                                  | What's in it                                                                                                     |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| [Diagrams](docs/diagrams/)           | Mermaid sources for every diagram                                                                                |
+| [Architecture](docs/architecture.md) | Containers, NestJS modules, one request step by step                                                             |
+| [API](docs/api.md)                   | Every endpoint, who can call it, errors                                                                          |
+| [Data model](docs/data-model.md)     | Tables, relations, money as integer cents                                                                        |
+| [ADRs](docs/adr/)                    | Why NestJS, integer cents, OCR and email interfaces                                                              |
+| [User flows](docs/user-flows.md)     | Owner and guest journeys                                                                                         |
+| [UI design](docs/ui-design.md)       | Colours, glass components, layout rules                                                                          |
+| [Pipeline](docs/pipeline.md)         | Every CI job, the deploy, secrets, browser tests                                                                 |
+| [Security](docs/security.md)         | Scans, findings and accepted risks                                                                               |
+| [Infrastructure](docs/infra.md)      | EC2, RDS, Caddy, OIDC setup                                                                                      |
+| [Evaluation](docs/evaluation.md)     | Strengths, limits, bottlenecks, trade-offs, next steps                                                           |
+| [QA report](qa/qa-report.md)         | Test strategy, results, defects found, gaps ([live](https://cheewei0123.github.io/ay2626s2-cicdp-ChongCheeWei/)) |
+| [Learning log](docs/learning-log.md) | What I learned and what went wrong, per ticket                                                                   |
+| [Evidence](docs/evidence/)           | Screenshots used in the report                                                                                   |
 
 ## Repository structure
 
@@ -195,6 +199,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the details, and [docs/sprints/](docs
 │   └── web/        # React PWA, component tests, Playwright tests (e2e/)
 ├── infra/          # Docker Compose files (dev, CI, production), deploy and server scripts
 ├── docs/           # Architecture, API, data model, ADRs, sprints, evidence
+├── qa/             # QA report and its generator, k6 load test, receipt accuracy, saved results
 └── .github/        # Workflows (CI, CodeQL, deploy, k6 load test), PR template, Dependabot
 ```
 

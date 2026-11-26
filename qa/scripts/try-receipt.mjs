@@ -1,11 +1,11 @@
 // Reads one real receipt photo with Gemini and prints the result.
 // Used to measure accuracy for the report (KAN-33). Each run uses 1 of the free daily requests.
 //   npm run build -w apps/api
-//   node --env-file=apps/api/.env apps/api/scripts/try-receipt.mjs path/to/receipt.jpg [save-raw.json]
+//   node --env-file=apps/api/.env qa/scripts/try-receipt.mjs path/to/receipt.jpg [save-raw.json]
 // The optional second path saves Gemini's raw answer, e.g. as a test fixture.
 import { readFile, writeFile } from 'node:fs/promises';
 import { extname } from 'node:path';
-import { createOcrService } from '../dist/ocr/ocr.factory.js';
+import { createOcrService } from '../../apps/api/dist/ocr/ocr.factory.js';
 
 const photo = process.argv[2];
 if (!photo) {

@@ -1,6 +1,6 @@
 // k6 load test for the live app (KAN-55). Run by .github/workflows/k6.yml, or locally:
-//   k6 run infra/k6/smoke.js                       (BASE_URL defaults to production)
-//   k6 run -e BASE_URL=http://localhost:8080 infra/k6/smoke.js
+//   k6 run qa/k6/smoke.js                       (BASE_URL defaults to production)
+//   k6 run -e BASE_URL=http://localhost:8080 qa/k6/smoke.js
 // Two scenarios:
 //   load      10 users for 1 minute, each opening the app and calling /api/health
 //             (Caddy → NestJS → a query on RDS), with the pass/fail thresholds below.

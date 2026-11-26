@@ -67,7 +67,7 @@ jobs:
               docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"
               sleep 8
             done' > server-stats.txt &
-          k6 run -e BASE_URL="$BASE_URL" infra/k6/smoke.js | tee k6-summary.txt
+          k6 run -e BASE_URL="$BASE_URL" qa/k6/smoke.js | tee k6-summary.txt
           wait
           cat server-stats.txt
 

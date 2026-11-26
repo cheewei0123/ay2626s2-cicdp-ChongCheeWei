@@ -1,6 +1,6 @@
 # Receipt reading accuracy (KAN-33)
 
-How well Gemini reads real receipts, measured with `apps/api/scripts/try-receipt.mjs` on 9 Nov 2026. The photos are kept outside the repo.
+How well Gemini reads real receipts, measured with `qa/scripts/try-receipt.mjs` on 9 Nov 2026. The photos are kept outside the repo.
 
 ## Final results (Gemini 3.5 Flash-Lite, final prompt)
 
@@ -32,7 +32,7 @@ How well Gemini reads real receipts, measured with `apps/api/scripts/try-receipt
 | `gemini-3.5-flash`        | 20 / 5 (counted as 3.6 Flash)     | 3–17 s                   | 4 receipts right     |
 | **Gemini 3.5 Flash-Lite** | **500 / 15**                      | **about 2 s**            | **5 receipts right** |
 
-Flash-Lite was the fastest, read every test receipt correctly, and allows 25 times more requests a day. Because the model is a setting (`GEMINI_MODEL`), each switch was a one-line change. Evidence: [3.8 Flash limits](evidence/kan-33-gemini-free-limits.png), [limits by model](evidence/kan-33-gemini-limits-by-model.png).
+Flash-Lite was the fastest, read every test receipt correctly, and allows 25 times more requests a day. Because the model is a setting (`GEMINI_MODEL`), each switch was a one-line change. Evidence: [3.8 Flash limits](../docs/evidence/kan-33-gemini-free-limits.png), [limits by model](../docs/evidence/kan-33-gemini-limits-by-model.png).
 
 ## Limits of this test
 
