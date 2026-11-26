@@ -21,3 +21,9 @@ apps/api/src/generated
 # Playwright (KAN-53)
 test-results
 playwright-report
+
+# Test results as JSON and the built QA report site (KAN-102)
+test-results.json
+e2e-results.json
+playwright-results.json
+qa/site

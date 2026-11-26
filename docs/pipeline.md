@@ -45,7 +45,7 @@ All jobs start at the same time, on every PR and every push to `main`. A new pus
 | `gitleaks`                                       | Scans the full git history for secrets                                                                                                                                                                                                                                                                     | A key, token or password is found                                                                         |
 | `lint api`                                       | `npm ci`, oxlint (`--deny-warnings`), Prettier check, type-check (`tsc --noEmit`, tests included), build                                                                                                                                                                                                   | Any lint warning, unformatted file, type error or failed build                                            |
 | `lint web`                                       | Same, for `apps/web`                                                                                                                                                                                                                                                                                       | Same                                                                                                      |
-| `test-api`                                       | Vitest with coverage, uploads the coverage report                                                                                                                                                                                                                                                          | A test fails or any of `src/split`, `common`, `auth`, `bills`, `ocr`, `receipts`, `expenses` is below 90% |
+| `test-api`                                       | Vitest with coverage, uploads the coverage report (`lcov.info`, HTML) and the results as JSON                                                                                                                                                                                                              | A test fails or any of `src/split`, `common`, `auth`, `bills`, `ocr`, `receipts`, `expenses` is below 90% |
 | `test-web`                                       | Vitest with coverage: component tests in a fake browser (jsdom) with a fake API                                                                                                                                                                                                                            | A test fails or `apps/web/src` is below 90%                                                               |
 | `test-e2e`                                       | Starts a fresh Postgres 18 service container, `prisma migrate deploy`, then the API e2e tests (Supertest) with a random `JWT_SECRET`                                                                                                                                                                       | A migration fails, or any e2e test fails                                                                  |
 | `e2e-browser`                                    | Builds the real images and starts them with `infra/docker-compose.ci.yml` (Postgres, migrations, API with Fake OCR and email, Caddy on port 8080), then Playwright drives WebKit as an iPhone 14 through the whole journey, inside Microsoft's Playwright image; on failure it uploads the trace and video | A browser step fails                                                                                      |
@@ -55,6 +55,17 @@ All jobs start at the same time, on every PR and every push to `main`. A new pus
 | `codeql javascript-typescript`, `codeql actions` | `codeql.yml`: reads our TypeScript and the workflow files for security bugs (also weekly)                                                                                                                                                                                                                  | A new security finding                                                                                    |
 
 All 13 are required checks on `main`. A typical run takes about 4 minutes; `e2e-browser` is the slowest job (it builds the images without the layer cache, then runs the browser). The npm cache was measured to save almost nothing (see the KAN-50 learning-log entry); Docker's layer cache is the one that saves time. Two runs took about 30 minutes because `playwright install --with-deps` downloaded WebKit's system libraries from a slow Ubuntu mirror; since KAN-100 the browser tests run in Microsoft's Playwright image (`mcr.microsoft.com/playwright`, tagged with the installed `@playwright/test` version), which already has them.
+
+## QA report (KAN-102)
+
+Two more jobs in `ci.yml` turn the test results into a report and publish it to GitHub Pages: **https://cheewei0123.github.io/ay2626s2-cicdp-ChongCheeWei/**. They are not required checks, so a problem with the report can't block a merge; the tests themselves already do that.
+
+| Job                 | Runs                                                             | What it does                                                                                                                                                                                                                                                                                         |
+| ------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `QA report`         | Every PR and push, after the four test jobs (even if one failed) | Checks the report's own code (Prettier, `tsc`, `node --test`), downloads the test jobs' artifacts (`coverage-api`, `coverage-web`, `e2e-results`, `playwright-report`), runs `qa/report.ts` and uploads `qa/site` as the `github-pages` artifact. On a PR the report can be downloaded from the run. |
+| `publish QA report` | Push to `main` only                                              | Publishes that artifact with `actions/deploy-pages` in the `github-pages` environment. Its token gets `pages: write` and `id-token: write` (Pages checks the upload came from this workflow); every other job keeps read-only.                                                                       |
+
+**lcov.** Both Vitest configs set `reporter: ['text', 'lcov']`: the text table stays in the CI log, and lcov writes `coverage/lcov.info` (the standard coverage format, one record per file with lines, branches and functions found and hit) and an HTML report in `coverage/lcov-report`. `qa/report.ts` reads `lcov.info`, adds up each folder and compares it with the gates it reads from the Vitest config, so the page and CI can't disagree. It copies the HTML reports to the site as they are. The test counts come from Vitest's and Playwright's JSON reporters.
 
 ## On merge to `main` (`.github/workflows/deploy.yml`)
 
@@ -166,7 +177,7 @@ A failed test keeps `trace.zip` and `video.webm` in `apps/web/test-results/`; CI
 
 ## Load test (k6, KAN-55)
 
-`infra/k6/smoke.js` runs from `.github/workflows/k6.yml`, which only starts by hand (Actions → k6 → Run workflow), so normal PRs and merges never put load on production. k6 is installed by Grafana's action, pinned to a commit.
+`qa/k6/smoke.js` runs from `.github/workflows/k6.yml`, which only starts by hand (Actions → k6 → Run workflow), so normal PRs and merges never put load on production. k6 is installed by Grafana's action, pinned to a commit.
 
 - **load:** 10 virtual users for 1 minute. Each opens the app page (Caddy) and calls `/api/health` (NestJS → a query on RDS), then waits 1 second, like a person between screens.
 - **Thresholds (the job fails if missed):** 95% of requests under 500 ms, and under 1% failed.
@@ -176,7 +187,7 @@ Health and the app page are used because they have no rate limit; a share link a
 
 ### Results (22 Nov 2026)
 
-Two runs from GitHub's US runner against the live site; the second also sampled the server. Full output: [evidence/k6-2026-11-22.txt](evidence/k6-2026-11-22.txt).
+Two runs from GitHub's US runner against the live site; the second also sampled the server. Full output: [qa/results/k6-2026-11-22.txt](../qa/results/k6-2026-11-22.txt).
 
 | Run                        | p50    | p95    | Max    | Errors     | Requests/s | Server CPU (API / Caddy) | API memory  |
 | -------------------------- | ------ | ------ | ------ | ---------- | ---------- | ------------------------ | ----------- |
@@ -190,6 +201,6 @@ Requests/s is the load scenario only (requests ÷ 60 s). The rate-limit check pa
 Run it from a laptop with k6 installed:
 
 ```sh
-k6 run infra/k6/smoke.js                                   # production
-k6 run -e BASE_URL=http://localhost:8080 infra/k6/smoke.js # the Docker stack above
+k6 run qa/k6/smoke.js                                   # production
+k6 run -e BASE_URL=http://localhost:8080 qa/k6/smoke.js # the Docker stack above
 ```

@@ -16,6 +16,9 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}', '*.test.ts'], // not e2e/: Playwright runs those
     coverage: {
       provider: 'v8',
+      // text: the table in the CI log. lcov: coverage/lcov.info (read by
+      // qa/report.ts) and the HTML report in coverage/lcov-report (KAN-102)
+      reporter: ['text', 'lcov'],
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
         'src/**/*.test.{ts,tsx}',

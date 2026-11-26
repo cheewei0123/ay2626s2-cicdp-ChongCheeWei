@@ -10,9 +10,13 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "npm test --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build --workspaces --if-present",
+    "qa:test": "node --test \"qa/**/*.test.ts\"",
+    "qa:typecheck": "tsc -p qa",
+    "qa:report": "node qa/report.ts"
   },
   "devDependencies": {
+    "marked": "^18.2.0",
     "prettier": "^3.10.1"
   }
 }

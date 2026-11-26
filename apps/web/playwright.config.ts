@@ -10,7 +10,14 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env.CI, // a stray test.only must not pass CI quietly
   retries: 0, // a flaky test should fail and be fixed, not retried until green
-  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  // In CI: the HTML report (published with the QA report) and the counts as JSON
+  reporter: process.env.CI
+    ? [
+        ['list'],
+        ['html', { open: 'never' }],
+        ['json', { outputFile: 'playwright-results.json' }],
+      ]
+    : 'list',
   use: {
     baseURL: process.env.BASE_URL ?? 'http://localhost:8080',
     // Kept only when a test fails: the trace (every step, network call and DOM

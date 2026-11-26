@@ -2,6 +2,16 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-102: QA report published to GitHub Pages
+
+- **lcov is a file format, not just a tool.** Each source file gets a record: `SF` (the file), `LF`/`LH` (lines found and hit), `BRF`/`BRH` (branches), `FNF`/`FNH` (functions), then `end_of_record`. Vitest writes it with `reporter: ['text', 'lcov']`, which also writes the HTML report. Reading it myself (`parseLcov` in `qa/lcov.ts`) is one short loop, with no extra tool.
+- **Add the counts, then divide.** A folder's coverage is the sum of hits over the sum of lines, not the average of its files' percentages: a 2-line file at 50% would otherwise weigh as much as a 200-line file. A test checks this.
+- **The gates are read from the Vitest config**, not copied into the report, so the page can't say "pass" while CI says "fail".
+- **Node 24 runs TypeScript.** It strips the types and runs the file, so the report needs no build step or `tsx`. Only syntax that can be stripped works (no `enum`), which `erasableSyntaxOnly` in `qa/tsconfig.json` checks, and imports need the `.ts` ending. Tests use Node's own `node --test`.
+- **Publishing needs its own permissions, only in one job.** `actions/deploy-pages` needs `pages: write` and `id-token: write`; the rest of the workflow stays read-only. Pull requests build the report but only a push to `main` publishes it, so the page always shows `main`.
+- **The report runs even when tests fail** (`if: ${{ !cancelled() }}`, artifacts uploaded the same way), because a report that only exists when everything passes hides the failures it is for. A missing artifact shows as "Not run" instead of breaking the page.
+- **Links have to work in two places.** `qa-report.md` links to `../docs/…`, which works on GitHub but not on the Pages site, so the links are rewritten to GitHub at the same commit when the page is built.
+
 ## KAN-101: Swipe a bill to pin, share or delete
 
 - **Pointer events cover touch and mouse.** One set of handlers (`pointerdown`, `move`, `up`) works for a finger and for a mouse. The first 8 px decide: mostly sideways is a swipe, mostly up or down is the page scrolling. `touch-action: pan-y` lets the browser keep scrolling while the row gets the sideways moves.
@@ -395,7 +405,7 @@ Short notes on what I learned and what went wrong, newest first. Used as evidenc
 - **Friendly failures:** Gemini `429` → our `429` "free limit reached"; any other error or a 60 s timeout → `503`. Every message says the items can be added by hand. Our route allows 5 uploads a minute, so users meet our message before Google's.
 - **Draft, not saved:** I first saved the items straight onto the bill, then found `docs/api.md` already said scanned items are a draft the owner checks first. I followed the contract; the code got simpler too.
 - **Measure, don't guess:** Gemini 3.8 Flash took 100 s on one receipt. Lowering "thinking" wasn't enough. I timed three models and moved to 3.5 Flash-Lite (about 2 s, 500 free a day vs 20). Because the model is a setting, each switch was one line. I also found `gemini-3.5-flash` is counted as "3.6 Flash" in AI Studio.
-- **Real receipts found real bugs:** a McDonald's discount, NTUC "2 FOR $7.95" deals ($3.975 isn't a whole cent) and GST-inclusive totals each broke the sums. Fixed with prompt rules and by comparing the total with the items' sum. Final: 35/35 items, 5/5 totals ([ocr-accuracy.md](ocr-accuracy.md)).
+- **Real receipts found real bugs:** a McDonald's discount, NTUC "2 FOR $7.95" deals ($3.975 isn't a whole cent) and GST-inclusive totals each broke the sums. Fixed with prompt rules and by comparing the total with the items' sum. Final: 35/35 items, 5/5 totals ([ocr-accuracy.md](../qa/ocr-accuracy.md)).
 - **Tests never call Gemini:** unit tests pass a pretend `generate` function; the e2e test overrides `OCR_SERVICE` with the Fake even if a developer's `.env` says `gemini`. One unit test uses a real saved NTUC answer.
 - **Choices left out:** no `sharp` resizing (its Linux binary is an optional dependency, and our image installs with `--omit=optional`); the photo isn't stored (privacy, no storage cost), so `ReceiptImage.storagePath` became nullable with an additive migration.
 - **Windows blocked oxlint:** after a clean `npm ci`, Smart App Control refused oxlint's native file ("An Application Control policy has blocked this file"). Not a code problem: I ran the same oxlint version in a Linux container (0 warnings), which is what CI does anyway.

@@ -94,9 +94,9 @@ No new features. Sprint 4 is:
 | Opened full-screen                    | `docs/evidence/kan-46-iphone-standalone.png`         |
 | Failed deploy, site left up           | `docs/evidence/kan-40-deploy-disk-full-steps.png`    |
 | Deploy times before and after the fix | `docs/evidence/kan-58-deploy-times-before-after.png` |
-| API coverage on `main`                | `docs/evidence/kan-50-api-coverage-2026-11-22.txt`   |
+| API coverage on `main`                | `qa/results/api-coverage-2026-11-22.txt`             |
 | Pipeline diagram                      | `docs/evidence/kan-51-pipeline-diagram.png`          |
-| k6 load test                          | `docs/evidence/k6-2026-11-22.txt`                    |
+| k6 load test                          | `qa/results/k6-2026-11-22.txt`                       |
 | Timeline of all sprints (Gantt)       | `docs/evidence/kan-60-gantt.png`                     |
 | Burndown at sprint end                | `docs/evidence/kan-60-sprint-3-burndown.png`         |
 | Verification email on the live site   | `docs/evidence/kan-77-verification-email.png`        |

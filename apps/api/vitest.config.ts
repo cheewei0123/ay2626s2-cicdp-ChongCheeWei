@@ -11,6 +11,9 @@ export default defineConfig({
     include: ['**/*.spec.ts'],
     coverage: {
       provider: 'v8',
+      // text: the table in the CI log. lcov: coverage/lcov.info (read by
+      // qa/report.ts) and the HTML report in coverage/lcov-report (KAN-102)
+      reporter: ['text', 'lcov'],
       include: ['src/**/*.ts'],
       // Modules only wire classes together; the e2e tests prove the wiring works
       exclude: [
