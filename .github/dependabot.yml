@@ -32,5 +32,10 @@ updates:
     directories: [/apps/api, /apps/web]
     schedule:
       interval: weekly
+    ignore:
+      # Stay on Node 24 (LTS). A new major Node version is a planned upgrade of
+      # its own, not a weekly PR (25 is a short-lived non-LTS release).
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
     commit-message:
       prefix: 'KAN-36 chore(docker)'
