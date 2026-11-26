@@ -10,6 +10,7 @@ import {
   readGates,
   total,
 } from './lcov.ts';
+import { byFeature, featureOf, OTHER } from './features.ts';
 import { siteLink } from './links.ts';
 import { fromPlaywright, fromVitest } from './results.ts';
 
@@ -177,5 +178,43 @@ describe('siteLink', () => {
       siteLink('../docs/pipeline.md#browser-tests', blob),
       'https://github.com/me/repo/blob/abc123/docs/pipeline.md#browser-tests',
     );
+  });
+});
+
+describe('features', () => {
+  const file = (name: string, hit: number) => ({
+    file: name,
+    lines: { found: 10, hit },
+    branches: { found: 0, hit: 0 },
+    functions: { found: 0, hit: 0 },
+  });
+
+  it('puts a file in the feature with the longest matching path', () => {
+    assert.equal(featureOf('web', 'src/bills/guest.ts'), 'Bills');
+    assert.equal(featureOf('web', 'src/bills/split.ts'), 'Split maths');
+    assert.equal(
+      featureOf('web', 'src/pages/ScanReceipt.tsx'),
+      'Receipt scanning',
+    );
+    assert.equal(featureOf('api', 'src/app.controller.ts'), 'App shell');
+    assert.equal(
+      featureOf('api', 'src/telegram/telegram.service.ts'),
+      'Accounts',
+    );
+  });
+
+  it('shows a file no feature lists as Other', () => {
+    assert.equal(featureOf('web', 'src/pages/NewPage.tsx'), OTHER);
+    assert.equal(featureOf('api', 'src/main.ts'), OTHER);
+  });
+
+  it('adds up the files of each feature', () => {
+    const groups = byFeature('api', [
+      file('src/bills/bills.service.ts', 10),
+      file('src/bills/share.service.ts', 5),
+      file('src/split/money.ts', 10),
+    ]);
+    assert.deepEqual(groups.get('Bills')?.lines, { found: 20, hit: 15 });
+    assert.deepEqual(groups.get('Split maths')?.lines, { found: 10, hit: 10 });
   });
 });

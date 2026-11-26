@@ -1,6 +1,7 @@
 // Builds the QA report site that CI publishes to GitHub Pages (KAN-102).
 // It reads what the test jobs wrote and puts it in qa/site:
-//   index.html      test results, coverage per folder against the gates, then qa-report.md
+//   index.html      test results, coverage per feature and per folder against the gates,
+//                   then qa-report.md
 //   receipts.html   ocr-accuracy.md
 //   coverage/api, coverage/web   the HTML coverage reports (lcov-report)
 //   browser-tests   Playwright's HTML report
@@ -24,7 +25,9 @@ import {
   readGates,
   total,
 } from './lcov.ts';
-import type { Coverage, Gate } from './lcov.ts';
+import type { Coverage, FileCoverage, Gate } from './lcov.ts';
+import { byFeature, FEATURES, featureOf, OTHER } from './features.ts';
+import type { App } from './features.ts';
 import { siteLink } from './links.ts';
 import { fromPlaywright, fromVitest } from './results.ts';
 import type { Suite } from './results.ts';
@@ -103,35 +106,90 @@ function suiteCard({ name, what, suite, report }: Row) {
 
 // ---- Coverage ----
 
-function coverageSection(
-  title: string,
-  app: string,
-  config: string,
-  note: string,
-) {
-  const lcov = read(`apps/${app}/coverage/lcov.info`);
-  if (!lcov)
-    return `<h3>${title}</h3><p class="muted">No coverage: the test job did not finish.</p>`;
-  const files = parseLcov(lcov);
-  const gates = readGates(read(config) ?? '');
-  const sum = total(files);
-  const cells = (c: Coverage) =>
-    `<td>${fmt(pct(c.lines))}</td><td>${fmt(pct(c.branches))}</td><td>${fmt(pct(c.functions))}</td>`;
+const lcov = (app: App) => {
+  const text = read(`apps/${app}/coverage/lcov.info`);
+  return text === undefined ? undefined : parseLcov(text);
+};
+const files = { api: lcov('api'), web: lcov('web') };
+const gates = {
+  api: readGates(read('apps/api/vitest.config.ts') ?? ''),
+  web: readGates(read('apps/web/vite.config.ts') ?? ''),
+};
+const cells = (c: Coverage) =>
+  `<td>${fmt(pct(c.lines))}</td><td>${fmt(pct(c.branches))}</td><td>${fmt(pct(c.functions))}</td>`;
+
+// One row per feature, both apps side by side
+function featureTable() {
+  const api = files.api && byFeature('api', files.api);
+  const web = files.web && byFeature('web', files.web);
+  const two = (c?: Coverage) =>
+    c
+      ? `<td>${fmt(pct(c.lines))}</td><td>${fmt(pct(c.branches))}</td>`
+      : '<td class="muted">–</td><td class="muted">–</td>';
+  const names = [...FEATURES.map((f) => f.name), OTHER];
+  const what = new Map(FEATURES.map((f) => [f.name, f.what]));
+  const rows = names
+    .filter((n) => api?.has(n) || web?.has(n))
+    .map(
+      (n) =>
+        `<tr><td><strong>${n}</strong><br><span class="muted">${what.get(n) ?? 'Files no feature lists yet (qa/features.ts)'}</span></td>${two(api?.get(n))}${two(web?.get(n))}</tr>`,
+    )
+    .join('');
+  const totals = `<tr class="total"><td>Whole app</td>${two(files.api && total(files.api))}${two(files.web && total(files.web))}</tr>`;
+  return `<div class="scroll"><table><thead>
+    <tr><th></th><th colspan="2">API</th><th colspan="2">Web</th></tr>
+    <tr><th>Feature</th><th>Lines</th><th>Branches</th><th>Lines</th><th>Branches</th></tr>
+    </thead><tbody>${rows}${totals}</tbody></table></div>`;
+}
+
+// The gates as CI checks them: API per business folder, web for the whole app
+function gateSummary() {
+  const parts: string[] = [];
+  if (files.api) {
+    const folders = byFolder(files.api);
+    const gated = [...gates.api].filter(([folder]) => folder);
+    const below = gated.filter(([folder, gate]) => {
+      const c = folders.get(folder);
+      return !c || !meetsGate(c, gate);
+    });
+    parts.push(
+      `API, each business folder: ${gated.length - below.length} of ${gated.length} pass ${badge(!below.length, 'Pass', 'Below gate')}` +
+        (below.length
+          ? ` <span class="muted">(${below.map(([f]) => `${esc(f)}: ${featureOf('api', `${f}/`)}`).join(', ')})</span>`
+          : ''),
+    );
+  }
+  const whole = gates.web.get('');
+  if (files.web && whole)
+    parts.push(
+      `Web, whole app (${whole.lines}% / ${whole.branches}%): ${badge(meetsGate(total(files.web), whole), 'Pass', 'Below gate')}`,
+    );
+  return parts.length
+    ? `<ul class="gates">${parts.map((p) => `<li>${p}</li>`).join('')}</ul>`
+    : '';
+}
+
+// Every folder against its gate, folded away under the feature table
+function folderTable(app: App, title: string, note: string) {
+  const fs: FileCoverage[] | undefined = files[app];
+  if (!fs)
+    return `<p class="muted">${title}: no coverage, the test job did not finish.</p>`;
   const gateCells = (c: Coverage, gate?: Gate) =>
     gate
       ? `<td>${gate.lines}% / ${gate.branches}%</td><td>${badge(meetsGate(c, gate), 'Pass', 'Below gate')}</td>`
       : '<td class="muted">not gated</td><td></td>';
-  const rows = [...byFolder(files)]
+  const rows = [...byFolder(fs)]
     .map(
       ([folder, c]) =>
-        `<tr><td><code>${esc(folder)}</code></td>${cells(c)}${gateCells(c, gates.get(folder))}</tr>`,
+        `<tr><td><code>${esc(folder)}</code></td>${cells(c)}${gateCells(c, gates[app].get(folder))}</tr>`,
     )
     .join('');
-  const totalRow = `<tr class="total"><td>All ${files.length} files</td>${cells(sum)}${gateCells(sum, gates.get(''))}</tr>`;
-  return `<div class="row"><h3>${title}</h3><a href="coverage/${app}/index.html">Line-by-line report</a></div>
+  const sum = total(fs);
+  const totalRow = `<tr class="total"><td>All ${fs.length} files</td>${cells(sum)}${gateCells(sum, gates[app].get(''))}</tr>`;
+  return `<details><summary>${title} by folder</summary>
     <p class="muted">${note}</p>
     <div class="scroll"><table><thead><tr><th>Folder</th><th>Lines</th><th>Branches</th><th>Functions</th><th>Gate (lines / branches)</th><th></th></tr></thead>
-    <tbody>${rows}${totalRow}</tbody></table></div>`;
+    <tbody>${rows}${totalRow}</tbody></table></div></details>`;
 }
 
 // ---- Markdown pages ----
@@ -195,6 +253,10 @@ function page(title: string, body: string) {
   th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
   th { color: var(--muted); font-weight: 500; }
   tr.total td { font-weight: 600; }
+  .gates { padding-left: 20px; margin: 12px 0; }
+  .gates li { margin: 4px 0; }
+  details { margin-top: 12px; background: var(--glass); border: 1px solid var(--line); border-radius: 16px; padding: 10px 16px; }
+  summary { cursor: pointer; font-weight: 600; }
   .doc { margin-top: 56px; border-top: 1px solid var(--line); }
   .doc table { display: block; overflow-x: auto; }
   .doc pre { background: var(--glass); padding: 12px; border-radius: 12px; overflow-x: auto; }
@@ -215,10 +277,16 @@ const index = page(
   <div class="cards">${suites.map(suiteCard).join('')}</div>
 
   <h2>Coverage</h2>
-  <p class="muted">Read from the <code>lcov.info</code> file each test run writes. CI fails the
-  pull request if a gated folder is below its gate.</p>
-  ${coverageSection('API', 'api', 'apps/api/vitest.config.ts', 'Each business folder has its own gate. Modules and main.ts are left out: the end-to-end tests prove the wiring.')}
-  ${coverageSection('Web', 'web', 'apps/web/vite.config.ts', 'One gate for the whole app; folders are shown so a weak one is visible.')}
+  <p class="muted">Read from the <code>lcov.info</code> file each test run writes, grouped by
+  feature (<a href="${repo}/blob/${ref}/qa/features.ts">which files are in each</a>).</p>
+  ${featureTable()}
+  <h3>Gates</h3>
+  <p class="muted">CI fails the pull request if any of these is below 90% lines or branches.</p>
+  ${gateSummary()}
+  ${folderTable('api', 'API', 'Each business folder has its own gate. Modules and main.ts are left out: the end-to-end tests prove the wiring.')}
+  ${folderTable('web', 'Web', 'One gate for the whole app; folders are shown so a weak one is visible.')}
+  <p>Line-by-line: <a href="coverage/api/index.html">API</a> · <a href="coverage/web/index.html">Web</a>
+  <span class="muted">(every file, with the lines no test runs marked in red)</span></p>
 
   <h2>More results</h2>
   <ul>
