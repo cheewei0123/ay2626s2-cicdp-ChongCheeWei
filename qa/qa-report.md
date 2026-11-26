@@ -2,39 +2,47 @@
 
 What was tested, how, the results, the bugs testing found, and what is still not tested.
 
-**Live results.** CI publishes this report to [GitHub Pages](https://cheewei0123.github.io/ay2626s2-cicdp-ChongCheeWei/) after every merge to `main` (KAN-102). The top of that page is built by [`report.ts`](report.ts) from the run itself: the test counts, the coverage of every folder against its gate (read from `lcov.info`), and links to the line-by-line coverage and the browser-test report. The numbers below are from `main` at `5bd774d` on 26 Nov 2026 unless a date says otherwise.
+**Live results.** CI publishes this report to [GitHub Pages](https://cheewei0123.github.io/ay2626s2-cicdp-ChongCheeWei/) after every merge to `main` (KAN-102). The top of that page is built by [`report.ts`](report.ts) from the run itself: the test counts and any failed test by name; coverage (read from `lcov.info`) and tests per feature, with every folder against its gate; each requirement FR1 to FR11 with the tests that prove it and their results; the accessibility, mutation, ZAP and Lighthouse results; and the result of every pipeline check (KAN-103). The numbers below are from `main` at `5bd774d` on 26 Nov 2026 unless a date says otherwise.
 
 ## Summary
 
-| Area                              | Result                                                                                                     | Status                     |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------- |
-| API unit tests                    | 544 tests in 54 files, all pass; 98.4% lines, 95.9% branches                                               | Pass                       |
-| Web tests                         | 256 tests in 22 files, all pass; 99.0% lines, 97.3% branches                                               | Pass                       |
-| API end-to-end tests              | 122 tests in 22 files against a real Postgres 18, all pass in CI                                           | Pass                       |
-| Browser tests (iPhone 14, WebKit) | 3 tests on the real Docker images, all pass in CI                                                          | Pass                       |
-| Split correct to the cent         | The brief's bill gives 720 / 899 / 959 / 959 = 3,537 cents; 1,000 random bills add up exactly on every run | Pass                       |
-| Coverage gate                     | 90% lines and branches per business folder (API) and for the whole web app; CI fails below                 | Pass                       |
-| Load (k6, live site, 10 users)    | p95 229.71 ms (target under 500 ms), 0% failed                                                             | Pass                       |
-| Rate limit (k6, live site)        | Join-code guesses: first 20 get `404`, the rest `429`                                                      | Pass                       |
-| Receipt reading (Gemini)          | 35 / 35 items, 5 / 5 totals on 5 real receipts                                                             | Pass                       |
-| Security scans                    | 0 HIGH or CRITICAL with a fix in both images; npm audit clean; CodeQL findings fixed                       | Pass                       |
-| PayNow QR in a real bank app      | Not tested                                                                                                 | Gap (see Known gaps)       |
-| SMS code on the live site         | Not possible on the free AWS plan; Telegram is used instead                                                | Gap (replaced by Telegram) |
+| Area                                   | Result                                                                                                               | Status                     |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| API unit tests                         | 544 tests in 54 files, all pass; 98.4% lines, 95.9% branches                                                         | Pass                       |
+| Web tests                              | 256 tests in 22 files, all pass; 99.0% lines, 97.3% branches                                                         | Pass                       |
+| API end-to-end tests                   | 122 tests in 22 files against a real Postgres 18, all pass in CI                                                     | Pass                       |
+| Browser tests                          | 3 tests each on an iPhone 14 (WebKit) and a Pixel 7 (Chromium) on the real Docker images, plus an accessibility test | Pass                       |
+| Split correct to the cent              | The brief's bill gives 720 / 899 / 959 / 959 = 3,537 cents; 1,000 random bills add up exactly on every run           | Pass                       |
+| Coverage gate                          | 90% lines and branches per business folder (API) and for the whole web app; CI fails below                           | Pass                       |
+| Load (k6, live site, 10 users)         | p95 229.71 ms (target under 500 ms), 0% failed                                                                       | Pass                       |
+| Rate limit (k6, live site)             | Join-code guesses: first 20 get `404`, the rest `429`                                                                | Pass                       |
+| Receipt reading (Gemini)               | 35 / 35 items, 5 / 5 totals on 5 real receipts                                                                       | Pass                       |
+| Security scans                         | 0 HIGH or CRITICAL with a fix in both images; npm audit clean; CodeQL findings fixed                                 | Pass                       |
+| Accessibility (axe, WCAG 2.1 AA)       | Login, register, join, password reset, My bills, check items, share and the guest screen, in both browsers           | See the live page          |
+| Mutation testing (Stryker)             | 90.32% of 217 changes to the split engine caught by a test (26 Nov); 21 survived, listed in the report               | Pass (break at 70%)        |
+| Security scan of the running app (ZAP) | Baseline scan of the CI copy of the app on every PR                                                                  | See the live page          |
+| Lighthouse (login page, phone)         | Performance, accessibility, best practice and SEO scores on every PR                                                 | See the live page          |
+| PayNow QR in a real bank app           | Not tested                                                                                                           | Gap (see Known gaps)       |
+| SMS code on the live site              | Not possible on the free AWS plan; Telegram is used instead                                                          | Gap (replaced by Telegram) |
 
 ## Test strategy
 
 A test pyramid: many fast tests at the bottom, fewer slow ones at the top. Every level runs on every pull request, and 13 required checks must pass before a merge ([pipeline.md](../docs/pipeline.md)).
 
-| Level                  | Tool                               | What it proves                                                                                             | Where                               |
-| ---------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| Unit (API)             | Vitest                             | Logic on its own, with fakes for the database and outside services                                         | `apps/api/src/**/*.spec.ts`         |
-| Property               | fast-check                         | Rules that must hold for any bill: shares add up to the total, nothing negative (1,000 random bills a run) | `apps/api/src/split`                |
-| Unit / component (web) | Vitest + React Testing Library     | Screens behave as a user sees them; elements found by role and name, like a screen reader                  | `apps/web/src/**/*.test.tsx`        |
-| API end-to-end         | Vitest + Supertest + Postgres 18   | Real routes, guards, validation, database and migrations together                                          | `apps/api/test/*.e2e-spec.ts`       |
-| Browser                | Playwright, iPhone 14 (WebKit)     | Owner and guest journeys on the same images as production, through Caddy                                   | `apps/web/e2e/split-a-bill.spec.ts` |
-| Load                   | k6                                 | Response time and errors on the live server; rate limit works through Caddy                                | `qa/k6/smoke.js` (run by hand)      |
-| Accuracy               | `qa/scripts/try-receipt.mjs`       | How well Gemini reads real receipts                                                                        | [ocr-accuracy.md](ocr-accuracy.md)  |
-| Security               | Gitleaks, npm audit, Trivy, CodeQL | Leaked secrets, vulnerable packages, vulnerable image contents, unsafe code and workflows                  | [security.md](../docs/security.md)  |
+| Level                  | Tool                                                  | What it proves                                                                                             | Where                               |
+| ---------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| Unit (API)             | Vitest                                                | Logic on its own, with fakes for the database and outside services                                         | `apps/api/src/**/*.spec.ts`         |
+| Property               | fast-check                                            | Rules that must hold for any bill: shares add up to the total, nothing negative (1,000 random bills a run) | `apps/api/src/split`                |
+| Unit / component (web) | Vitest + React Testing Library                        | Screens behave as a user sees them; elements found by role and name, like a screen reader                  | `apps/web/src/**/*.test.tsx`        |
+| API end-to-end         | Vitest + Supertest + Postgres 18                      | Real routes, guards, validation, database and migrations together                                          | `apps/api/test/*.e2e-spec.ts`       |
+| Browser                | Playwright, iPhone 14 (WebKit) and Pixel 7 (Chromium) | Owner and guest journeys on the same images as production, through Caddy                                   | `apps/web/e2e/split-a-bill.spec.ts` |
+| Load                   | k6                                                    | Response time and errors on the live server; rate limit works through Caddy                                | `qa/k6/smoke.js` (run by hand)      |
+| Accuracy               | `qa/scripts/try-receipt.mjs`                          | How well Gemini reads real receipts                                                                        | [ocr-accuracy.md](ocr-accuracy.md)  |
+| Security               | Gitleaks, npm audit, Trivy, CodeQL                    | Leaked secrets, vulnerable packages, vulnerable image contents, unsafe code and workflows                  | [security.md](../docs/security.md)  |
+| Accessibility          | axe in the browser tests                              | No WCAG 2.1 A or AA violations on the main screens; any violation fails the required browser check         | `apps/web/e2e/split-a-bill.spec.ts` |
+| Mutation               | Stryker                                               | The split tests notice when the money maths is changed, not just run its lines                             | `apps/api/stryker.config.json`      |
+| Dynamic security       | OWASP ZAP baseline                                    | The running app: headers, cookies, error pages, information leaks                                          | `web-scan` job in `ci.yml`          |
+| Web performance        | Lighthouse                                            | Load speed, accessibility, best practice and SEO of the login page on a phone                              | `web-scan` job in `ci.yml`          |
 
 **Fakes keep tests fast, free and repeatable.** Gemini, Gmail, SNS and Telegram each sit behind an interface (ADR 003, ADR 004). Tests and CI use a Fake, so no test calls a paid or outside service and every run gives the same answer. The browser test reads the verify link from the API log written by the Fake email sender.
 
@@ -139,10 +147,13 @@ What is not tested, and why.
 
 - **PayNow QR in a real bank app.** The payload's checksum is checked by unit tests and once more with Python's `binascii.crc_hqx`, but nobody has scanned it with a banking app (KAN-61 was dropped on 23 Nov).
 - **SMS codes.** The SNS sender is built and unit tested, but a new AWS account on the free plan can't send SMS, so the live site uses the Telegram check instead.
-- **Browsers.** The browser tests run WebKit as an iPhone 14, because that is what iPhone users run. Chrome on Android and desktop browsers are only checked by hand.
+- **Browsers.** The browser tests run WebKit as an iPhone 14 and Chromium as a Pixel 7 (KAN-103). Firefox and desktop screen sizes are only checked by hand.
 - **Load.** 10 users for 1 minute from one runner in the US. A bigger test would need a second server to be meaningful.
 - **Receipts.** The accuracy test used 5 receipts. Faded, crumpled or handwritten receipts were not tried.
-- **Web coverage per folder.** The web gate is for the whole app (99% lines). `src/bills` on its own is at 83% lines; most of it is covered through the page tests.
+- **Web coverage of receipt scanning.** The web gate is for the whole app (99% lines). Receipt scanning on its own is at about 82% lines, because `image.ts` shrinks photos with a canvas, which the test browser (jsdom) does not have; it was checked in a real browser instead.
+- **Mutation testing covers the split engine only.** It is the code where a wrong answer costs money. Running Stryker on the whole API would take far longer on every PR. 21 of 217 changes to the split engine survived on 26 Nov: 12 only blank the text of an error message, 2 change the order people are sorted in, and the other 7 are shortcuts in the common-multiple helper, the tie-break for leftover cents, the shares branch and zero totals, where the bills in the tests come out the same either way. Each is listed in the mutation report.
+- **ZAP runs a baseline scan only.** It reads every response but does not attack the app (no active scan), so it finds missing headers and leaks, not injection bugs. Those are covered by validation tests and CodeQL.
+- **Lighthouse runs on the CI copy over plain HTTP**, so its HTTPS audits can't pass there; the live site is HTTPS only (HSTS).
 - **No visual regression tests.** Layout bugs (the white Google button, sheets cut off at the bottom) were found by looking, not by a test.
 
 ## How to run the tests

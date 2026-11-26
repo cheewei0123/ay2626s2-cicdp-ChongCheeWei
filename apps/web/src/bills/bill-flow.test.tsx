@@ -300,7 +300,9 @@ describe('Check items', () => {
     fakeApi({ ...me, 'GET /api/bills/b1': ok(dinner) });
     renderApp('/bills/b1/edit');
 
-    const beer = await screen.findByRole('button', { name: 'Edit Tiger Beer' });
+    const beer = await screen.findByRole('button', {
+      name: /^Edit Tiger Beer/,
+    });
     expect(beer).toHaveTextContent('2 × $8.00');
     expect(beer).toHaveTextContent('$16.00');
     const totals = screen.getByText('Our total').closest('dl')!;
@@ -331,7 +333,7 @@ describe('Check items', () => {
     await user.click(screen.getByRole('button', { name: 'Save item' }));
 
     expect(
-      await screen.findByRole('button', { name: 'Edit Laksa' }),
+      await screen.findByRole('button', { name: /^Edit Laksa/ }),
     ).toBeInTheDocument();
     expect(sentBody(fetchMock.mock.calls[2])).toEqual({
       name: 'Teh Tarik',
@@ -372,7 +374,9 @@ describe('Check items', () => {
     const user = userEvent.setup();
     renderApp('/bills/b1/edit');
 
-    await user.click(await screen.findByRole('button', { name: 'Edit Laksa' }));
+    await user.click(
+      await screen.findByRole('button', { name: /^Edit Laksa/ }),
+    );
     expect(screen.getByLabelText('Item')).toHaveValue('Laksa');
     expect(screen.getByLabelText('Price each ($)')).toHaveValue('7.50');
     await user.clear(screen.getByLabelText('Price each ($)'));
@@ -386,7 +390,9 @@ describe('Check items', () => {
       unitPriceCents: 800,
     });
 
-    await user.click(await screen.findByRole('button', { name: 'Edit Laksa' }));
+    await user.click(
+      await screen.findByRole('button', { name: /^Edit Laksa/ }),
+    );
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByLabelText('Item')).not.toBeInTheDocument();
   });
@@ -401,7 +407,7 @@ describe('Check items', () => {
     renderApp('/bills/b1/edit');
 
     await user.click(
-      await screen.findByRole('button', { name: 'Edit Chicken Rice' }),
+      await screen.findByRole('button', { name: /^Edit Chicken Rice/ }),
     );
     await user.click(screen.getByRole('button', { name: 'Delete item' }));
 
@@ -476,7 +482,7 @@ describe('Check items', () => {
     renderApp('/bills/b1/edit');
 
     await user.click(
-      await screen.findByRole('button', { name: 'Edit Chicken Rice' }),
+      await screen.findByRole('button', { name: /^Edit Chicken Rice/ }),
     );
     await user.click(screen.getByRole('button', { name: 'Delete item' }));
 

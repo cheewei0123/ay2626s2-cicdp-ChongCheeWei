@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// Browser tests (KAN-53): a real WebKit browser, sized like an iPhone, against the whole
+// Browser tests (KAN-53): real phone browsers (WebKit as an iPhone, Chromium as an
+// Android phone since KAN-103), against the whole
 // app running in Docker (infra/docker-compose.ci.yml). Start that first, then:
 //   npx playwright test
 export default defineConfig({
@@ -28,5 +29,7 @@ export default defineConfig({
   projects: [
     // iPhone 14: WebKit (Safari's engine), 390×664, touch, mobile user agent
     { name: 'iPhone 14', use: { ...devices['iPhone 14'] } },
+    // Pixel 7: Chromium (Chrome's engine) as an Android phone, touch (KAN-103)
+    { name: 'Pixel 7', use: { ...devices['Pixel 7'] } },
   ],
 });

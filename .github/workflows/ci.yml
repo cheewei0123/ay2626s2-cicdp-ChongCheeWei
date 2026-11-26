@@ -154,15 +154,19 @@ jobs:
       # Same command production will use: apply every committed migration in order
       - run: npx prisma migrate deploy
         working-directory: apps/api
-      - run: npm run test:e2e -w apps/api -- --reporter=default --reporter=json --outputFile.json=e2e-results.json
+      # With coverage since KAN-103 (no gate): what the real routes and database reach
+      - run: npm run test:e2e -w apps/api -- --coverage --reporter=default --reporter=json --outputFile.json=e2e-results.json
       - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
           name: e2e-results
-          path: apps/api/e2e-results.json
+          path: |
+            apps/api/e2e-results.json
+            apps/api/coverage-e2e
 
   # The top of the test pyramid (KAN-53): the real images (Caddy, API, Postgres) in Docker,
-  # driven by a real WebKit browser sized like an iPhone 14
+  # driven by real phone browsers: WebKit as an iPhone 14 and, since KAN-103, Chromium as
+  # a Pixel 7. axe checks the main screens for accessibility (WCAG 2.1 A and AA).
   e2e-browser:
     runs-on: ubuntu-latest
     env:
@@ -212,13 +216,91 @@ jobs:
       - if: failure()
         run: $COMPOSE logs api
 
-  # The QA report (KAN-102): reads the test jobs' results and lcov.info files and builds
-  # the site in qa/site. It runs even when a test job failed, so the report shows it.
+  # Mutation testing (KAN-103): Stryker changes the split engine (the money maths) in
+  # small ways, a + into a -, a < into a <=, and checks that a unit test fails for each.
+  # Coverage shows a line ran; this shows the tests would notice it going wrong.
+  # Fails below a 70% mutation score (stryker.config.json); not a required check.
+  mutation:
+    name: mutation testing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx stryker run
+        working-directory: apps/api
+        # Vitest adds a job summary on GitHub; Stryker runs it once per change, so turn it off
+        env:
+          GITHUB_ACTIONS: 'false'
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation
+          path: apps/api/reports/mutation
+
+  # Checks of the running app (KAN-103), on the same Docker stack as the browser tests:
+  # an OWASP ZAP baseline scan (it crawls the app and checks every response, without
+  # attacking it) and Lighthouse on the login page. Reported on the QA page, not required.
+  web-scan:
+    name: ZAP and Lighthouse
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE: docker compose -f infra/docker-compose.ci.yml
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Start the app on http://localhost:8080
+        run: |
+          $COMPOSE up -d --wait db
+          $COMPOSE run --rm migrate
+          $COMPOSE up -d --wait api web
+      # ZAP's own image, pinned to a release. -I: warnings don't fail the job; the QA
+      # report lists every alert. It writes zap.json and zap.html into scan/.
+      - name: ZAP baseline scan
+        run: |
+          mkdir -p scan && chmod 777 scan
+          docker run --rm --network host -v "$PWD/scan":/zap/wrk:rw \
+            ghcr.io/zaproxy/zaproxy:2.16.1 \
+            zap-baseline.py -t http://localhost:8080 -J zap.json -r zap.html -I
+      # Lighthouse (pinned) with the runner's own Chrome, as a phone (the default)
+      - name: Lighthouse on the login page
+        run: |
+          npx --yes lighthouse@13.6.0 http://localhost:8080/login \
+            --output json --output html --output-path scan/lighthouse \
+            --chrome-flags="--headless=new --no-sandbox" --quiet
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-scan
+          path: scan
+
+  # The QA report (KAN-102): reads the results of every CI job and the lcov.info files
+  # and builds the site in qa/site. It runs even when a job failed, so the report shows it.
   qa-report:
     name: QA report
-    needs: [test-api, test-web, test-e2e, e2e-browser]
+    needs:
+      [
+        gitleaks,
+        lint,
+        test-api,
+        test-web,
+        test-e2e,
+        e2e-browser,
+        docker-build,
+        npm-audit,
+        trivy,
+        mutation,
+        web-scan,
+      ]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    env:
+      NEEDS: ${{ toJSON(needs) }} # each job's result, for the "every check" table
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -252,6 +334,16 @@ jobs:
         with:
           name: playwright-report
           path: apps/web
+      - uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: mutation
+          path: apps/api/reports/mutation
+      - uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: web-scan
+          path: scan
       - run: npm run qa:report
       # Saved as the github-pages artifact; only a push to main publishes it (below)
       - uses: actions/upload-pages-artifact@v5
