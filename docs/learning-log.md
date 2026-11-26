@@ -2,6 +2,17 @@
 
 Short notes on what I learned and what went wrong, newest first. Used as evidence for the report.
 
+## KAN-103: Filling the gaps in the QA report
+
+- **Coverage is not proof the tests check anything.** Mutation testing (Stryker) changes the code, say `>=` to `>`, and reruns the tests; if they still pass, that change "survived" and no test really checks that line. The split engine scores 90% (196 of 217 caught). Most of the 21 survivors only blank an error message's text; the rest are shortcuts whose bills come out the same in every test. The score is Stryker's: caught over the ones that could be caught (killed + timed out, over those plus survived and not covered).
+- **`perTest` coverage keeps it fast.** Stryker first records which tests run each line, then runs only those tests for each change, instead of the whole suite 217 times.
+- **Every test, not just the counts.** Vitest's and Playwright's JSON list each test with its status and error, so the page shows failed tests by name. A test file that fails to load has no tests in it; it is listed as a failure, or it would vanish.
+- **Requirements to tests.** `qa/requirements.ts` names, for each FR in the report, the tests that prove it, by the start of the test's path. A test checks every name still matches a real file, so renaming a test can't quietly empty a row.
+- **Playwright tags** (`{ tag: ['@bills'] }`) put browser tests under features, and `@a11y` marks the ones with axe checks. axe reads the page as it is and lists WCAG problems; `expect.soft` lets one screen's problems show without stopping the rest of the journey.
+- **A second browser is one line.** Adding a Pixel 7 project runs the same journey in Chromium. Each project needs its own email, since both register a user in the same database.
+- **ZAP baseline and Lighthouse read, they don't attack.** ZAP's baseline scan looks at every response for missing headers and leaks; `-I` keeps warnings from failing the job, since the page shows them. Lighthouse runs against the CI copy over plain HTTP, so its HTTPS audits can't pass there.
+- **`toJSON(needs)`** gives the report job every job's result, so the page lists all the pipeline's checks, not just the tests.
+
 ## KAN-102: QA report published to GitHub Pages
 
 - **lcov is a file format, not just a tool.** Each source file gets a record: `SF` (the file), `LF`/`LH` (lines found and hit), `BRF`/`BRH` (branches), `FNF`/`FNH` (functions), then `end_of_record`. Vitest writes it with `reporter: ['text', 'lcov']`, which also writes the HTML report. Reading it myself (`parseLcov` in `qa/lcov.ts`) is one short loop, with no extra tool.

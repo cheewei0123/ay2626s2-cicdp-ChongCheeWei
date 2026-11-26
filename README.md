@@ -156,7 +156,7 @@ The browser tests run against the real images in Docker. How to start them is in
 
 **On merge to `main`**: build and push the images to GHCR (tagged with the commit SHA) → SSH to EC2 using AWS OIDC (no stored AWS keys) → `prisma migrate deploy` on RDS → start → health check → automatic rollback to the previous image if it fails. Merge to live takes about 2½ minutes.
 
-**QA report:** after the tests, CI builds a report from the results and the `lcov.info` coverage files; on `main` it is published to GitHub Pages: **[cheewei0123.github.io/ay2626s2-cicdp-ChongCheeWei](https://cheewei0123.github.io/ay2626s2-cicdp-ChongCheeWei/)** (test counts, coverage per folder against the gates, line-by-line coverage, the browser-test report). See [qa/](qa/).
+**QA report:** after the tests, CI builds a report from the results and the `lcov.info` coverage files; on `main` it is published to GitHub Pages: **[cheewei0123.github.io/ay2626s2-cicdp-ChongCheeWei](https://cheewei0123.github.io/ay2626s2-cicdp-ChongCheeWei/)** (tests and coverage by feature, failed tests, requirements and their tests, the gates, line-by-line coverage, accessibility, mutation testing, ZAP, Lighthouse, every pipeline job's result). See [qa/](qa/).
 
 **By hand:** a k6 load test against the live site (`k6.yml`, 10 users for 1 minute, with latency and error thresholds).
 

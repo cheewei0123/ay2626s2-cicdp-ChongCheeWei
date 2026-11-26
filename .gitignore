@@ -27,3 +27,9 @@ test-results.json
 e2e-results.json
 playwright-results.json
 qa/site
+
+# API e2e coverage, Stryker's reports and work folder, ZAP and Lighthouse output (KAN-103)
+coverage-e2e
+reports
+.stryker-tmp
+/scan
