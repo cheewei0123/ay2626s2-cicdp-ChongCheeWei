@@ -54,14 +54,14 @@ A test pyramid: many fast tests at the bottom, fewer slow ones at the top. Every
 
 ### Automated tests
 
-| Suite            | Files | Tests | Lines  | Branches |
-| ---------------- | ----- | ----- | ------ | -------- |
-| API unit         | 54    | 544   | 98.44% | 95.94%   |
-| Web              | 22    | 256   | 99.00% | 97.31%   |
-| API end-to-end   | 22    | 122   | n/a    | n/a      |
-| Browser (WebKit) | 1     | 3     | n/a    | n/a      |
+| Suite                        | Files | Tests | Lines  | Branches |
+| ---------------------------- | ----- | ----- | ------ | -------- |
+| API unit                     | 54    | 544   | 98.44% | 95.94%   |
+| Web                          | 22    | 256   | 99.00% | 97.31%   |
+| API end-to-end               | 22    | 122   | n/a    | n/a      |
+| Browser (iPhone 14, Pixel 7) | 1     | 8     | n/a    | n/a      |
 
-The browser tests: the web server sends the security headers; the owner registers, verifies the email, scans a receipt, fixes an item, shares the bill and pins it on My bills; a guest joins with the code, claims every item and sees the same total as the owner.
+The browser tests: the web server sends the security headers; the owner registers, verifies the email, scans a receipt, fixes an item, shares the bill and pins it on My bills; a guest joins with the code, claims every item and sees the same total as the owner. Each of these runs on both phones, and so does an axe check of the main screens: 4 tests on each phone, 8 in all (26 Nov).
 
 ### Coverage by folder (API, gated at 90%)
 
