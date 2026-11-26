@@ -9,6 +9,7 @@ Short notes on what I learned and what went wrong, newest first. Used as evidenc
 - **Undo instead of "Are you sure?".** The row goes at once and the delete is only sent after 5 seconds, or when you leave the page. That is safer than a confirm box people tap through, and the API rule stays: a locked bill (maybe paid) can't be deleted.
 - **Pinning is a column, not a list.** `pinnedAt` (null = not pinned) sorts the list in one query: `ORDER BY pinnedAt DESC NULLS LAST, createdAt DESC`. It is its own route, not part of `PATCH /bills/:id`, because a locked bill can't be edited but can still be pinned.
 - **Gestures are hidden, so there is always another way:** a long press, and a "More" button for keyboards and screen readers.
+- **A mouse moves without being pressed.** On a computer, just hovering over a bill slid it open towards Pin: a finger only sends `pointermove` while touching, but a mouse sends it all the time, and the row treated every move as a swipe. The row now only swipes while a pointer is pressed, and a mouse move with no button held ends the press (the button was let go outside the row). The phone tests had all passed, because a finger can't hover.
 
 ## KAN-100: Browser tests in the Playwright image
 

@@ -26,7 +26,14 @@ export function SwipeRow(props: {
   const { start, end, side, onSide, onHold } = props;
   const [drag, setDrag] = useState<number | null>(null); // px, while a finger is down
   const [width, setWidth] = useState(320); // the row's width, measured on touch
-  const touch = useRef({ x: 0, y: 0, from: 0, mode: '', timer: 0 });
+  const touch = useRef({
+    x: 0,
+    y: 0,
+    from: 0,
+    mode: '',
+    timer: 0,
+    down: false,
+  });
   const swallowClick = useRef(false);
 
   const endWidth = end.length * BUTTON;
@@ -44,6 +51,7 @@ export function SwipeRow(props: {
       y: e.clientY,
       from: rest,
       mode: '',
+      down: true,
       timer: window.setTimeout(() => {
         swallowClick.current = true;
         buzz();
@@ -54,6 +62,10 @@ export function SwipeRow(props: {
 
   function move(e: React.PointerEvent<HTMLDivElement>) {
     const t = touch.current;
+    // A mouse sends moves while it only hovers; only a pressed pointer can swipe.
+    // No button held means it was let go outside the row, so the press is over.
+    if (e.pointerType === 'mouse' && !e.buttons) t.down = false;
+    if (!t.down) return;
     const dx = e.clientX - t.x;
     const dy = e.clientY - t.y;
     if (!t.mode) {
@@ -72,6 +84,7 @@ export function SwipeRow(props: {
 
   function up() {
     clearTimeout(touch.current.timer);
+    touch.current.down = false;
     if (drag === null) return;
     setDrag(null);
     if (drag > 0 && long(drag)) {
