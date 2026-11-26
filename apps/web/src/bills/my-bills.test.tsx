@@ -213,6 +213,33 @@ describe('Swiping a bill', () => {
     expect(router.state.location.pathname).toBe('/bills');
   });
 
+  it('a mouse hovering over a bill does not slide it open', async () => {
+    setup([dinner]);
+    const row = await swipeOf('Dinner');
+    fireEvent.pointerMove(row, { clientX: 200, clientY: 0, pointerId: 1 });
+    fireEvent.pointerMove(row, { clientX: 300, clientY: 0, pointerId: 1 });
+    expect(screen.queryByRole('button', { name: 'Pin' })).toBeNull();
+    // and after a real swipe ends, hovering again does not drag the row
+    swipe(row, 20);
+    fireEvent.pointerMove(row, { clientX: 300, clientY: 0, pointerId: 1 });
+    expect(screen.queryByRole('button', { name: 'Pin' })).toBeNull();
+  });
+
+  it('a mouse let go outside the row does not drag it when it comes back', async () => {
+    setup([dinner]);
+    const row = await swipeOf('Dinner');
+    fireEvent.pointerDown(row, { clientX: 0, clientY: 0, pointerId: 1 });
+    // the button came up somewhere else, so the row never heard pointerup
+    fireEvent.pointerMove(row, {
+      clientX: 300,
+      clientY: 0,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 0,
+    });
+    expect(screen.queryByRole('button', { name: 'Pin' })).toBeNull();
+  });
+
   it('a tap on an open row closes it instead of opening the bill', async () => {
     const { router } = setup([dinner], { 'GET /api/bills/b1': ok(dinner) });
     const row = await swipeOf('Dinner');
