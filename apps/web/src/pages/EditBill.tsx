@@ -78,14 +78,14 @@ export default function EditBill() {
             <li key={item.id}>
               <button
                 type="button"
-                aria-label={`Edit ${item.name}`}
                 onClick={() => setEditing(item.id)}
                 className={row}
               >
                 <Initial of={item.name} />
                 <span className="min-w-0 flex-1">
+                  {/* Named by what it shows (WCAG 2.5.3, KAN-103): "Edit Laksa 1 × $8.50 $8.50" */}
                   <span className="block truncate font-medium">
-                    {item.name}
+                    <span className="sr-only">Edit</span> {item.name}
                   </span>
                   <span className="text-sm text-muted">
                     {item.quantity} × {formatCents(item.unitPriceCents)}
